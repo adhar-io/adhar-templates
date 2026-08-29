@@ -1,0 +1,18 @@
+# Cloud Native Buildpacks build config. The Node.js buildpack runs `ng build`
+# (Angular application builder → dist/<name>/browser), then the web-servers
+# buildpack serves it with nginx. PUSH_STATE serves index.html for SPA routes.
+[[build.env]]
+name = "BP_NODE_RUN_SCRIPTS"
+value = "build"
+
+[[build.env]]
+name = "BP_WEB_SERVER"
+value = "nginx"
+
+[[build.env]]
+name = "BP_WEB_SERVER_ROOT"
+value = "dist/${{ values.name }}/browser"
+
+[[build.env]]
+name = "BP_WEB_SERVER_ENABLE_PUSH_STATE"
+value = "true"

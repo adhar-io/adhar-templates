@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven settings used by the buildpack (BP_MAVEN_SETTINGS_PATH=settings.xml).
+     Activates the Gitea Maven registry for ALL resolution, including the
+     adhar-kit-parent parent POM (which the pom's own <repositories> cannot do).
+     Public read assumed; add a matching <server> with credentials if the Gitea
+     org packages are private. -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <profiles>
+    <profile>
+      <id>gitea</id>
+      <repositories>
+        <repository>
+          <id>gitea-adhar</id>
+          <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>gitea-adhar</id>
+          <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>gitea</activeProfile>
+  </activeProfiles>
+</settings>

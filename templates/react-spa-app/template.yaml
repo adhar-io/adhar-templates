@@ -1,7 +1,7 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: react-spa
+  name: react-spa-app
   title: React SPA (Adhar UI)
   description: >-
     A React single-page app pre-wired with the Adhar UI design system

@@ -1,24 +1,23 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: springboot-service
-  title: Spring Boot Service (Adhar Kit)
+  name: angular-spa-app
+  title: Angular SPA (Adhar UI)
   description: >-
-    A Spring Boot microservice pre-configured with Adhar Kit (adhar-kit-starter:
-    observability, security, resilience, health) resolved from the Gitea Maven
-    registry. Buildpacks build, trivy scan + cosign sign, kyverno verification,
-    GitOps deploy with Argo Rollouts, optional CloudNativePG database, and
-    OpenTelemetry out of the box.
+    An Angular single-page app pre-wired with the Adhar UI design system
+    (@adhar-ui/angular + Tailwind v4 preset + tokens). Built with the Angular CLI,
+    served by nginx via buildpacks, and shipped through Adhar's secure supply
+    chain — trivy scan + cosign sign, kyverno verification, GitOps deploy with
+    Argo Rollouts.
   tags:
     - recommended
-    - java
-    - springboot
-    - adhar-kit
+    - angular
+    - frontend
+    - adhar-ui
     - supply-chain
-    - observability
 spec:
   owner: group:platform-engineers
-  type: service
+  type: website
 
   parameters:
     - title: Application
@@ -27,7 +26,7 @@ spec:
         name:
           title: Name
           type: string
-          description: Unique name of the service (lowercase, DNS-friendly)
+          description: Unique name of the app (lowercase, DNS-friendly)
           pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
           maxLength: 40
           ui:autofocus: true
@@ -50,13 +49,6 @@ spec:
           default: 1
           minimum: 1
           maximum: 5
-        withDatabase:
-          title: Provision a PostgreSQL database
-          type: boolean
-          default: false
-          description: >-
-            Creates a managed CloudNativePG Postgres cluster and wires it into
-            Spring via SPRING_DATASOURCE_*.
 
     - title: Repository
       required: [repoUrl]
@@ -81,7 +73,7 @@ spec:
             plural: clusterbuilders
 
     - id: template
-      name: Generate the service
+      name: Generate the app
       action: fetch:template
       input:
         url: ./skeleton
@@ -90,7 +82,6 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           replicas: ${{ parameters.replicas }}
-          withDatabase: ${{ parameters.withDatabase }}
           port: 8080
           hostname: ${{ parameters.name }}.adhar.localtest.me
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}

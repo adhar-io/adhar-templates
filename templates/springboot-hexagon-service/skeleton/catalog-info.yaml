@@ -1,0 +1,21 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description }}
+  annotations:
+    argocd/app-name: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
+  tags:
+    - java
+    - springboot
+    - hexagonal
+    - adhar-kit
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{ values.owner }}
+{%- if values.withDatabase %}
+  dependsOn:
+    - resource:default/${{ values.name }}-db
+{%- endif %}

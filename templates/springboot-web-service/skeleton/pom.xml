@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Adhar Kit parent — production defaults (Spring Boot, observability,
+       security, resilience). Resolved from the Gitea Maven registry (see
+       settings.xml). -->
+  <parent>
+    <groupId>com.adhar.kit</groupId>
+    <artifactId>adhar-kit-parent</artifactId>
+    <version>0.1.0</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.adhar.service</groupId>
+  <artifactId>${{ values.name }}</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>${{ values.name }}</name>
+  <description>${{ values.description }}</description>
+
+  <dependencies>
+    <!-- Batteries-included starter: web, actuator/health, tracing, metrics,
+         logging, security, resilience. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-starter</artifactId>
+    </dependency>
+{%- if values.withDatabase %}
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-persistence</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+{%- endif %}
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Produces the executable jar buildpacks turn into the image. -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- Also declared for dependency resolution; parent resolution uses
+       settings.xml (BP_MAVEN_SETTINGS_PATH). -->
+  <repositories>
+    <repository>
+      <id>gitea-adhar</id>
+      <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>gitea-adhar</id>
+      <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+    </pluginRepository>
+  </pluginRepositories>
+</project>

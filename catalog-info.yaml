@@ -16,5 +16,9 @@ spec:
     - ./templates/nodejs-web-service/template.yaml
     - ./templates/go-web-service/template.yaml
     - ./templates/python-web-service/template.yaml
-    - ./templates/springboot-service/template.yaml
-    - ./templates/react-spa/template.yaml
+    - ./templates/springboot-web-service/template.yaml
+    - ./templates/react-spa-app/template.yaml
+    - ./templates/quarkus-web-service/template.yaml
+    - ./templates/springboot-hexagon-service/template.yaml
+    - ./templates/angular-spa-app/template.yaml
+    - ./templates/tanstack-start-fullstack-app/template.yaml

@@ -1,0 +1,6 @@
+# Cloud Native Buildpacks build config. The Node.js buildpack runs `npm run
+# build` (Vite → TanStack Start Nitro server in .output/), and the Procfile
+# starts the Node server. Nitro listens on $PORT (set by the Rollout).
+[[build.env]]
+name = "BP_NODE_RUN_SCRIPTS"
+value = "build"
