@@ -1,5 +1,5 @@
 # Secure build — runs on every ArgoCD sync (i.e. when you push code), as a Sync
-# hook so it re-runs cleanly instead of drifting. The build-buildpacks pipeline
+# hook so it re-runs cleanly instead of drifting. The build-python pipeline
 # (from the supply-chain package) does, in order:
 #   git-clone → buildpacks build → push to Harbor → trivy scan → cosign sign.
 # Only a scanned + signed image lands in Harbor; kyverno then admits only that
@@ -17,7 +17,7 @@ metadata:
     adhar.io/supply-chain: "true"
 spec:
   pipelineRef:
-    name: build-buildpacks
+    name: build-python
   taskRunTemplate:
     serviceAccountName: adhar-pipeline
   params:
