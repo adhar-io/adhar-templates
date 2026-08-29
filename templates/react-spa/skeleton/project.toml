@@ -1,0 +1,18 @@
+# Cloud Native Buildpacks build config. The Node.js buildpack runs `npm run
+# build` (Vite → dist/), then the web-servers buildpack serves dist/ with nginx.
+# ENABLE_PUSH_STATE makes nginx serve index.html for client-side routes (SPA).
+[[build.env]]
+name = "BP_NODE_RUN_SCRIPTS"
+value = "build"
+
+[[build.env]]
+name = "BP_WEB_SERVER"
+value = "nginx"
+
+[[build.env]]
+name = "BP_WEB_SERVER_ROOT"
+value = "dist"
+
+[[build.env]]
+name = "BP_WEB_SERVER_ENABLE_PUSH_STATE"
+value = "true"

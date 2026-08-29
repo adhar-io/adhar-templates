@@ -1,0 +1,6 @@
+# Cloud Native Buildpacks build config. Point the Java buildpack's Maven at the
+# committed settings.xml so adhar-kit (parent + starter) resolves from the Gitea
+# Maven registry.
+[[build.env]]
+name = "BP_MAVEN_SETTINGS_PATH"
+value = "settings.xml"

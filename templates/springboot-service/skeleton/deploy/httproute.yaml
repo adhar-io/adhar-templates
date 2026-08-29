@@ -1,0 +1,23 @@
+# Routed through the Cilium Gateway (adhar-gateway) at
+# https://${{ values.hostname }}:8443
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ${{ values.name }}
+  namespace: adhar-system
+  labels:
+    app: ${{ values.name }}
+spec:
+  parentRefs:
+    - name: adhar-gateway
+      namespace: adhar-system
+  hostnames:
+    - "${{ values.hostname }}"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ${{ values.name }}
+          port: 80

@@ -16,3 +16,5 @@ spec:
     - ./templates/nodejs-web-service/template.yaml
     - ./templates/go-web-service/template.yaml
     - ./templates/python-web-service/template.yaml
+    - ./templates/springboot-service/template.yaml
+    - ./templates/react-spa/template.yaml
