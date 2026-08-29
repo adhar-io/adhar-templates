@@ -1,0 +1,139 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: go-web-service
+  title: Go Web Service
+  description: >-
+    A production-shaped Go (net/http) web service wired into Adhar's secure
+    supply chain — buildpacks build + cosign signing, kyverno signature
+    verification, GitOps deploy via ArgoCD, and an optional managed PostgreSQL
+    database. Source + GitOps config land in your own Gitea repo to customise.
+  tags:
+    - recommended
+    - go
+    - web
+    - supply-chain
+    - observability
+spec:
+  owner: group:platform-engineers
+  type: service
+
+  parameters:
+    - title: Application
+      required: [name]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the service (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: What does this service do?
+        owner:
+          title: Owner
+          type: string
+          description: Team that owns this service
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+
+    - title: Runtime
+      properties:
+        port:
+          title: Container port
+          type: integer
+          default: 3000
+        replicas:
+          title: Replicas
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 5
+        withDatabase:
+          title: Provision a PostgreSQL database
+          type: boolean
+          default: false
+          description: >-
+            Creates a managed CloudNativePG Postgres cluster and injects its
+            connection string into the app as DATABASE_URL.
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          description: Gitea repository to create for this service
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - adhar.localtest.me:8443
+
+  steps:
+    # Fail fast with a friendly message if the supply chain isn't installed.
+    - id: verify
+      name: Verify platform dependencies
+      action: cnoe:verify:dependency
+      input:
+        verifiers:
+          - kind: CustomResourceDefinition
+            group: kpack.io
+            version: v1alpha2
+            plural: clusterbuilders
+
+    - id: template
+      name: Generate the service
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          port: ${{ parameters.port }}
+          replicas: ${{ parameters.replicas }}
+          withDatabase: ${{ parameters.withDatabase }}
+          hostname: ${{ parameters.name }}.adhar.localtest.me
+          # Parsed from the RepoUrlPicker so the in-cluster build can clone the
+          # app's own Gitea repo.
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+
+    - id: publish
+      name: Publish to Gitea
+      action: publish:gitea
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: create-argocd-app
+      name: Create ArgoCD deployment
+      action: cnoe:create-argocd-app
+      input:
+        appName: ${{ parameters.name }}
+        appNamespace: adhar-system
+        argoInstance: local
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: "deploy"
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Source repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

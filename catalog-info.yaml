@@ -1,0 +1,18 @@
+# Backstage Location entity — registers every Adhar template with the Console
+# catalog. The platform bootstrap points a catalog location at this file (mirrored
+# into Gitea), so all templates below appear under "Create" automatically.
+#
+# Home: https://github.com/adhar-io/adhar-templates
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: adhar-templates
+  description: Adhar base application templates (secure supply chain, out of the box)
+  annotations:
+    backstage.io/managed-by-location: url:https://github.com/adhar-io/adhar-templates/blob/main/catalog-info.yaml
+spec:
+  type: url
+  targets:
+    - ./templates/nodejs-web-service/template.yaml
+    - ./templates/go-web-service/template.yaml
+    - ./templates/python-web-service/template.yaml

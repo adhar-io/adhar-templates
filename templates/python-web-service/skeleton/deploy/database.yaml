@@ -1,0 +1,29 @@
+{%- if values.withDatabase %}
+# Managed PostgreSQL via CloudNativePG. The operator creates a Secret
+# `${{ values.name }}-db-app` containing a ready-to-use `uri` (DATABASE_URL),
+# which rollout.yaml injects into the app. ServerSideApply is required for CNPG
+# Clusters (otherwise ArgoCD's sync force-fails and drops the workload).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ${{ values.name }}-db
+  namespace: adhar-system
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  labels:
+    app: ${{ values.name }}
+spec:
+  instances: 1
+  storage:
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+{%- endif %}
