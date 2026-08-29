@@ -17,7 +17,7 @@ infra tickets.
  Gitea  ──catalog──►  Adhar Console (Create)
                             │  developer fills the form (dynamic values)
                             ▼
-   fetch:template → publish:gitea → cnoe:kubernetes:apply → catalog:register
+   fetch:template → publish:gitea → adhar:kubernetes:apply → catalog:register
                             │
       the scaffolded app lands in its OWN Gitea repo (source + deploy/) so the
       team can customise + maintain it, and an ArgoCD Application is applied that:

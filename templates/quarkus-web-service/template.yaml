@@ -65,16 +65,6 @@ spec:
               - adhar.localtest.me:8443
 
   steps:
-    - id: verify
-      name: Verify platform dependencies
-      action: cnoe:verify:dependency
-      input:
-        verifiers:
-          - kind: CustomResourceDefinition
-            group: kpack.io
-            version: v1alpha2
-            plural: clusterbuilders
-
     - id: template
       name: Generate the service
       action: fetch:template
@@ -101,7 +91,7 @@ spec:
 
     - id: create-argocd-app
       name: Create ArgoCD deployment
-      action: cnoe:create-argocd-app
+      action: adhar:create-argocd-app
       input:
         appName: ${{ parameters.name }}
         appNamespace: adhar-system

@@ -1,0 +1,36 @@
+# Org data for the Adhar Console catalog — the owner groups the templates
+# reference (spec.owner) and the OwnerPicker offers. Extend with your real teams.
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-engineers
+  description: Platform engineering team — owns platform services and templates
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: application-admins
+  description: Application administrators
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  description: Developers
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+spec:
+  memberOf:
+    - platform-engineers
