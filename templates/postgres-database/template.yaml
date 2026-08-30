@@ -1,0 +1,88 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: postgres-database
+  title: PostgreSQL Database
+  description: >-
+    Self-service PostgreSQL database, provisioned through the Adhar control plane
+    (Crossplane). On the local platform it composes a CloudNativePG cluster in
+    your namespace; the same request maps to AWS RDS / Azure SQL / GCP CloudSQL
+    in cloud environments. A connection Secret `<name>-app` is created.
+  tags:
+    - recommended
+    - database
+    - postgresql
+    - self-service
+    - crossplane
+spec:
+  owner: group:platform-engineers
+  type: resource
+
+  parameters:
+    - title: Database
+      required: [name, owner]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+        namespace:
+          title: Namespace
+          type: string
+          default: adhar-system
+        engineVersion:
+          title: PostgreSQL version
+          type: string
+          default: "16"
+          enum: ["15", "16", "17"]
+        storageSize:
+          title: Storage size
+          type: string
+          default: "1Gi"
+
+  steps:
+    - id: render
+      name: Render the database claim
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          namespace: ${{ parameters.namespace }}
+          owner: ${{ parameters.owner }}
+          engineVersion: ${{ parameters.engineVersion }}
+          storageSize: ${{ parameters.storageSize }}
+
+    - id: apply
+      name: Provision via Crossplane
+      action: adhar:kubernetes:apply
+      input:
+        namespaced: true
+        manifestPath: database.yaml
+        clusterName: local
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: ./catalog-info.yaml
+        optional: true
+
+  output:
+    text:
+      - title: Provisioning
+        content: |
+          Database **${{ parameters.name }}** is being provisioned by Crossplane.
+          Connection details land in Secret `${{ parameters.name }}-app`
+          (keys: uri, jdbc-uri, username, password, host, port, dbname) in
+          namespace `${{ parameters.namespace }}`.

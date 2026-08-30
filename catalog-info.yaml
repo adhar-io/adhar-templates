@@ -22,3 +22,7 @@ spec:
     - ./templates/springboot-hexagon-service/template.yaml
     - ./templates/angular-spa-app/template.yaml
     - ./templates/tanstack-start-fullstack-app/template.yaml
+    - ./templates/postgres-database/template.yaml
+    - ./templates/redis-cache/template.yaml
+    - ./templates/object-bucket/template.yaml
+    - ./templates/kafka-cluster/template.yaml

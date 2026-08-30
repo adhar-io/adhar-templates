@@ -1,0 +1,78 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: kafka-cluster
+  title: Kafka Cluster
+  description: >-
+    Self-service Apache Kafka, provisioned through the Adhar control plane
+    (Crossplane) as a CompositeMessaging. On the local platform it composes a
+    single-node Strimzi Kafka (KRaft) with your topics, in your namespace.
+    Bootstrap: <name>-kafka-bootstrap:9092.
+  tags:
+    - kafka
+    - messaging
+    - streaming
+    - self-service
+    - crossplane
+spec:
+  owner: group:platform-engineers
+  type: resource
+
+  parameters:
+    - title: Kafka
+      required: [name, owner]
+      properties:
+        name:
+          title: Name
+          type: string
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+        namespace:
+          title: Namespace
+          type: string
+          default: adhar-system
+        topic:
+          title: Initial topic name
+          type: string
+          default: events
+        partitions:
+          title: Partitions
+          type: integer
+          default: 3
+
+  steps:
+    - id: render
+      name: Render the Kafka claim
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          namespace: ${{ parameters.namespace }}
+          topic: ${{ parameters.topic }}
+          partitions: ${{ parameters.partitions }}
+
+    - id: apply
+      name: Provision via Crossplane
+      action: adhar:kubernetes:apply
+      input:
+        namespaced: true
+        manifestPath: kafka.yaml
+        clusterName: local
+
+  output:
+    text:
+      - title: Provisioning
+        content: |
+          Kafka **${{ parameters.name }}** is being provisioned (single-node
+          Strimzi KRaft). Bootstrap servers:
+          `${{ parameters.name }}-kafka-bootstrap.${{ parameters.namespace }}.svc:9092`.
+          Topic `${{ parameters.topic }}` is created.
