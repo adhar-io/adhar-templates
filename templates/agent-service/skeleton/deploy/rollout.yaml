@@ -1,0 +1,110 @@
+# Progressive delivery with Argo Rollouts (canary). The image is the SIGNED
+# Harbor image; kyverno verify-supply-chain-images admits it only if
+# cosign-signed, so what runs is exactly what was scanned + signed.
+#
+# This runs INSIDE the agent's isolated namespace (created by agentworkload.yaml).
+# The pod carries the agent's gateway identity as a PROJECTED token with audience
+# `agentgateway` — never the default ServiceAccount token, which has the
+# Kubernetes API as its audience and would be a credential the agent has no
+# business holding.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.name }}-dev
+  labels:
+    app: ${{ values.name }}
+    adhar.io/agent: ${{ values.name }}
+spec:
+  replicas: ${{ values.replicas }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  strategy:
+    canary:
+      steps:
+        - setWeight: 25
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: ${{ values.name }}
+        # Attribution: every span, metric and policy report names the agent.
+        adhar.io/agent: ${{ values.name }}
+    spec:
+      serviceAccountName: agent
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      imagePullSecrets:
+        - name: harbor-pull
+      volumes:
+        - name: gateway-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: agentgateway
+                  expirationSeconds: 3600
+                  path: token
+      containers:
+        - name: agent
+          image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+          ports:
+            - containerPort: ${{ values.port }}
+          volumeMounts:
+            - name: gateway-token
+              mountPath: /var/run/agent
+              readOnly: true
+          env:
+            - name: PORT
+              value: "${{ values.port }}"
+            # The ONE URL for every model and every tool. The agent picks a model
+            # by name; routing, keys, guardrails and budgets live in the gateway.
+            - name: AI_GATEWAY_URL
+              value: "http://adhar-ai-gateway.adhar-system.svc.cluster.local:8080"
+            - name: AI_GATEWAY_TOKEN_FILE
+              value: /var/run/agent/token
+            - name: AGENT_SYSTEM_PROMPT
+              value: ${{ values.systemPrompt | dump }}
+            # OpenTelemetry — traces and metrics over OTLP to the Alloy collector,
+            # which fans out to Tempo and Mimir. The trace an LLM call starts here
+            # continues through the gateway (W3C traceparent), so one trace shows
+            # the agent step, the gateway hop, and the provider latency.
+            - name: OTEL_SERVICE_NAME
+              value: "${{ values.name }}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://alloy.adhar-system.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            # adhar.agent / adhar.environment are ALSO injected by the platform's
+            # Kyverno pack from the namespace labels (ADHAR_AGENT, ADHAR_ENVIRONMENT);
+            # the SDK reads those so a renamed namespace cannot desync them.
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=adhar,adhar.agent=${{ values.name }},deployment.environment=dev"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+          readinessProbe:
+            httpGet: { path: /healthz, port: ${{ values.port }} }
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: ${{ values.port }} }
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }

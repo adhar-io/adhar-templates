@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: ${{ values.orgId }}
+  title: ${{ values.displayName }}
+  description: ${{ values.description }}
+  annotations:
+    adhar.io/hierarchy: organisation
+spec:
+  type: organisation
+  profile:
+    displayName: ${{ values.displayName }}
+  children: []

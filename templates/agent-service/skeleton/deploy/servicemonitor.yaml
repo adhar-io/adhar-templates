@@ -1,0 +1,19 @@
+# Scraped by kube-prometheus (it selects every ServiceMonitor). The agent also
+# PUSHES OTLP metrics to the collector; this covers the SDK-exposed /metrics for
+# anything that prefers pull.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.name }}-dev
+  labels:
+    app: ${{ values.name }}
+    adhar.io/agent: ${{ values.name }}
+spec:
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

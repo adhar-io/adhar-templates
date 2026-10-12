@@ -26,4 +26,43 @@ spec:
       memory: 128Mi
     limits:
       memory: 256Mi
+  # Backed up from day one. Every platform database ships with WAL archiving to
+  # the platform object store plus a daily base backup (ADR-0021); a service
+  # database that did not was the most common reason a golden-path service
+  # scored below B on the readiness scorecard, and a database with no backup is
+  # not "managed" in any sense that matters at 3am.
+  #
+  # Credentials are the platform's S3 root credential, read by reference — the
+  # same Secret every other CNPG cluster uses. Nothing here holds a key.
+  backup:
+    retentionPolicy: 7d
+    barmanObjectStore:
+      destinationPath: s3://adhar-backups/cnpg/${{ values.name }}-db
+      endpointURL: http://rustfs.adhar-system.svc.cluster.local:9000
+      wal:
+        compression: gzip
+      s3Credentials:
+        accessKeyId:
+          name: root-creds
+          key: rootUser
+        secretAccessKey:
+          name: root-creds
+          key: rootPassword
+---
+# The base backup the WAL archive above is restored onto. WAL alone is a log
+# with nowhere to replay from.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: ${{ values.name }}-db-daily
+  namespace: adhar-system
+  labels:
+    app: ${{ values.name }}
+spec:
+  # 03:xx — after the platform's own databases (02:30–02:55), so a fleet of
+  # services does not contend with Keycloak and Gitea for the object store.
+  schedule: "0 15 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: ${{ values.name }}-db
 {%- endif %}

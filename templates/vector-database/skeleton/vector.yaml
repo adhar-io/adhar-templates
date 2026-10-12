@@ -1,0 +1,22 @@
+# Qdrant vector database request — the Adhar control plane (Crossplane) installs
+# and configures Qdrant from this.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Vector
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.namespace }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    platform.adhar.io/self-service: "true"
+spec:
+  parameters:
+    organisation: ${{ values.organisation }}
+    team: ${{ values.team }}
+    project: "${{ values.project }}"
+    environment: ${{ values.environment }}
+    replicas: ${{ values.replicas }}
+    storageSize: ${{ values.storageSize }}
+    collections:
+      - name: ${{ values.collectionName }}
+        vectorSize: ${{ values.vectorSize }}
+        distance: ${{ values.distance }}

@@ -1,0 +1,109 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: search-cluster
+  title: Search Cluster (OpenSearch)
+  description: >-
+    Self-service OpenSearch cluster, provisioned through the Adhar control plane
+    (Crossplane Search) and run by the platform's OpenSearch operator in
+    your namespace. Generated admin credentials, TLS, Prometheus metrics, an
+    index-lifecycle policy and a daily snapshot into the platform object store
+    come with it. Connection details land in Secret `<name>-admin-credentials`.
+  tags:
+    - recommended
+    - search
+    - opensearch
+    - self-service
+    - crossplane
+spec:
+  owner: group:platform-engineers
+  type: resource
+
+  parameters:
+    - title: Cluster
+      required: [name, owner]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name (lowercase, DNS-friendly); also the in-cluster hostname
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+        namespace:
+          title: Namespace
+          type: string
+          description: The project environment namespace this cluster lives in (e.g. shop-dev)
+          default: adhar-system
+    - title: Ownership
+      properties:
+        organisation: { title: Organisation, type: string, default: adhar }
+        team: { title: Team, type: string, default: platform }
+        project: { title: Project, type: string, default: "" }
+        environment:
+          title: Environment
+          type: string
+          enum: [dev, test, prod]
+          default: dev
+    - title: Capacity
+      properties:
+        nodes:
+          title: Nodes
+          type: integer
+          description: One is a development cluster; three or more form a quorum
+          default: 1
+          minimum: 1
+          maximum: 9
+        storageSize: { title: Storage per node, type: string, default: 20Gi }
+        dashboards:
+          title: Run OpenSearch Dashboards
+          type: boolean
+          default: false
+        snapshots:
+          title: Daily snapshot to the platform object store
+          type: boolean
+          default: true
+
+  steps:
+    - id: render
+      name: Render the search request
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          namespace: ${{ parameters.namespace }}
+          owner: ${{ parameters.owner }}
+          organisation: ${{ parameters.organisation }}
+          team: ${{ parameters.team }}
+          project: ${{ parameters.project }}
+          environment: ${{ parameters.environment }}
+          nodes: ${{ parameters.nodes }}
+          storageSize: ${{ parameters.storageSize }}
+          dashboards: ${{ parameters.dashboards }}
+          snapshots: ${{ parameters.snapshots }}
+
+    - id: apply
+      name: Provision via Crossplane
+      action: adhar:kubernetes:apply
+      input:
+        namespaced: true
+        manifestPath: search.yaml
+        clusterName: local
+
+  output:
+    text:
+      - title: Provisioning
+        content: |
+          Search cluster **${{ parameters.name }}** is being provisioned by Crossplane.
+          REST endpoint `https://${{ parameters.name }}.${{ parameters.namespace }}.svc.cluster.local:9200`;
+          admin credentials and a ready `uri` land in Secret `${{ parameters.name }}-admin-credentials`
+          (keys: username, password, host, port, uri) in namespace `${{ parameters.namespace }}`.
+          `kubectl get search -n ${{ parameters.namespace }} ${{ parameters.name }}` shows phase and health.

@@ -1,0 +1,26 @@
+# TechDocs for ${{ values.name }}.
+#
+# The platform renders this with MkDocs when a TechDocs builder is configured,
+# and Gitea renders `docs/` as plain Markdown regardless — so these pages are
+# readable from the repo on day one without any pipeline.
+site_name: ${{ values.name }}
+site_description: ${{ values.description }}
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+    - scheme: slate
+      primary: indigo
+
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Operations: operations.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences

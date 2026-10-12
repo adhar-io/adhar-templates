@@ -1,0 +1,88 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: project
+  title: Project
+  description: >-
+    A Project owned by a Team. Provisions — via the Adhar control plane
+    (Crossplane Project) — a guard-railed namespace, an ArgoCD AppProject,
+    and its own Gitea repository. Applications are created inside a Project.
+  tags: [project, hierarchy, self-service, crossplane, gitops]
+spec:
+  owner: group:platform-engineers
+  type: system
+  parameters:
+    - title: Ownership
+      required: [organisation, team, name]
+      properties:
+        organisation:
+          title: Organisation
+          type: string
+          description: Owning organisation
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group]
+        team:
+          title: Team
+          type: string
+          description: Owning team
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group]
+        name:
+          title: Project name
+          type: string
+          description: Also the project's home (Kargo) namespace; its environments are <name>-dev, <name>-test and <name>-prod
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          ui:autofocus: true
+        description: { title: Description, type: string, default: "" }
+    - title: Guardrails
+      properties:
+        tier:
+          title: Tier
+          type: string
+          enum: [dev, test, prod]
+          default: dev
+        cpuQuota: { title: CPU quota, type: string, default: "4" }
+        memoryQuota: { title: Memory quota, type: string, default: 8Gi }
+        podQuota: { title: Pod quota, type: integer, default: 30 }
+        createRepository: { title: Create a Gitea repository, type: boolean, default: true }
+  steps:
+    - id: render
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          organisation: ${{ parameters.organisation }}
+          team: ${{ parameters.team }}
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          tier: ${{ parameters.tier }}
+          cpuQuota: ${{ parameters.cpuQuota }}
+          memoryQuota: ${{ parameters.memoryQuota }}
+          podQuota: ${{ parameters.podQuota }}
+          createRepository: ${{ parameters.createRepository }}
+    - id: apply
+      action: adhar:kubernetes:apply
+      input:
+        namespaced: true
+        manifestPath: project.yaml
+        clusterName: local
+    - id: register
+      action: catalog:register
+      input:
+        catalogInfoUrl: http://gitea-http.adhar-system.svc.cluster.local:3000/${{ parameters.organisation }}/${{ parameters.name }}/raw/branch/main/catalog-info.yaml
+        optional: true
+  output:
+    links:
+      - title: Project repository
+        url: http://gitea.adhar.localtest.me:8443/${{ parameters.organisation }}/${{ parameters.name }}
+    text:
+      - title: Provisioned
+        content: |
+          Project **${{ parameters.name }}** created under ${{ parameters.organisation }} / ${{ parameters.team }}:
+          home namespace `${{ parameters.name }}` (also its Kargo project), environments `${{ parameters.name }}-dev`,
+          `${{ parameters.name }}-test` and `${{ parameters.name }}-prod` (team admin in dev/test, view in prod),
+          an Argo CD AppProject and a Gitea repo. Create Applications inside it; they deploy into its environments.

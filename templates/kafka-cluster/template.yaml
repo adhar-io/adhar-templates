@@ -5,7 +5,7 @@ metadata:
   title: Kafka Cluster
   description: >-
     Self-service Apache Kafka, provisioned through the Adhar control plane
-    (Crossplane) as a CompositeMessaging. On the local platform it composes a
+    (Crossplane) as a Messaging. On the local platform it composes a
     single-node Strimzi Kafka (KRaft) with your topics, in your namespace.
     Bootstrap: <name>-kafka-bootstrap:9092.
   tags:

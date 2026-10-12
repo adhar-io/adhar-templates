@@ -40,7 +40,6 @@ import { cn } from '@adhar-ui/utils'
 │   ├── App.jsx          # uses @adhar-ui/react
 │   └── index.css        # Tailwind v4 + @adhar-ui/tailwind-preset
 └── deploy/              # GitOps tree — ArgoCD syncs this
-    ├── secure-build.yaml
     ├── rollout.yaml     # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
     └── httproute.yaml   # https://${{ values.hostname }}:8443

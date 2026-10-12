@@ -77,10 +77,20 @@ spec:
           replicas: ${{ parameters.replicas }}
           withDatabase: ${{ parameters.withDatabase }}
           port: 8080
+          # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
+          # the platform's real base domain before rendering (the Console in
+          # apps/console/app/server/scaffolder.ts, the CLI in cmd/apps/scaffold.go),
+          # because a template cannot know which domain the cluster serves. Left
+          # as a literal it produced an HTTPRoute for a hostname the Gateway does
+          # not answer on, so a freshly created service had a URL that never
+          # resolved. Do not "fix" this by hardcoding another domain.
           hostname: ${{ parameters.name }}.adhar.localtest.me
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
           repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
 
+          # The host the repo was created on, so catalog-info.yaml's docs link
+          # points at the real Gitea rather than a hardcoded domain.
+          giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
     - id: publish
       name: Publish to Gitea
       action: publish:gitea

@@ -1,0 +1,29 @@
+# The agent's isolation boundary. One object; the control plane composes the
+# namespace, the default-deny network, the gateway identity and its allow-list,
+# the quota, and the budget alerts. Everything else in deploy/ lands INSIDE the
+# namespace this creates, which is why it syncs first (negative wave).
+#
+# Change `models.allow` / `tools.allow` here to change what the agent may do; the
+# gateway denies anything not listed, so widening is always a reviewed commit.
+apiVersion: platform.adhar.io/v1alpha1
+kind: AgentWorkload
+metadata:
+  name: ${{ values.name }}
+  namespace: adhar-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parameters:
+    name: ${{ values.name }}
+    environment: dev
+    owner: ${{ values.owner }}
+    organisation: ${{ values.organisation }}
+    team: ${{ values.team }}
+    project: ${{ values.project }}
+    models:
+      allow: [${{ values.models }}]
+    tools:
+      allow: [${{ values.tools }}]
+    budget:
+      tokensPerHour: ${{ values.tokensPerHour }}

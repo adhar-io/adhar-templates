@@ -1,7 +1,7 @@
 # PostgreSQL database claim — the Adhar control plane (Crossplane) composes a
 # CloudNativePG cluster from this on the local platform.
 apiVersion: platform.adhar.io/v1alpha1
-kind: CompositeDatabase
+kind: Database
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
@@ -11,7 +11,7 @@ metadata:
 spec:
   crossplane:
     compositionRef:
-      name: compositedatabase-local-cnpg
+      name: database-local-cnpg
   parameters:
     engine: postgresql
     engineVersion: "${{ values.engineVersion }}"

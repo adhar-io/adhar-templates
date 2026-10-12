@@ -1,0 +1,16 @@
+# The team, as the control plane sees it (ADR-0026). Its Keycloak group is
+# ws-team-<id> (created by the Console); every project the team owns binds it.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Team
+metadata:
+  name: ${{ values.teamId }}
+  namespace: adhar-system
+  labels:
+    adhar.io/organisation: ${{ values.organisation }}
+    adhar.io/team: ${{ values.teamId }}
+spec:
+  parameters:
+    name: ${{ values.teamId }}
+    organisation: ${{ values.organisation }}
+    displayName: ${{ values.displayName }}
+    description: ${{ values.description }}

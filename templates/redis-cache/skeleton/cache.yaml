@@ -1,7 +1,7 @@
 # Redis/Valkey cache claim — the control plane composes a Valkey Deployment +
 # Service + connection Secret from this.
 apiVersion: platform.adhar.io/v1alpha1
-kind: CompositeDatabase
+kind: Database
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
@@ -11,7 +11,7 @@ metadata:
 spec:
   crossplane:
     compositionRef:
-      name: compositedatabase-local-redis
+      name: database-local-redis
   parameters:
     engine: redis
     engineVersion: "8"

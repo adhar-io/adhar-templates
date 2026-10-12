@@ -52,17 +52,20 @@
   </build>
 
   <!-- Also declared for dependency resolution; parent resolution uses
-       settings.xml (BP_MAVEN_SETTINGS_PATH). -->
+       settings.xml (BP_MAVEN_SETTINGS_PATH), which mirrors these to the same
+       Nexus group. The platform publishes adhar-kit to Nexus `maven-hosted`,
+       never to the Gitea Maven registry — pointing here at Gitea failed the
+       build with "adhar-kit-parent:pom:0.1.0 (absent)". -->
   <repositories>
     <repository>
-      <id>gitea-adhar</id>
-      <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+      <id>adhar-nexus</id>
+      <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
     </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
-      <id>gitea-adhar</id>
-      <url>http://gitea-http.adhar-system.svc.cluster.local:3000/api/packages/adhar/maven</url>
+      <id>adhar-nexus</id>
+      <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
     </pluginRepository>
   </pluginRepositories>
 </project>

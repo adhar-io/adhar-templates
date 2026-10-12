@@ -5,7 +5,7 @@ metadata:
   title: Redis / Valkey Cache
   description: >-
     Self-service Redis-compatible (Valkey) cache, provisioned through the Adhar
-    control plane (Crossplane) as a CompositeDatabase (engine: redis). A
+    control plane (Crossplane) as a Database (engine: redis). A
     connection Secret `<name>-app` (uri, host, port) is created in your namespace.
   tags:
     - recommended

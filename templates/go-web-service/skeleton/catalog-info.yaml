@@ -6,6 +6,18 @@ metadata:
   annotations:
     argocd/app-name: ${{ values.name }}
     backstage.io/kubernetes-id: ${{ values.name }}
+    # TechDocs. `dir:.` is the Backstage standard and is what a TechDocs builder
+    # consumes; the `docs` link below is what works with no builder installed,
+    # because Gitea renders docs/*.md as readable Markdown from the first commit.
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - title: Documentation
+      # An absolute URL, because Gitea renders docs/*.md as readable Markdown
+      # from the first commit — so the docs work with no TechDocs builder
+      # installed. `giteaHost` comes from the RepoUrlPicker via parseRepoUrl, so
+      # it is the host the repo was actually created on rather than a guess.
+      url: https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}/src/branch/main/docs
+      icon: docs
   tags:
     - go
     - adhar

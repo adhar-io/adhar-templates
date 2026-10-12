@@ -1,0 +1,22 @@
+apiVersion: platform.adhar.io/v1alpha1
+kind: Environment
+metadata:
+  name: ${{ values.name }}
+  namespace: adhar-system
+  labels:
+    adhar.io/organisation: ${{ values.organisation }}
+    adhar.io/team: ${{ values.team }}
+    adhar.io/environment: ${{ values.environment }}
+spec:
+  parameters:
+    name: ${{ values.name }}
+    organisation: ${{ values.organisation }}
+    team: ${{ values.team }}
+    project: "${{ values.project }}"
+    environment: ${{ values.environment }}
+    tier: ${{ values.environment }}
+    access: ${{ values.access }}
+    cpuQuota: "${{ values.cpuQuota }}"
+    memoryQuota: ${{ values.memoryQuota }}
+    podQuota: ${{ values.podQuota }}
+    enableNetworkPolicy: ${{ values.enableNetworkPolicy }}

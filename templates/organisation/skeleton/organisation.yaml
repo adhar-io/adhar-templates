@@ -1,0 +1,16 @@
+# The organisation, as the control plane sees it (ADR-0026). The Console owns
+# the Keycloak groups org-<id> / org-<id>-admin and who is in them; everything
+# those groups are granted — home namespace, quota, RBAC, Gitea organisation —
+# is composed from this object.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Organisation
+metadata:
+  name: ${{ values.orgId }}
+  namespace: adhar-system
+  labels:
+    adhar.io/organisation: ${{ values.orgId }}
+spec:
+  parameters:
+    name: ${{ values.orgId }}
+    displayName: ${{ values.displayName }}
+    description: ${{ values.description }}

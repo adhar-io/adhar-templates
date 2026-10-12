@@ -5,7 +5,7 @@ metadata:
   title: Object Storage Bucket
   description: >-
     Self-service S3-compatible object storage bucket, provisioned through the
-    Adhar control plane (Crossplane) as a CompositeStorage (type: object). On the
+    Adhar control plane (Crossplane) as a Storage (type: object). On the
     local platform it creates a bucket in the in-cluster MinIO; a connection
     Secret `<name>-bucket` (endpoint, bucket, region) is created.
   tags:

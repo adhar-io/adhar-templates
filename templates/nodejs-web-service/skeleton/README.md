@@ -30,7 +30,6 @@ collector and land in Tempo, Mimir and Loki — no wiring required.
 ├── server.js            # the app
 ├── package.json
 └── deploy/              # GitOps tree — ArgoCD syncs this
-    ├── secure-build.yaml   # Tekton build → Harbor → scan → sign
     ├── rollout.yaml        # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
     ├── httproute.yaml      # https://${{ values.hostname }}:8443
@@ -45,8 +44,10 @@ Runs entirely on your `adhar up` Kind cluster — build, scan, sign, verify,
 deploy, and a real database, no cloud account needed.
 
 ```sh
-# Re-run the secure build after code changes:
-kubectl -n adhar-system create -f deploy/secure-build.yaml
+# Every push to main runs the platform pipeline (app-ci): tests, secret and
+# dependency scans, build, image scan, SBOM, signature, attestation, verify,
+# then a GitOps writeback that rolls the canary. Watch it:
+tkn -n adhar-system pipelinerun logs -f --last
 
 # Watch the canary roll out:
 kubectl -n adhar-system argo rollouts get rollout ${{ values.name }} --watch

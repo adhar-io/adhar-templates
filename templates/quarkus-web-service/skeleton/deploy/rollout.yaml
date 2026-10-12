@@ -81,9 +81,20 @@ spec:
               path: /healthz
               port: ${{ values.port }}
             initialDelaySeconds: 10
+          # A JVM cannot start in 128Mi.
+          #
+          # The Paketo memory calculator sizes fixed regions from the container
+          # limit and refuses to launch when they do not fit — at 128Mi it needs
+          # ~838M for metaspace, code cache and thread stacks alone and the pod
+          # crash-loops with "fixed memory regions require 838503K which is
+          # greater than 128M available for allocation". That reads as a broken
+          # image rather than a limit set below the runtime's floor.
+          #
+          # The request stays modest so scheduling is cheap; the LIMIT is what the
+          # calculator reads. Lower it and the service stops starting.
           resources:
             requests:
-              cpu: 25m
-              memory: 64Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 128Mi
+              memory: 768Mi

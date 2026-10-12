@@ -1,0 +1,168 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: agent-service
+  title: AI Agent Service
+  description: >-
+    A production-shaped AI agent: a Python service that reasons with the
+    platform's LLMs and calls platform tools through the AI gateway, deployed
+    inside its own isolated AgentWorkload — dedicated namespace, default-deny
+    network, a gateway identity that may name only the models and tools you list
+    here, a declared token budget that is alerted on, and OpenTelemetry traces
+    for every model call and tool call. Ships through the secure supply chain
+    and promotes dev → test → prod like any other application.
+  tags:
+    - recommended
+    - ai
+    - agent
+    - python
+    - supply-chain
+    - observability
+spec:
+  owner: group:platform-engineers
+  type: service
+
+  parameters:
+    - title: Agent
+      required: [name]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the agent (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: What does this agent do, and for whom?
+        owner:
+          title: Owner
+          type: string
+          description: Team that owns this agent — accountable for what it does and spends
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+        organisation: { title: Organisation, type: string, default: adhar }
+        team: { title: Team, type: string, default: platform, description: 'Attribution: the agent carries adhar.io/team like every other workload' }
+        project: { title: Project, type: string, default: adhar, description: 'The Project this agent belongs to (attribution and policy scope; the agent keeps its own isolated namespace)' }
+
+    - title: Capabilities
+      properties:
+        models:
+          title: Models the agent may call
+          type: string
+          default: "claude-.*,local/.*"
+          description: >-
+            Comma-separated model names or regexes. The gateway routes by model
+            name and the agent never sees a provider or a key; this is the whole
+            of what its identity may ask for. `claude-.*` is Anthropic, `gpt-.*`
+            is OpenAI, `local/.*` is the in-cluster vLLM (free).
+        tools:
+          title: Tool domains the agent may call
+          type: string
+          default: "cluster,observability"
+          description: >-
+            Comma-separated federated MCP targets: cluster, observability, cost
+            (read-only); gitops, provision, security, catalog (these open Gitea
+            PRs). An agent gets no tools it does not list.
+        tokensPerHour:
+          title: Token budget per hour
+          type: integer
+          default: 100000
+          description: Alert fires when the agent exceeds this in an hour.
+        systemPrompt:
+          title: System prompt
+          type: string
+          default: "You are a careful platform assistant. Prefer reading over acting; explain what you are about to do before calling a tool."
+
+    - title: Runtime
+      properties:
+        port:
+          title: Container port
+          type: integer
+          default: 8080
+        replicas:
+          title: Replicas
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 3
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          description: Gitea repository to create for this agent
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - adhar.localtest.me:8443
+
+  steps:
+    - id: template
+      name: Generate the agent
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          organisation: ${{ parameters.organisation }}
+          team: ${{ parameters.team }}
+          project: ${{ parameters.project }}
+          models: ${{ parameters.models }}
+          tools: ${{ parameters.tools }}
+          tokensPerHour: ${{ parameters.tokensPerHour }}
+          systemPrompt: ${{ parameters.systemPrompt }}
+          port: ${{ parameters.port }}
+          replicas: ${{ parameters.replicas }}
+          # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
+          # the platform's real base domain before rendering (the Console in
+          # apps/console/app/server/scaffolder.ts, the CLI in cmd/apps/scaffold.go),
+          # because a template cannot know which domain the cluster serves. Left
+          # as a literal it produced an HTTPRoute for a hostname the Gateway does
+          # not answer on. Do not "fix" this by hardcoding another domain.
+          hostname: ${{ parameters.name }}.adhar.localtest.me
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+          giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
+
+    - id: publish
+      name: Publish to Gitea
+      action: publish:gitea
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: create-argocd-app
+      name: Create ArgoCD deployment
+      action: adhar:create-argocd-app
+      input:
+        appName: ${{ parameters.name }}
+        appNamespace: adhar-system
+        argoInstance: local
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: "deploy"
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Source repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

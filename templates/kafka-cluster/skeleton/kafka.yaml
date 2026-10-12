@@ -1,7 +1,7 @@
 # Kafka claim — the control plane composes a single-node Strimzi Kafka (KRaft)
 # and the topic from this.
 apiVersion: platform.adhar.io/v1alpha1
-kind: CompositeMessaging
+kind: Messaging
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
@@ -11,7 +11,7 @@ metadata:
 spec:
   crossplane:
     compositionRef:
-      name: compositemessaging-local-strimzi
+      name: messaging-local-strimzi
   name: ${{ values.name }}
   engine: kafka
   kafkaVersion: "3.8.0"

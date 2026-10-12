@@ -1,0 +1,7 @@
+site_name: ${{ values.name }}
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Operations: operations.md
+plugins:
+  - techdocs-core

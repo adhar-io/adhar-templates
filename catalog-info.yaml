@@ -13,6 +13,12 @@ metadata:
 spec:
   type: url
   targets:
+    # ── Ownership hierarchy: Organisation → Team → Project → Application ──
+    - ./templates/organisation/template.yaml
+    - ./templates/team/template.yaml
+    - ./templates/project/template.yaml
+    - ./templates/application/template.yaml
+    # ── Applications (from source, secure supply chain) ──
     - ./templates/nodejs-web-service/template.yaml
     - ./templates/go-web-service/template.yaml
     - ./templates/python-web-service/template.yaml
@@ -22,7 +28,13 @@ spec:
     - ./templates/springboot-hexagon-service/template.yaml
     - ./templates/angular-spa-app/template.yaml
     - ./templates/tanstack-start-fullstack-app/template.yaml
+    # ── AI agents (isolated AgentWorkload + gateway identity) ──
+    - ./templates/agent-service/template.yaml
+    # ── Self-service resources (Crossplane control plane) ──
     - ./templates/postgres-database/template.yaml
     - ./templates/redis-cache/template.yaml
     - ./templates/object-bucket/template.yaml
     - ./templates/kafka-cluster/template.yaml
+    - ./templates/secret/template.yaml
+    - ./templates/environment/template.yaml
+    - ./templates/repository/template.yaml

@@ -1,6 +1,20 @@
-# Cloud Native Buildpacks build config. Point the Java buildpack's Maven at the
-# committed settings.xml so adhar-kit (parent + starter) resolves from the Gitea
-# Maven registry.
+# Cloud Native Buildpacks build config.
+#
+# BP_MAVEN_SETTINGS_PATH points the Java buildpack's Maven at the committed
+# settings.xml, which resolves adhar-kit (parent + starter) from the platform's
+# Nexus. See settings.xml for why Nexus and not the Gitea package registry.
 [[build.env]]
 name = "BP_MAVEN_SETTINGS_PATH"
 value = "settings.xml"
+
+# BP_JVM_VERSION must satisfy adhar-kit-parent's own enforcer rule.
+#
+# The parent POM requires JDK 25 (`RequireJavaVersion [25,)`), and the Paketo
+# Liberica buildpack defaults to 21 — so without this the build resolved the
+# parent correctly and then failed inside it with
+#   Detected JDK version 21.0.12 ... is not in the allowed range [25,)
+# which reads as a broken library rather than an unset build input. Raise this in
+# step with adhar-kit; lowering it below the parent's floor cannot work.
+[[build.env]]
+name = "BP_JVM_VERSION"
+value = "25"

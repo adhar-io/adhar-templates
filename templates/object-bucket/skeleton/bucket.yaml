@@ -1,7 +1,7 @@
 # Object storage bucket claim — the control plane creates a MinIO bucket + a
 # connection Secret from this.
 apiVersion: platform.adhar.io/v1alpha1
-kind: CompositeStorage
+kind: Storage
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
@@ -11,7 +11,7 @@ metadata:
 spec:
   crossplane:
     compositionRef:
-      name: compositestorage-local-minio
+      name: storage-local-minio
   name: ${{ values.name }}
   type: object
   size: 1Gi

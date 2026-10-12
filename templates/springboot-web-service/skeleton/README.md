@@ -43,7 +43,6 @@ pipeline. The build points Maven at it via `BP_MAVEN_SETTINGS_PATH` (`project.to
 │   └── HelloController.java
 ├── src/main/resources/application.properties
 └── deploy/              # GitOps tree — ArgoCD syncs this
-    ├── secure-build.yaml
     ├── rollout.yaml     # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
     ├── httproute.yaml   # https://${{ values.hostname }}:8443

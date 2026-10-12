@@ -1,0 +1,28 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description }}
+  annotations:
+    argocd/app-name: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
+    backstage.io/techdocs-ref: dir:.
+    adhar.io/agent: ${{ values.name }}
+    adhar.io/agent-models: ${{ values.models | dump }}
+    adhar.io/agent-tools: ${{ values.tools | dump }}
+  links:
+    - title: Documentation
+      url: https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}/src/branch/main/docs
+      icon: docs
+    - title: Agents dashboard
+      url: https://grafana.${{ values.hostname | replace(values.name + ".", "") }}/d/adhar-agents
+      icon: dashboard
+  tags:
+    - ai
+    - agent
+    - python
+    - adhar
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{ values.owner }}
