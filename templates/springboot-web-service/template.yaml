@@ -7,8 +7,9 @@ metadata:
     A Spring Boot microservice pre-configured with Adhar Kit (adhar-kit-starter:
     observability, security, resilience, health) resolved from the Gitea Maven
     registry. Buildpacks build, trivy scan + cosign sign, kyverno verification,
-    GitOps deploy with Argo Rollouts, optional CloudNativePG database, and
-    OpenTelemetry out of the box.
+    GitOps deploy with Argo Rollouts and OpenTelemetry out of the box — plus
+    optional backing services wired in at creation: a CloudNativePG database,
+    a Valkey (Redis-compatible) cache, and a Kafka event stream.
   tags:
     - recommended
     - java
@@ -16,6 +17,9 @@ metadata:
     - adhar-kit
     - supply-chain
     - observability
+    - postgres
+    - valkey
+    - kafka
 spec:
   owner: group:platform-engineers
   type: service
@@ -50,13 +54,79 @@ spec:
           default: 1
           minimum: 1
           maximum: 5
+        withAuth:
+          title: Require authentication (Keycloak JWT)
+          type: boolean
+          default: true
+          description: >-
+            Endpoints require a bearer token from the platform's Keycloak realm
+            `adhar` (validated against its JWKS). Untick for a public service.
+            Health probes stay open either way.
+
+    # Each backing service is provisioned beside the app in its deploy/ tree and
+    # its connection is injected into the Rollout as Spring's own environment
+    # variables — the generated code holds no hostnames and no credentials.
+    - title: Backing services
+      description: >-
+        Provisioned with the service and wired into Spring automatically.
+        Each one is optional — tick only what the service needs.
+      properties:
         withDatabase:
-          title: Provision a PostgreSQL database
+          title: PostgreSQL database
           type: boolean
           default: false
           description: >-
-            Creates a managed CloudNativePG Postgres cluster and wires it into
-            Spring via SPRING_DATASOURCE_*.
+            A managed CloudNativePG cluster with daily backups, wired in via
+            SPRING_DATASOURCE_* (JPA + a /db health endpoint).
+        withCache:
+          title: Valkey cache
+          type: boolean
+          default: false
+          description: >-
+            A Redis-compatible Valkey cache from the Adhar control plane, wired
+            in via SPRING_DATA_REDIS_URL and enabled as Spring's @Cacheable store.
+        withKafka:
+          title: Kafka event stream
+          type: boolean
+          default: false
+          description: >-
+            A Strimzi Kafka (KRaft) cluster from the Adhar control plane with an
+            initial topic, plus a sample producer and @KafkaListener consumer.
+      dependencies:
+        withCache:
+          oneOf:
+            - properties:
+                withCache:
+                  const: false
+            - properties:
+                withCache:
+                  const: true
+                cacheTtl:
+                  title: Default cache TTL
+                  type: string
+                  default: 10m
+                  description: Spring duration, e.g. 30s, 10m, 1h.
+                  pattern: '^[0-9]+(ms|s|m|h|d)$'
+        withKafka:
+          oneOf:
+            - properties:
+                withKafka:
+                  const: false
+            - properties:
+                withKafka:
+                  const: true
+                kafkaTopic:
+                  title: Initial topic
+                  type: string
+                  default: events
+                  pattern: '^[a-z0-9]([-.a-z0-9]*[a-z0-9])?$'
+                  maxLength: 60
+                kafkaPartitions:
+                  title: Partitions
+                  type: integer
+                  default: 3
+                  minimum: 1
+                  maximum: 12
 
     - title: Repository
       required: [repoUrl]
@@ -80,7 +150,13 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           replicas: ${{ parameters.replicas }}
+          withAuth: ${{ parameters.withAuth }}
           withDatabase: ${{ parameters.withDatabase }}
+          withCache: ${{ parameters.withCache }}
+          cacheTtl: ${{ parameters.cacheTtl or '10m' }}
+          withKafka: ${{ parameters.withKafka }}
+          kafkaTopic: ${{ parameters.kafkaTopic or 'events' }}
+          kafkaPartitions: ${{ parameters.kafkaPartitions or 3 }}
           port: 8080
           # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
           # the platform's real base domain before rendering (the Console in

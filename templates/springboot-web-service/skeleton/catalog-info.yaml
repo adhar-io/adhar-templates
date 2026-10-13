@@ -22,11 +22,28 @@ metadata:
     - java
     - springboot
     - adhar-kit
+{%- if values.withDatabase %}
+    - postgres
+{%- endif %}
+{%- if values.withCache %}
+    - valkey
+{%- endif %}
+{%- if values.withKafka %}
+    - kafka
+{%- endif %}
 spec:
   type: service
   lifecycle: experimental
   owner: ${{ values.owner }}
-{%- if values.withDatabase %}
+{%- if values.withDatabase or values.withCache or values.withKafka %}
   dependsOn:
+{%- if values.withDatabase %}
     - resource:default/${{ values.name }}-db
+{%- endif %}
+{%- if values.withCache %}
+    - resource:default/${{ values.name }}-cache
+{%- endif %}
+{%- if values.withKafka %}
+    - resource:default/${{ values.name }}-events
+{%- endif %}
 {%- endif %}

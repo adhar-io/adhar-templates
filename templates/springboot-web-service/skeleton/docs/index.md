@@ -9,7 +9,8 @@ A **Spring Boot (Web MVC)** service scaffolded from the Adhar `springboot-web-se
 | Thing | Where |
 | --- | --- |
 | Application source | `pom.xml` — the build; `settings.xml` points Maven at the platform Nexus mirror. |
-| Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout, CloudNativePG Cluster |
+| Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout{% if values.withDatabase %}, CloudNativePG Cluster{% endif %}{% if values.withCache %}, Valkey cache claim{% endif %}{% if values.withKafka %}, Kafka claim{% endif %} |
+| Local backing services | `compose.yaml` — `docker compose up -d` |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
@@ -18,36 +19,42 @@ Your service is at **https://${{ values.hostname }}** once the first rollout
 completes, and its repository is
 `${{ values.gitOwner }}/${{ values.repoName }}`.
 
-!!! note "Database"
-    This service was scaffolded {% if values.withDatabase %}**with**{% else %}**without**{% endif %} a
-    managed PostgreSQL cluster.
-{%- if values.withDatabase %}
-    `deploy/database.yaml` declares a CloudNativePG `Cluster` and the connection
-    string arrives in the container as `DATABASE_URL`. Nothing in the application
-    holds a password: the credential is a Secret CloudNativePG generates and
-    rotates, and it is mounted by reference.
-{%- else %}
-    To add one later, re-scaffold with **Provision a PostgreSQL database** ticked,
-    or copy `deploy/database.yaml` from the template and add the `DATABASE_URL`
-    environment variable to `deploy/rollout.yaml`.
-{%- endif %}
+## Backing services
+
+| Service | Provisioned | How the app gets it |
+| --- | --- | --- |
+| PostgreSQL | {% if values.withDatabase %}**yes** — `deploy/database.yaml`{% else %}no{% endif %} | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` from the CloudNativePG Secret |
+| Valkey cache | {% if values.withCache %}**yes** — `deploy/cache.yaml`{% else %}no{% endif %} | `SPRING_DATA_REDIS_URL` from the `${{ values.name }}-cache-app` Secret |
+| Kafka | {% if values.withKafka %}**yes** — `deploy/kafka.yaml`, topic `${{ values.kafkaTopic }}`{% else %}no{% endif %} | `SPRING_KAFKA_BOOTSTRAP_SERVERS` |
+
+Nothing in the application holds a password: each credential is a Secret the
+platform generates, mounted by reference.
+
+!!! tip "Adding one later"
+    Copy the manifest from the template (`deploy/database.yaml`,
+    `deploy/cache.yaml` or `deploy/kafka.yaml`), add its environment variables
+    to `deploy/rollout.yaml` and its starter to `pom.xml`, and commit. Or use the
+    standalone **PostgreSQL Database**, **Redis / Valkey Cache** and **Kafka
+    Cluster** templates and point the variables at what they create.
 
 ## Run it locally
 
-Requires JDK 21+, Maven 3.9+.
+Requires JDK 25, Maven 3.9+ and — for the backing services — Docker.
 
 ```bash
-./mvnw -s settings.xml dependency:go-offline
-./mvnw -s settings.xml spring-boot:run
+docker compose up -d
+mvn -s settings.xml spring-boot:run
 ```
 
 It listens on port `${{ values.port }}`, the same port the container exposes,
-so what you see locally is what the cluster runs.
+so what you see locally is what the cluster runs. Every connection setting
+falls back to the `compose.yaml` ports when the cluster's environment variables
+are absent.
 
 Tests:
 
 ```bash
-./mvnw -s settings.xml test
+mvn -s settings.xml test
 ```
 
 ## Ship a change

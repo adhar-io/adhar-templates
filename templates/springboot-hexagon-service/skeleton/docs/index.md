@@ -23,22 +23,21 @@ completes, and its repository is
     managed PostgreSQL cluster.
 {%- if values.withDatabase %}
     `deploy/database.yaml` declares a CloudNativePG `Cluster` and the connection
-    string arrives in the container as `DATABASE_URL`. Nothing in the application
+    string arrives in the container as `SPRING_DATASOURCE_URL` (with `_USERNAME` and `_PASSWORD`). Nothing in the application
     holds a password: the credential is a Secret CloudNativePG generates and
     rotates, and it is mounted by reference.
 {%- else %}
     To add one later, re-scaffold with **Provision a PostgreSQL database** ticked,
-    or copy `deploy/database.yaml` from the template and add the `DATABASE_URL`
-    environment variable to `deploy/rollout.yaml`.
+    or copy `deploy/database.yaml` from the template and add the `SPRING_DATASOURCE_*`
+    environment variables to `deploy/rollout.yaml`.
 {%- endif %}
 
 ## Run it locally
 
-Requires JDK 21+, Maven 3.9+.
+Requires JDK 25, Maven 3.9+.
 
 ```bash
-./mvnw -s settings.xml dependency:go-offline
-./mvnw -s settings.xml spring-boot:run
+mvn -s settings.xml spring-boot:run
 ```
 
 It listens on port `${{ values.port }}`, the same port the container exposes,
@@ -47,7 +46,7 @@ so what you see locally is what the cluster runs.
 Tests:
 
 ```bash
-./mvnw -s settings.xml test
+mvn -s settings.xml test
 ```
 
 ## Ship a change

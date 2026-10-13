@@ -36,6 +36,8 @@ responses:
 | --- | --- | --- |
 | `ImagePullBackOff` | the image is not signed, or the node cannot reach the registry | check the build succeeded and the signature verified |
 | `CrashLoopBackOff` | the process exits on start | read the logs; this is almost always configuration, not the platform |
+| `CreateContainerConfigError` | a referenced Secret does not exist yet | on a first deploy, wait — the database/cache Secret appears once provisioning finishes; otherwise check the claim in `deploy/` |
+| `401` on every request | no or invalid bearer token | expected when authentication is on — send a JWT from the `adhar` realm |
 | `Running` but not `Ready` | readiness probe failing | the pod is getting no traffic; check the probe path and timeout |
 | `OOMKilled` | memory limit below actual need | raise the limit in `deploy/rollout.yaml`; do not lower the request to compensate |
 

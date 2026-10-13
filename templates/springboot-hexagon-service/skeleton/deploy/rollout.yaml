@@ -71,16 +71,30 @@ spec:
                   name: ${{ values.name }}-db-app
                   key: password
 {%- endif %}
+          # Spring Boot's own probe groups (management.endpoint.health.probes.enabled).
+          # Not /healthz: the Dapr SDK that adhar-kit brings in registers its own
+          # GET /healthz, and a second handler for it fails startup with
+          # "Ambiguous mapping". The startup probe gives the JVM time to boot
+          # before liveness may restart it; timeouts stay above one second.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: ${{ values.port }}
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 40
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /actuator/health/readiness
               port: ${{ values.port }}
-            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /actuator/health/liveness
               port: ${{ values.port }}
-            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
           # A JVM cannot start in 128Mi.
           #
           # The Paketo memory calculator sizes fixed regions from the container

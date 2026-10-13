@@ -14,6 +14,24 @@ wildcard certificate to cover it.
 The process serves HTTP directly on `${{ values.port }}`. There is no sidecar
 proxy in front of it inside the pod; TLS terminates at the platform Gateway.
 
+## Authentication
+
+{% if values.withAuth -%}
+Requests need a bearer JWT issued by the platform's Keycloak realm `adhar`.
+Adhar Kit's security module validates the signature against the realm's JWKS
+(`adhar.security.jwt.jwk-set-uri`); a missing or invalid token is a `401`.
+`/actuator/health/**` and `/actuator/info` stay open because Kubernetes probes
+cannot authenticate.
+
+To get a token, request one from the `adhar` realm through an OpenID Connect
+client your team registers in Keycloak, then send it as `Authorization: Bearer`.
+{%- else -%}
+Authentication is off — every endpoint is public
+(`adhar.security.authorization.permit-all=/**`). To require platform JWTs, remove
+that line and set `adhar.security.jwt.jwk-set-uri` to the Keycloak realm's JWKS:
+`http://keycloak.keycloak.svc.cluster.local:8080/keycloak/realms/adhar/protocol/openid-connect/certs`.
+{%- endif %}
+
 ## Deployment shape
 
 `deploy/rollout.yaml` is an Argo **Rollout**, not a Deployment. The difference
@@ -58,7 +76,7 @@ tries to run in the cluster, including an image someone applies by hand.
 
 `deploy/database.yaml` declares a CloudNativePG `Cluster`. CloudNativePG — not
 this repository — owns the credential: it generates the password, publishes it as
-a Secret, and rotates it. The application reads `DATABASE_URL` from the
+a Secret, and rotates it. The application reads `SPRING_DATASOURCE_*` from the
 environment and never sees a literal password.
 
 Two consequences worth knowing:

@@ -24,11 +24,6 @@ public class HelloController {
         return Map.of("service", "${{ values.name }}", "status", "ok");
     }
 
-    @GetMapping("/healthz")
-    public String healthz() {
-        return "ok";
-    }
-
 {%- if values.withDatabase %}
     @GetMapping("/db")
     public Map<String, String> db() {

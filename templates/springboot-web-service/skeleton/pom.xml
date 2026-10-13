@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <!-- Adhar Kit parent — production defaults (Spring Boot, observability,
-       security, resilience). Resolved from the Gitea Maven registry (see
+       security, resilience). Resolved from the platform's Nexus (see
        settings.xml). -->
   <parent>
     <groupId>com.adhar.kit</groupId>
@@ -37,6 +37,33 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
+    </dependency>
+{%- endif %}
+{%- if values.withCache %}
+    <!-- Valkey cache through Adhar Kit: adhar-kit-cache registers its Redis cache
+         manager as Spring's CacheManager on top of Spring Boot's Redis connection
+         (spring.data.redis.url), with typed JSON values, adhar.cache.* TTL and key
+         prefix, and Valkey as the L2 of @MultiLevelCache. The Redis client itself
+         is optional in the kit, so it is declared here. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-cache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+{%- endif %}
+{%- if values.withKafka %}
+    <!-- Kafka. Spring Boot 4 moved Kafka auto-configuration into its own
+         module; this starter brings it and spring-kafka. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-kafka</artifactId>
     </dependency>
 {%- endif %}
   </dependencies>

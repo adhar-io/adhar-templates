@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <!-- Adhar Kit parent — production defaults (Spring Boot, observability,
-       security, resilience). Resolved from the Gitea Maven registry (see
+       security, resilience). Resolved from the platform's Nexus (see
        settings.xml). -->
   <parent>
     <groupId>com.adhar.kit</groupId>

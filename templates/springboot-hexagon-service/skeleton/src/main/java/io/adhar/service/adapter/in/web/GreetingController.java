@@ -26,11 +26,6 @@ public class GreetingController {
         return Map.of("service", "${{ values.name }}", "status", "ok");
     }
 
-    @GetMapping("/healthz")
-    public String healthz() {
-        return "ok";
-    }
-
     @PostMapping("/greet")
     public Greeting greet(@RequestParam(required = false) String name) {
         return useCase.greet(name);

@@ -50,6 +50,14 @@ spec:
           default: 1
           minimum: 1
           maximum: 5
+        withAuth:
+          title: Require authentication (Keycloak JWT)
+          type: boolean
+          default: true
+          description: >-
+            Endpoints require a bearer token from the platform's Keycloak realm
+            `adhar` (validated against its JWKS). Untick for a public service.
+            Health probes stay open either way.
         withDatabase:
           title: Provision a PostgreSQL database
           type: boolean
@@ -80,6 +88,7 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           replicas: ${{ parameters.replicas }}
+          withAuth: ${{ parameters.withAuth }}
           withDatabase: ${{ parameters.withDatabase }}
           port: 8080
           # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with

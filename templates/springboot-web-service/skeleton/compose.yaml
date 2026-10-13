@@ -1,0 +1,45 @@
+# Local backing services for `mvn spring-boot:run` — the same engines the
+# platform provisions from deploy/, on the localhost ports application.properties
+# falls back to when the cluster's environment variables are absent.
+#
+#   docker compose up -d
+{%- if not (values.withDatabase or values.withCache or values.withKafka) %}
+#
+# This service was scaffolded without backing services, so there is nothing to
+# start yet. Add one here alongside its manifest in deploy/.
+services: {}
+{%- else %}
+services:
+{%- endif %}
+{%- if values.withDatabase %}
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+{%- endif %}
+{%- if values.withCache %}
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "6379:6379"
+{%- endif %}
+{%- if values.withKafka %}
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: ${{ values.kafkaPartitions }}
+    ports:
+      - "9092:9092"
+{%- endif %}

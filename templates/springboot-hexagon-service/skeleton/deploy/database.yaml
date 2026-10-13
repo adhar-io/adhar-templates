@@ -1,7 +1,7 @@
 {%- if values.withDatabase %}
 # Managed PostgreSQL via CloudNativePG. The operator creates a Secret
-# `${{ values.name }}-db-app` containing a ready-to-use `uri` (DATABASE_URL),
-# which rollout.yaml injects into the app. ServerSideApply is required for CNPG
+# `${{ values.name }}-db-app` (jdbc-uri, username, password), which rollout.yaml
+# injects into the app as SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD. ServerSideApply is required for CNPG
 # Clusters (otherwise ArgoCD's sync force-fails and drops the workload).
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

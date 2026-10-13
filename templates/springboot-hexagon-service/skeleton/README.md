@@ -36,12 +36,19 @@ src/main/java/io/adhar/service/
 
 ## Endpoints
 
+{% if values.withAuth -%}
+Every endpoint except `/actuator/health*` and `/actuator/info` requires a bearer
+JWT from the platform's Keycloak realm `adhar` (`Authorization: Bearer <token>`).
+{%- else -%}
+Every endpoint is public. See `application.properties` to require a Keycloak JWT.
+{%- endif %}
+
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/` | Service info |
-| GET | `/healthz` | Health check |
+| GET | `/actuator/health/liveness`, `/readiness` | Kubernetes probes |
 | POST | `/greet?name=…` | Create a greeting |
 | GET | `/greetings` | List greetings |
 
-Observability (OTLP traces + metrics), Adhar Kit config, and the Gitea Maven
-registry are wired exactly as in `springboot-web-service`.
+Observability (OTLP traces + metrics), Adhar Kit config, and the platform Nexus
+(Maven) are wired exactly as in `springboot-web-service`.

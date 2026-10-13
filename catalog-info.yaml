@@ -35,6 +35,8 @@ spec:
     - ./templates/redis-cache/template.yaml
     - ./templates/object-bucket/template.yaml
     - ./templates/kafka-cluster/template.yaml
+    - ./templates/search-cluster/template.yaml
+    - ./templates/vector-database/template.yaml
     - ./templates/secret/template.yaml
     - ./templates/environment/template.yaml
     - ./templates/repository/template.yaml
