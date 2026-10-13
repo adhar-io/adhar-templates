@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/adhar-logo-dark.svg">
-  <img src=".github/assets/adhar-logo-light.svg" alt="Adhar Console" width="380">
+  <img src=".github/assets/adhar-logo.svg" alt="Adhar" width="220">
 </picture>
 
 # Adhar Templates

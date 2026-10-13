@@ -7,57 +7,61 @@
    never generated and every Adhar UI button renders unstyled. */
 @source "../node_modules/@adhar-ui";
 
-/* Adhar brand theme. The preset maps Tailwind colors to these variables but
-   defines none of them; values are HSL channels ("H S% L%"). */
+/* Adhar brand theme — the Adhar Console's palette: brand blue for primary
+   actions, violet as the accent, and blue-tinted surfaces. The preset maps
+   Tailwind colors to these variables but defines none of them; values are HSL
+   channels ("H S% L%"). */
 @layer base {
   :root {
-    --background: 228 33% 99%;
-    --foreground: 232 38% 11%;
+    --background: 217 87% 98%;
+    --foreground: 222 49% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 232 38% 11%;
+    --card-foreground: 222 49% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 232 38% 11%;
-    --primary: 248 76% 58%;
+    --popover-foreground: 222 49% 14%;
+    /* brand-600 (#2563eb): brand-500 is too light for white text to pass AA. */
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 232 30% 95%;
-    --secondary-foreground: 232 38% 18%;
-    --muted: 232 30% 95%;
-    --muted-foreground: 232 12% 42%;
-    --accent: 248 90% 96%;
-    --accent-foreground: 248 60% 36%;
-    --destructive: 0 78% 56%;
+    --secondary: 217 75% 97%;
+    --secondary-foreground: 222 49% 14%;
+    --muted: 217 75% 97%;
+    --muted-foreground: 219 15% 37%;
+    --accent: 217 98% 97%;
+    --accent-foreground: 224 78% 48%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 232 24% 90%;
-    --input: 232 24% 88%;
-    --ring: 248 76% 58%;
+    --border: 217 30% 89%;
+    --input: 217 30% 89%;
+    --ring: 217 91% 60%;
     --radius: 0.75rem;
 
-    /* The logo's gradient. */
-    --brand-from: #3b9ef4;
-    --brand-to: #aa27ee;
+    /* The Adhar symbol's gradient: blue → indigo → violet. */
+    --brand-from: #3b82f6;
+    --brand-via: #6366f1;
+    --brand-to: #8b5cf6;
     color-scheme: light;
   }
 
   .dark {
-    --background: 232 40% 6%;
-    --foreground: 228 40% 96%;
-    --card: 232 36% 9%;
-    --card-foreground: 228 40% 96%;
-    --popover: 232 36% 9%;
-    --popover-foreground: 228 40% 96%;
-    --primary: 244 92% 74%;
-    --primary-foreground: 232 45% 8%;
-    --secondary: 232 26% 15%;
-    --secondary-foreground: 228 40% 96%;
-    --muted: 232 26% 14%;
-    --muted-foreground: 230 16% 66%;
-    --accent: 244 40% 18%;
-    --accent-foreground: 244 92% 86%;
-    --destructive: 0 70% 52%;
+    --background: 221 43% 7%;
+    --foreground: 218 36% 95%;
+    --card: 221 32% 11%;
+    --card-foreground: 218 36% 95%;
+    --popover: 221 32% 11%;
+    --popover-foreground: 218 36% 95%;
+    --primary: 217 97% 69%;
+    --primary-foreground: 221 43% 7%;
+    --secondary: 221 27% 15%;
+    --secondary-foreground: 218 36% 95%;
+    --muted: 221 27% 15%;
+    --muted-foreground: 218 12% 74%;
+    --accent: 227 58% 21%;
+    --accent-foreground: 217 100% 88%;
+    --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 232 22% 18%;
-    --input: 232 22% 20%;
-    --ring: 244 92% 74%;
+    --border: 221 22% 20%;
+    --input: 221 22% 20%;
+    --ring: 217 97% 69%;
     color-scheme: dark;
   }
 
@@ -74,14 +78,14 @@
 }
 
 @utility text-brand-gradient {
-  background-image: linear-gradient(110deg, var(--brand-from), var(--brand-to));
+  background-image: linear-gradient(105deg, var(--brand-from), var(--brand-via), var(--brand-to));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 @utility bg-brand-gradient {
-  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  background-image: linear-gradient(105deg, var(--brand-from), var(--brand-via), var(--brand-to));
 }
 
 /* Soft brand glow behind the hero. */

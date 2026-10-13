@@ -18,7 +18,7 @@ OpenTelemetry is auto-instrumented (Node auto-instrumentations via `NODE_OPTIONS
 
 ```
 server.mjs                # production server: dist/server fetch handler + dist/client assets
-public/adhar-mark.svg
+public/adhar-symbol.svg
 src/
 ├── router.tsx            # getRouter() — TanStack Start's router factory
 ├── routes/

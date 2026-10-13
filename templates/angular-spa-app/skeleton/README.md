@@ -38,7 +38,7 @@ src/
 └── app/
     ├── app.component.ts     # landing page built from Adhar UI variants
     └── icon.component.ts    # inline line icons
-public/adhar-mark.svg
+public/adhar-symbol.svg
 ```
 
 ## Local development

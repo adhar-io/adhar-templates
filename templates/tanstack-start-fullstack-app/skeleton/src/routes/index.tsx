@@ -157,7 +157,7 @@ function Home() {
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <a href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
-            <img src="/adhar-mark.svg" alt="" className="size-8" />
+            <img src="/adhar-symbol.svg" alt="" className="size-8" />
             <span>{APP_NAME}</span>
           </a>
           <nav className="flex items-center gap-1">
@@ -247,7 +247,7 @@ function Home() {
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
-            <img src="/adhar-mark.svg" alt="" className="size-5" />
+            <img src="/adhar-symbol.svg" alt="" className="size-5" />
             Built on the Adhar platform
           </div>
           <span>Owned by {OWNER}</span>

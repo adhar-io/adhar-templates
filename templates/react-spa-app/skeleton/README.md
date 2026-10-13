@@ -37,7 +37,7 @@ The Adhar brand theme (light and dark colors, radius, the logo gradient) lives i
 ```
 .
 ├── index.html           # applies the saved/system theme before first paint
-├── public/adhar-mark.svg
+├── public/adhar-symbol.svg
 ├── vite.config.js
 ├── project.toml         # buildpack: npm build → serve dist/ with nginx
 ├── .npmrc               # @adhar-ui → Gitea npm registry

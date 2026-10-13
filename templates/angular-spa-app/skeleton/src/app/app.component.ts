@@ -13,7 +13,7 @@ import { IconComponent } from './icon.component';
     <header class="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <a href="/" class="flex items-center gap-2.5 font-semibold tracking-tight">
-          <img src="adhar-mark.svg" alt="" class="size-8" />
+          <img src="adhar-symbol.svg" alt="" class="size-8" />
           <span>{{ appName }}</span>
         </a>
         <nav class="flex items-center gap-1">
@@ -118,7 +118,7 @@ import { IconComponent } from './icon.component';
     <footer class="border-t">
       <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
         <div class="flex items-center gap-2">
-          <img src="adhar-mark.svg" alt="" class="size-5" />
+          <img src="adhar-symbol.svg" alt="" class="size-5" />
           Built on the Adhar platform
         </div>
         <span>Owned by {{ owner }}</span>

@@ -14,13 +14,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { name: 'theme-color', content: '#4f46e5' },
+      { name: 'theme-color', content: '#2563eb' },
       { title: ${{ values.name | dump }} },
       { name: 'description', content: ${{ (values.description or values.name) | dump }} },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', type: 'image/svg+xml', href: '/adhar-mark.svg' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/adhar-symbol.svg' },
     ],
   }),
   component: RootComponent,
