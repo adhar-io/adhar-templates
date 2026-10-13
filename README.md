@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src=".github/assets/adhar-logo.png" alt="Adhar" width="360">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/adhar-logo-dark.svg">
+  <img src=".github/assets/adhar-logo-light.svg" alt="Adhar Console" width="380">
+</picture>
 
 # Adhar Templates
 

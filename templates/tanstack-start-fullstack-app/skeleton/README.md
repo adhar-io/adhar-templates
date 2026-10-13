@@ -7,7 +7,7 @@ pre-wired with the **Adhar UI** design system (`@adhar-ui/react` + Tailwind v4).
 It runs as a Node server and ships through Adhar's **secure supply chain**:
 
 ```
-git push → buildpacks (vite build → Nitro server) → Harbor → trivy scan
+git push → buildpacks (vite build → srvx Node server) → Harbor → trivy scan
         → cosign sign → kyverno verify → ArgoCD → Argo Rollouts (canary)
 ```
 
@@ -17,13 +17,16 @@ OpenTelemetry is auto-instrumented (Node auto-instrumentations via `NODE_OPTIONS
 ## Structure
 
 ```
+server.mjs                # production server: dist/server fetch handler + dist/client assets
+public/adhar-mark.svg
 src/
-├── router.tsx
+├── router.tsx            # getRouter() — TanStack Start's router factory
 ├── routes/
-│   ├── __root.tsx        # HTML shell
-│   ├── index.tsx         # home page (uses @adhar-ui/react)
+│   ├── __root.tsx        # HTML shell, theme applied before first paint
+│   ├── index.tsx         # landing page + live status from /api/hello
 │   └── api/hello.ts      # server route → /api/hello
-└── styles.css            # Tailwind v4 + @adhar-ui/tailwind-preset
+├── components/           # icons, light/dark theme hook
+└── styles.css            # Tailwind v4 + Adhar UI preset + Adhar brand theme
 ```
 
 ## Local development

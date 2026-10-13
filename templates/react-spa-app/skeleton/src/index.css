@@ -1,3 +1,92 @@
 @import "tailwindcss";
 /* Adhar UI design tokens + Tailwind v4 preset (colors, radii, typography). */
 @import "@adhar-ui/tailwind-preset/theme.css";
+
+/* Tailwind v4 does not scan node_modules, and Adhar UI's variant classes
+   (bg-primary, hover:bg-primary/90, …) live there. Without this they are
+   never generated and every Adhar UI button renders unstyled. */
+@source "../node_modules/@adhar-ui";
+
+/* Adhar brand theme. The preset maps Tailwind colors to these variables but
+   defines none of them; values are HSL channels ("H S% L%"). */
+@layer base {
+  :root {
+    --background: 228 33% 99%;
+    --foreground: 232 38% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 232 38% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 232 38% 11%;
+    --primary: 248 76% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 232 30% 95%;
+    --secondary-foreground: 232 38% 18%;
+    --muted: 232 30% 95%;
+    --muted-foreground: 232 12% 42%;
+    --accent: 248 90% 96%;
+    --accent-foreground: 248 60% 36%;
+    --destructive: 0 78% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 232 24% 90%;
+    --input: 232 24% 88%;
+    --ring: 248 76% 58%;
+    --radius: 0.75rem;
+
+    /* The logo's gradient. */
+    --brand-from: #3b9ef4;
+    --brand-to: #aa27ee;
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 232 40% 6%;
+    --foreground: 228 40% 96%;
+    --card: 232 36% 9%;
+    --card-foreground: 228 40% 96%;
+    --popover: 232 36% 9%;
+    --popover-foreground: 228 40% 96%;
+    --primary: 244 92% 74%;
+    --primary-foreground: 232 45% 8%;
+    --secondary: 232 26% 15%;
+    --secondary-foreground: 228 40% 96%;
+    --muted: 232 26% 14%;
+    --muted-foreground: 230 16% 66%;
+    --accent: 244 40% 18%;
+    --accent-foreground: 244 92% 86%;
+    --destructive: 0 70% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 232 22% 18%;
+    --input: 232 22% 20%;
+    --ring: 244 92% 74%;
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(110deg, var(--brand-from), var(--brand-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+}
+
+/* Soft brand glow behind the hero. */
+@utility bg-brand-glow {
+  background:
+    radial-gradient(40rem 22rem at 20% 0%, color-mix(in srgb, var(--brand-from) 18%, transparent), transparent 70%),
+    radial-gradient(36rem 20rem at 85% 10%, color-mix(in srgb, var(--brand-to) 16%, transparent), transparent 70%);
+}

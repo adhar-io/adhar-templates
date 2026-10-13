@@ -24,21 +24,29 @@ style variants directly:
 
 ```jsx
 import { Button, buttonVariants } from '@adhar-ui/react'
-import { cn } from '@adhar-ui/utils'
+
+// Adhar UI components are unstyled; the look comes from the variant functions.
+<Button className={buttonVariants({ variant: 'outline' })}>Read the docs</Button>
 ```
+
+The Adhar brand theme (light and dark colors, radius, the logo gradient) lives in
+`src/index.css`. Change it there and every Adhar UI variant follows.
 
 ## Layout
 
 ```
 .
-├── index.html
+├── index.html           # applies the saved/system theme before first paint
+├── public/adhar-mark.svg
 ├── vite.config.js
 ├── project.toml         # buildpack: npm build → serve dist/ with nginx
 ├── .npmrc               # @adhar-ui → Gitea npm registry
 ├── src/
 │   ├── main.jsx
-│   ├── App.jsx          # uses @adhar-ui/react
-│   └── index.css        # Tailwind v4 + @adhar-ui/tailwind-preset
+│   ├── App.jsx          # landing page built from Adhar UI variants
+│   ├── icons.jsx        # inline line icons
+│   ├── useTheme.js      # light/dark toggle, remembered per browser
+│   └── index.css        # Tailwind v4 + Adhar UI preset + Adhar brand theme
 └── deploy/              # GitOps tree — ArgoCD syncs this
     ├── rollout.yaml     # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
