@@ -129,6 +129,7 @@ spec:
           # as a literal it produced an HTTPRoute for a hostname the Gateway does
           # not answer on. Do not "fix" this by hardcoding another domain.
           hostname: ${{ parameters.name }}.adhar.localtest.me
+          platformBaseDomain: adhar.localtest.me
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
           repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
           giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}

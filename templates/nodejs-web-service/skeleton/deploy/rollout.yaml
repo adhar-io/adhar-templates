@@ -29,7 +29,7 @@ spec:
         app: ${{ values.name }}
     spec:
       imagePullSecrets:
-        - name: harbor-push
+        - name: harbor-dockercfg
       containers:
         - name: app
           image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest

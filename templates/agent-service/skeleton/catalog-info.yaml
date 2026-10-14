@@ -15,7 +15,7 @@ metadata:
       url: https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}/src/branch/main/docs
       icon: docs
     - title: Agents dashboard
-      url: https://grafana.${{ values.hostname | replace(values.name + ".", "") }}/d/adhar-agents
+      url: https://grafana.${{ values.platformBaseDomain }}/d/adhar-agents
       icon: dashboard
   tags:
     - ai
