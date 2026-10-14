@@ -82,7 +82,11 @@ spec:
               port: ${{ values.port }}
             periodSeconds: 3
             timeoutSeconds: 3
-            failureThreshold: 40
+            # 100 x 3 s = 5 min. A Spring Boot service with the adhar-kit
+            # starters measured 154 s to "Started Application" on a busy node
+            # (2026-10-14); at the former 40 x 3 s the kubelet killed it
+            # mid-boot every time, which reads like a crash and is not.
+            failureThreshold: 100
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -108,7 +112,11 @@ spec:
           # calculator reads. Lower it and the service stops starting.
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              # A JVM at 100m takes minutes to boot; 250m is what it needs to
+              # start inside the probe budget on a node that is not idle.
+              cpu: 250m
+              memory: 512Mi
             limits:
-              memory: 1Gi
+              # Paketo sizes the heap from this limit; at 1Gi the calculated
+              # -Xmx left the adhar-kit starters out of memory on first load.
+              memory: 2Gi
