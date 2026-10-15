@@ -68,6 +68,31 @@
 {%- endif %}
   </dependencies>
 
+  <!-- Security floors above adhar-kit-parent 0.1.0. The supply-chain image
+       scan (trivy, HIGH/CRITICAL, exit-code 1) refuses an image carrying
+       these, so a freshly scaffolded service could not pass its own pipeline:
+         CVE-2026-106451  at.yawk.lz4:lz4-java 1.10.1 (via kafka-clients) -> 1.11.4
+         io.kubernetes:client-java (via adhar-kit-kubernetes)             -> 27.0.0
+       A released parent POM is immutable in Nexus, so the pins live here until
+       the parent that carries them is released; then delete this block
+       (`mvn dependency:tree` showing the same versions without it is the
+       signal). Explicit dependencyManagement, not a property: a property the
+       BOM does not use is silently ignored. -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>1.11.4</version>
+      </dependency>
+      <dependency>
+        <groupId>io.kubernetes</groupId>
+        <artifactId>client-java</artifactId>
+        <version>27.0.0</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <build>
     <plugins>
       <!-- Produces the executable jar buildpacks turn into the image. -->

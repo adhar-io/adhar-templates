@@ -49,6 +49,14 @@ spec:
         team: { title: Team, type: string, default: platform, description: 'Attribution: the agent carries adhar.io/team like every other workload' }
         project: { title: Project, type: string, default: adhar, description: 'The Project this agent belongs to (attribution and policy scope; the agent keeps its own isolated namespace)' }
 
+        customHostnames:
+          title: Custom hostnames
+          type: string
+          description: >-
+            Optional, comma-separated. The app always answers on its platform
+            route <name>.<environment>.<platform domain>; list any extra
+            hostnames to serve on as well (each needs a Gateway listener and
+            certificate that covers it).
     - title: Capabilities
       properties:
         models:
@@ -129,6 +137,11 @@ spec:
           # as a literal it produced an HTTPRoute for a hostname the Gateway does
           # not answer on. Do not "fix" this by hardcoding another domain.
           hostname: ${{ parameters.name }}.adhar.localtest.me
+          # Every hostname the HTTPRoute serves, as a JSON list (the renderer
+          # substitutes strings, and a JSON list is a valid YAML flow sequence).
+          # The scaffolder rewrites this to [<name>.<environment>.<domain>] plus
+          # parameters.customHostnames; this literal is the local fallback.
+          hostnamesJson: '["${{ parameters.name }}.adhar.localtest.me"]'
           platformBaseDomain: adhar.localtest.me
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
           repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}

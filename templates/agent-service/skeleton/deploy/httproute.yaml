@@ -13,8 +13,9 @@ spec:
   parentRefs:
     - name: adhar-gateway
       namespace: adhar-system
-  hostnames:
-    - "${{ values.hostname }}"
+  # The platform route (<name>.<environment>.<domain>) plus any custom
+  # hostnames given at scaffold time. A JSON list renders as a YAML sequence.
+  hostnames: ${{ values.hostnamesJson }}
   rules:
     - matches:
         - path:

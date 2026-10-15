@@ -41,6 +41,14 @@ spec:
             catalogFilter:
               kind: [Group, User]
 
+        customHostnames:
+          title: Custom hostnames
+          type: string
+          description: >-
+            Optional, comma-separated. The app always answers on its platform
+            route <name>.<environment>.<platform domain>; list any extra
+            hostnames to serve on as well (each needs a Gateway listener and
+            certificate that covers it).
     - title: Runtime
       properties:
         replicas:
@@ -81,6 +89,11 @@ spec:
           # not answer on, so a freshly created service had a URL that never
           # resolved. Do not "fix" this by hardcoding another domain.
           hostname: ${{ parameters.name }}.adhar.localtest.me
+          # Every hostname the HTTPRoute serves, as a JSON list (the renderer
+          # substitutes strings, and a JSON list is a valid YAML flow sequence).
+          # The scaffolder rewrites this to [<name>.<environment>.<domain>] plus
+          # parameters.customHostnames; this literal is the local fallback.
+          hostnamesJson: '["${{ parameters.name }}.adhar.localtest.me"]'
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
           repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
 

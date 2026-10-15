@@ -30,6 +30,9 @@ spec:
     spec:
       imagePullSecrets:
         - name: harbor-dockercfg
+      # deploy/rbac.yaml — the reads adhar-kit-kubernetes needs; the namespace
+      # default ServiceAccount gets 403 and the pod never becomes Ready.
+      serviceAccountName: ${{ values.name }}
       containers:
         - name: app
           image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
