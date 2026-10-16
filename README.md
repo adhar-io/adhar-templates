@@ -65,29 +65,18 @@ tree) and an Argo CD Application.
 | [`angular-spa-app`](templates/angular-spa-app) | Angular · Adhar UI | | Static SPA |
 | [`agent-service`](templates/agent-service) | Python AI agent | | Isolated `AgentWorkload` with a gateway identity |
 
-### Self-service resources
+### Everything that is not an application
 
-These are standalone resources provisioned through the Adhar control plane
-(Crossplane), each with a connection Secret in your namespace.
-
-| Template | Provisions |
-|---|---|
-| [`postgres-database`](templates/postgres-database) | PostgreSQL database |
-| [`redis-cache`](templates/redis-cache) | Valkey (Redis-compatible) cache |
-| [`kafka-cluster`](templates/kafka-cluster) | Strimzi Kafka (KRaft) with topics |
-| [`object-bucket`](templates/object-bucket) | S3-compatible object storage bucket |
-| [`search-cluster`](templates/search-cluster) | OpenSearch cluster |
-| [`vector-database`](templates/vector-database) | Qdrant vector database |
-| [`secret`](templates/secret) | Managed Secret |
-| [`environment`](templates/environment) | Environment (namespace) |
-| [`repository`](templates/repository) | Git repository |
-
-### Ownership hierarchy
-
-The [`organisation`](templates/organisation) → [`team`](templates/team) →
-[`project`](templates/project) → [`application`](templates/application)
-templates model who owns what. The Service Catalog, scorecards and on-call
-routing all read that model.
+This collection holds application templates only. Databases, caches, Kafka,
+buckets, search and vector stores are **Adhar Resources** — declared next to the
+application in its `deploy/base` (the skeletons already carry a `Database`,
+`Cache` or `Messaging` where the template offers one) or created from the
+console's Adhar Resources page. Organisations, teams, projects and environments
+are tenancy, provisioned through the console's switcher (Organisation/Team XRs)
+and the project composition — not scaffolded from a template. The former
+`organisation`, `team`, `project`, `application`, `environment`, `secret`,
+`repository` and data-resource templates were removed on 2026-10-16 for that
+reason.
 
 ## How it works
 

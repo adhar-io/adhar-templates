@@ -1,0 +1,44 @@
+# The identity the service runs as, with the reads adhar-kit-kubernetes needs.
+#
+# adhar-kit-kubernetes (Spring Cloud Kubernetes) watches Endpoints, Services
+# and Pods for discovery and reads ConfigMaps/Secrets for config. Run as the
+# namespace's `default` ServiceAccount it gets a 403 on its first list,
+# the informer loop logs an ApiException every second, the discovery health
+# indicator stays DOWN and the pod never becomes Ready — which reads like a
+# crashing service (my-service, 76 restarts, 2026-10-15). Read-only, this
+# namespace only.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ${{ values.name }}-discovery
+  labels:
+    app: ${{ values.name }}
+rules:
+  - apiGroups: [""]
+    resources: [endpoints, services, pods, configmaps, secrets]
+    verbs: [get, list, watch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${{ values.name }}-discovery
+  labels:
+    app: ${{ values.name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ${{ values.name }}-discovery
+subjects:
+  - kind: ServiceAccount
+    name: ${{ values.name }}
+    namespace: dev # patched per environment by deploy/envs/<env>

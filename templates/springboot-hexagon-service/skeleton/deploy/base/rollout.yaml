@@ -1,0 +1,124 @@
+# Progressive delivery with Argo Rollouts (canary). The image is the SIGNED
+# Harbor image; the kyverno verify-supply-chain-images policy admits it only if
+# cosign-signed, and mutates :latest to the verified digest — so what runs is
+# exactly what was scanned + signed.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  replicas: ${{ values.replicas }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  strategy:
+    canary:
+      steps:
+        - setWeight: 25
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: ${{ values.name }}
+    spec:
+      imagePullSecrets:
+        - name: harbor-dockercfg
+      # deploy/rbac.yaml — the reads adhar-kit-kubernetes needs; the namespace
+      # default ServiceAccount gets 403 and the pod never becomes Ready.
+      serviceAccountName: ${{ values.name }}
+      containers:
+        - name: app
+          image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+          ports:
+            - containerPort: ${{ values.port }}
+          env:
+            - name: PORT
+              value: "${{ values.port }}"
+            # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
+            # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
+            - name: OTEL_SERVICE_NAME
+              value: "${{ values.name }}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://alloy.adhar-system.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=adhar,deployment.environment=local"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+{%- if values.withDatabase %}
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-db-app
+                  key: jdbc-uri
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-db-app
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-db-app
+                  key: password
+{%- endif %}
+          # Spring Boot's own probe groups (management.endpoint.health.probes.enabled).
+          # Not /healthz: the Dapr SDK that adhar-kit brings in registers its own
+          # GET /healthz, and a second handler for it fails startup with
+          # "Ambiguous mapping". The startup probe gives the JVM time to boot
+          # before liveness may restart it; timeouts stay above one second.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: ${{ values.port }}
+            periodSeconds: 3
+            timeoutSeconds: 3
+            # 100 x 3 s = 5 min. A Spring Boot service with the adhar-kit
+            # starters measured 154 s to "Started Application" on a busy node
+            # (2026-10-14); at the former 40 x 3 s the kubelet killed it
+            # mid-boot every time, which reads like a crash and is not.
+            failureThreshold: 100
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: ${{ values.port }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: ${{ values.port }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          # A JVM cannot start in 128Mi.
+          #
+          # The Paketo memory calculator sizes fixed regions from the container
+          # limit and refuses to launch when they do not fit — at 128Mi it needs
+          # ~838M for metaspace, code cache and thread stacks alone and the pod
+          # crash-loops with "fixed memory regions require 838503K which is
+          # greater than 128M available for allocation". That reads as a broken
+          # image rather than a limit set below the runtime's floor.
+          #
+          # The request stays modest so scheduling is cheap; the LIMIT is what the
+          # calculator reads. Lower it and the service stops starting.
+          resources:
+            requests:
+              # A JVM at 100m takes minutes to boot; 250m is what it needs to
+              # start inside the probe budget on a node that is not idle.
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              # Paketo sizes the heap from this limit; at 1Gi the calculated
+              # -Xmx left the adhar-kit starters out of memory on first load.
+              memory: 2Gi

@@ -1,0 +1,26 @@
+# prod: promoted only by a Release (manual approval).
+# The namespace is the project's prod environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  - target: {kind: Rollout, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target: {kind: HTTPRoute, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames
+        value: ${{ values.prodHostnamesJson }}
+  - target: {kind: RoleBinding}
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: prod

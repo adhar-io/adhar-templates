@@ -1,0 +1,14 @@
+# The application as one unit; deploy/envs/<env> places it in an environment.
+# Argo CD syncs each overlay (`deploy/envs/<env>`) into the project's namespace
+# for that environment; Kargo promotes the image digest from dev to test to
+# prod by editing ONLY the overlay's `images:` block (ADR-0026).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cache.yaml
+  - database.yaml
+  - httproute.yaml
+  - kafka.yaml
+  - rbac.yaml
+  - rollout.yaml
+  - service.yaml

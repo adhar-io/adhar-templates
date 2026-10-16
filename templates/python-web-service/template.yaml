@@ -108,7 +108,13 @@ spec:
           # substitutes strings, and a JSON list is a valid YAML flow sequence).
           # The scaffolder rewrites this to [<name>.<environment>.<domain>] plus
           # parameters.customHostnames; this literal is the local fallback.
-          hostnamesJson: '["${{ parameters.name }}.adhar.localtest.me"]'
+          hostnamesJson: '["${{ parameters.name }}.dev.adhar.localtest.me"]'
+          # One list per environment (dev/test/prod overlays patch the HTTPRoute
+          # with these); the scaffolder sets them to <name>.<env>.<domain> and
+          # appends parameters.customHostnames to prod.
+          devHostnamesJson: '["${{ parameters.name }}.dev.adhar.localtest.me"]'
+          testHostnamesJson: '["${{ parameters.name }}.test.adhar.localtest.me"]'
+          prodHostnamesJson: '["${{ parameters.name }}.prod.adhar.localtest.me"]'
           # Parsed from the RepoUrlPicker so the in-cluster build can clone the
           # app's own Gitea repo.
           gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}

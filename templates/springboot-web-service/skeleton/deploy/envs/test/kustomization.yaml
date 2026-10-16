@@ -1,0 +1,26 @@
+# test: promoted automatically once dev is verified.
+# The namespace is the project's test environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: test
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  - target: {kind: Rollout, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: {kind: HTTPRoute, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames
+        value: ${{ values.testHostnamesJson }}
+  - target: {kind: RoleBinding}
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: test
