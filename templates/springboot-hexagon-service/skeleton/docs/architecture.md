@@ -29,7 +29,7 @@ client your team registers in Keycloak, then send it as `Authorization: Bearer`.
 Authentication is off — every endpoint is public
 (`adhar.security.authorization.permit-all=/**`). To require platform JWTs, remove
 that line and set `adhar.security.jwt.jwk-set-uri` to the Keycloak realm's JWKS:
-`http://keycloak.keycloak.svc.cluster.local:8080/keycloak/realms/adhar/protocol/openid-connect/certs`.
+`http://keycloak.adhar-system.svc.cluster.local:8080/realms/adhar/protocol/openid-connect/certs` (the platform Keycloak; `/` and `/actuator/**` stay public so the route visibly answers).
 {%- endif %}
 
 ## Deployment shape
