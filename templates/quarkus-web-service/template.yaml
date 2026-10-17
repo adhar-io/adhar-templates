@@ -72,6 +72,60 @@ spec:
             allowedHosts:
               - adhar.localtest.me:8443
 
+    - title: Operations
+      description: What on-call and the service scorecard need to know. Everything here lands in catalog-info.yaml and the deploy manifests, so the service starts with a score instead of earning one later.
+      properties:
+        lifecycle:
+          title: Lifecycle
+          type: string
+          description: experimental while it is being built, production once it is GA, deprecated when it is being retired.
+          enum: [experimental, production, deprecated]
+          default: experimental
+        tier:
+          title: Tier
+          type: string
+          description: How much the business depends on it; sets alert severity.
+          enum: [critical, high, standard, low]
+          default: standard
+        docsUrl:
+          title: Documentation URL
+          type: string
+          description: Leave empty to point at the repository's docs/ folder.
+          default: ""
+        runbookUrl:
+          title: Runbook URL
+          type: string
+          description: What to do when it pages. Linked from the catalog and the scorecard.
+          default: ""
+        oncall:
+          title: On-call
+          type: string
+          description: Team or channel paged for this service, e.g. "#team-payments-oncall".
+          default: ""
+        sloTarget:
+          title: Availability SLO (%)
+          type: string
+          description: The availability objective the alerts are tuned against.
+          default: "99.9"
+        enableAlerts:
+          title: Alert on restarts, unavailable pods and 5xx
+          type: boolean
+          description: Ships a PrometheusRule with the service (adhar.io/alerts).
+          default: true
+        enablePdb:
+          title: PodDisruptionBudget
+          type: boolean
+          description: Keeps at least one replica through node drains and upgrades.
+          default: true
+        enableHpa:
+          title: Autoscale on CPU
+          type: boolean
+          description: A HorizontalPodAutoscaler on the Rollout, 70% CPU, up to the maximum below.
+          default: false
+        maxReplicas:
+          title: Maximum replicas when autoscaling
+          type: integer
+          default: 3
   steps:
     - id: template
       name: Generate the service

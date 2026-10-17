@@ -10,3 +10,13 @@ resources:
   - rbac.yaml
   - rollout.yaml
   - service.yaml
+  - podmonitor.yaml
+{%- if values.enablePdb %}
+  - pdb.yaml
+{%- endif %}
+{%- if values.enableHpa %}
+  - hpa.yaml
+{%- endif %}
+{%- if values.enableAlerts %}
+  - alerts.yaml
+{%- endif %}

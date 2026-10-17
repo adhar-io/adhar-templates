@@ -1,0 +1,14 @@
+# A disruption budget so a node drain or an upgrade never takes the last replica
+# at once. maxUnavailable (not minAvailable) so a single-replica dev copy can
+# still be evicted.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ${{ values.name }}

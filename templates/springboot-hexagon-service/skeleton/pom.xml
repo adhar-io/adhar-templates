@@ -22,6 +22,14 @@
   <description>${{ values.description }}</description>
 
   <dependencies>
+        <!-- Serves /actuator/prometheus. The platform's PodMonitor scrapes it for
+             request rate, status codes and latency (catalog Metrics tab and the
+             per-application Grafana dashboard); exposing the endpoint without
+             this registry answers 404, which adhar-kit reports as a 500. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
     <!-- Batteries-included starter: web, actuator/health, tracing, metrics,
          logging, security, resilience. -->
     <dependency>

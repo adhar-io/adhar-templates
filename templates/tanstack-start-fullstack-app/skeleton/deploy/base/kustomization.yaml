@@ -9,3 +9,12 @@ resources:
   - httproute.yaml
   - rollout.yaml
   - service.yaml
+{%- if values.enablePdb %}
+  - pdb.yaml
+{%- endif %}
+{%- if values.enableHpa %}
+  - hpa.yaml
+{%- endif %}
+{%- if values.enableAlerts %}
+  - alerts.yaml
+{%- endif %}

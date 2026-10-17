@@ -10,3 +10,12 @@ resources:
   - rollout.yaml
   - service.yaml
   - servicemonitor.yaml
+{%- if values.enablePdb %}
+  - pdb.yaml
+{%- endif %}
+{%- if values.enableHpa %}
+  - hpa.yaml
+{%- endif %}
+{%- if values.enableAlerts %}
+  - alerts.yaml
+{%- endif %}

@@ -1,0 +1,22 @@
+# CPU-based autoscaling of the Rollout. The overlay's replica patch is the
+# floor; this is the ceiling.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: ${{ values.name }}
+  minReplicas: 1
+  maxReplicas: ${{ values.maxReplicas or 3 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

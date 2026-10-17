@@ -1,0 +1,45 @@
+# The service's own alerts, evaluated by the platform's Prometheus in every
+# environment the overlay places it in (kube-prometheus selects every
+# PrometheusRule on the cluster). Severity follows the tier chosen at creation.
+# Surfaced on the catalog card through the adhar.io/alerts annotation.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+    adhar.io/application: ${{ values.name }}
+spec:
+  groups:
+    - name: ${{ values.name }}.availability
+      rules:
+        - alert: ApplicationPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+",container!="POD"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: ${{ values.tier or 'standard' }}
+            application: ${{ values.name }}
+          annotations:
+            summary: ${{ values.name }} is restarting
+            description: A ${{ values.name }} container restarted more than twice in fifteen minutes.
+            runbook_url: ${{ values.runbookUrl }}
+        - alert: ApplicationPodsUnavailable
+          expr: sum(kube_pod_status_ready{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+",condition="true"}) < 1
+          for: 5m
+          labels:
+            severity: ${{ values.tier or 'standard' }}
+            application: ${{ values.name }}
+          annotations:
+            summary: ${{ values.name }} has no ready pod
+            description: No ${{ values.name }} pod has been Ready for five minutes; the service is down in this environment.
+            runbook_url: ${{ values.runbookUrl }}
+        - alert: ApplicationHighErrorRate
+          expr: sum(rate(http_server_requests_seconds_count{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+"}[5m])), 1e-9) > 0.05
+          for: 10m
+          labels:
+            severity: ${{ values.tier or 'standard' }}
+            application: ${{ values.name }}
+          annotations:
+            summary: ${{ values.name }} is serving errors
+            description: More than 5% of ${{ values.name }} requests answered 5xx for ten minutes (SLO ${{ values.sloTarget or '99.9' }}%).
+            runbook_url: ${{ values.runbookUrl }}

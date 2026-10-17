@@ -1,0 +1,18 @@
+# Prometheus scrapes the service's own metrics (/actuator/prometheus): request
+# rate, status codes and the latency histogram the catalog Metrics tab and the
+# per-application Grafana dashboard read. kube-prometheus selects every
+# PodMonitor on the cluster, so nothing else needs to change.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  podMetricsEndpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s

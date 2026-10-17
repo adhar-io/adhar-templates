@@ -37,6 +37,7 @@ spec:
           image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
           ports:
             - containerPort: ${{ values.port }}
+              name: http
           env:
             - name: PORT
               value: "${{ values.port }}"
