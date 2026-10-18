@@ -9,11 +9,13 @@ images:
   - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
     newTag: latest
 patches:
+  # Two replicas, like prod: the automated chaos test kills a pod here, and
+  # with one replica that can only ever measure an outage.
   - target: {kind: Rollout, name: "${{ values.name }}"}
     patch: |-
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 2
   - target: {kind: HTTPRoute, name: "${{ values.name }}"}
     patch: |-
       - op: replace

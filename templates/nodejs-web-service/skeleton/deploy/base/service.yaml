@@ -2,6 +2,17 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ${{ values.name }}
+  annotations:
+    # Read by the platform's resilience runner and scorer (adhar-scorecards):
+    # the automated load test's thresholds and the live SLO checks.
+    adhar.io/slo-availability: "${{ values.sloTarget or '99.9' }}"
+    adhar.io/slo-latency-p95-ms: "${{ values.latencyTargetMs or '500' }}"
+{%- if values.perfPath %}
+    adhar.io/perf-path: "${{ values.perfPath }}"
+{%- endif %}
+{%- if values.chaosTesting == false %}
+    adhar.io/chaos: "false"
+{%- endif %}
   labels:
     app: ${{ values.name }}
 spec:

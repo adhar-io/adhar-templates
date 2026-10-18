@@ -27,11 +27,29 @@ spec:
       labels:
         app: ${{ values.name }}
     spec:
+      # Replicas on different nodes, so one node failing cannot take the
+      # service down (scorecard: spread_across_nodes).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ${{ values.name }}
+      terminationGracePeriodSeconds: 30
       imagePullSecrets:
         - name: harbor-dockercfg
       containers:
         - name: app
           image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+          # Leave the Service's endpoints before the process stops, so
+          # in-flight requests finish during a rollout or a node drain
+          # (scorecard: graceful_shutdown). The kubelet's own sleep action:
+          # it needs no shell in the image.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
           ports:
             - containerPort: ${{ values.port }}
           env:

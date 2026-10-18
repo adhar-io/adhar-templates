@@ -113,6 +113,21 @@ spec:
           type: string
           description: The availability objective the alerts are tuned against.
           default: "99.9"
+        latencyTargetMs:
+          title: Latency target, p95 (ms)
+          type: string
+          description: The automated load test and the live SLO check fail the service above this.
+          default: "500"
+        perfPath:
+          title: Load-test path
+          type: string
+          description: The endpoint the platform load-tests, e.g. "/api/items". Empty uses the readiness probe path.
+          default: ""
+        chaosTesting:
+          title: Automated chaos testing
+          type: boolean
+          description: The platform kills a pod in test daily under a steady-state probe and scores whether the service kept answering. Never runs in prod.
+          default: true
         enableAlerts:
           title: Alert on restarts, unavailable pods and 5xx
           type: boolean
@@ -143,6 +158,21 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           replicas: ${{ parameters.replicas }}
+          # Operations. Without these the form's answers never reached the skeleton:
+          # no service shipped its PDB, HPA or alerts and every SLO read the default.
+          lifecycle: ${{ parameters.lifecycle }}
+          tier: ${{ parameters.tier }}
+          docsUrl: ${{ parameters.docsUrl }}
+          runbookUrl: ${{ parameters.runbookUrl }}
+          oncall: ${{ parameters.oncall }}
+          sloTarget: ${{ parameters.sloTarget }}
+          enableAlerts: ${{ parameters.enableAlerts }}
+          enablePdb: ${{ parameters.enablePdb }}
+          enableHpa: ${{ parameters.enableHpa }}
+          maxReplicas: ${{ parameters.maxReplicas }}
+          latencyTargetMs: ${{ parameters.latencyTargetMs }}
+          perfPath: ${{ parameters.perfPath }}
+          chaosTesting: ${{ parameters.chaosTesting }}
           withDatabase: ${{ parameters.withDatabase }}
           port: 3000
           # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
