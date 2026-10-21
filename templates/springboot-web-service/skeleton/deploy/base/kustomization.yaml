@@ -12,6 +12,7 @@ resources:
   - rbac.yaml
   - rollout.yaml
   - service.yaml
+  - resilience.yaml
   - podmonitor.yaml
 {%- if values.enablePdb %}
   - pdb.yaml

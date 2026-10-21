@@ -47,6 +47,32 @@
       <scope>runtime</scope>
     </dependency>
 {%- endif %}
+
+    <!-- Integration tests (`mvn verify`, run by failsafe; `mvn test` never
+         starts them). src/test/resources/karate holds Karate API tests that
+         ApiIT runs against the real application on a random port, with each
+         backing service the service was scaffolded with started by
+         Testcontainers and wired in through @ServiceConnection. Testcontainers
+         versions come from the Spring Boot BOM; each container module is added
+         with its feature. -->
+    <dependency>
+      <groupId>io.karatelabs</groupId>
+      <artifactId>karate-junit5</artifactId>
+      <version>1.5.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+{%- if values.withDatabase %}
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+{%- endif %}
   </dependencies>
 
   <!-- Security floors above adhar-kit-parent 0.1.0. The supply-chain image
@@ -80,6 +106,25 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- Runs the *IT integration tests in `integration-test` and fails the
+           build in `verify`. Version and executions come from the parent. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <!-- adhar-kit-parent gates `mvn verify` on 80% instruction coverage, and
+           the integration tests are what produce coverage data. The bootstrap
+           class only holds main(), which no test calls — the tests start the
+           application through Spring instead — so it is left out of the ratio. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes combine.children="append">
+            <exclude>io/adhar/service/Application.class</exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
   </build>

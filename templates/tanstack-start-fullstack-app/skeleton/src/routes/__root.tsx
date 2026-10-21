@@ -1,9 +1,11 @@
 import {
   createRootRoute,
   HeadContent,
+  Link,
   Outlet,
   Scripts,
 } from '@tanstack/react-router'
+import { buttonVariants } from '@adhar-ui/react'
 import appCss from '../styles.css?url'
 
 // Applied before first paint so the saved (or system) theme never flashes.
@@ -24,6 +26,9 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
+  // Any URL no route matches. The server answers it with a 404 status and this
+  // page; without it TanStack Router renders a bare "Not Found" and warns.
+  notFoundComponent: NotFound,
 })
 
 function RootComponent() {
@@ -40,5 +45,18 @@ function RootComponent() {
         <Scripts />
       </body>
     </html>
+  )
+}
+
+function NotFound() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+      <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">404</p>
+      <h1 className="text-3xl font-bold tracking-tight">Page not found</h1>
+      <p className="max-w-md text-muted-foreground">There is nothing at this address.</p>
+      <Link to="/" className={buttonVariants({ variant: 'outline' })}>
+        Back to the home page
+      </Link>
+    </main>
   )
 }

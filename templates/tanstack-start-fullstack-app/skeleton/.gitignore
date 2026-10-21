@@ -3,3 +3,4 @@ dist
 src/routeTree.gen.ts
 .env
 .DS_Store
+e2e/results/

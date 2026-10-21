@@ -8,6 +8,7 @@ resources:
   - httproute.yaml
   - rollout.yaml
   - service.yaml
+  - resilience.yaml
 {%- if values.enablePdb %}
   - pdb.yaml
 {%- endif %}

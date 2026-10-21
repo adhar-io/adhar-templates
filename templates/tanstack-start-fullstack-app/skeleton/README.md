@@ -22,11 +22,12 @@ public/adhar-symbol.svg
 src/
 ├── router.tsx            # getRouter() — TanStack Start's router factory
 ├── routes/
-│   ├── __root.tsx        # HTML shell, theme applied before first paint
+│   ├── __root.tsx        # HTML shell, theme applied before first paint, 404 page
 │   ├── index.tsx         # landing page + live status from /api/hello
 │   └── api/hello.ts      # server route → /api/hello
 ├── components/           # icons, light/dark theme hook
 └── styles.css            # Tailwind v4 + Adhar UI preset + Adhar brand theme
+e2e/                      # Playwright end-to-end tests (npm run test:e2e)
 ```
 
 ## Local development
@@ -40,3 +41,16 @@ npm run dev
 > align `vite.config.ts` and the route APIs accordingly.
 
 Access the deployed app at `https://${{ values.hostname }}:8443`.
+
+## End-to-end tests
+
+Playwright tests against the production build live in [`e2e/`](e2e/README.md):
+
+```sh
+npx playwright install chromium   # once per machine
+npm run test:e2e                  # builds, serves and tests the production build
+```
+
+CI runs them on every build; `E2E_BASE_URL=<url> npm run test:e2e` tests a
+deployed environment instead.
+

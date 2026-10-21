@@ -200,8 +200,8 @@ spec:
         chaosExperiments:
           title: Chaos scenarios
           type: string
-          description: Litmus faults the platform runs against this service in test, in order, each its own scorecard signal. Any fault in the catalogue, comma-separated.
-          default: "pod-delete,pod-network-latency,pod-cpu-hog"
+          description: The faults this service's resilience suite runs, in order, under a continuous health probe — after every promotion into test (a failure blocks prod) and hourly for the scorecard. Chosen for this kind of service; the suite (deploy/base/resilience.yaml) describes each one and can be edited later.
+          default: "pod-delete,pod-memory-hog,pod-network-latency"
         enableAlerts:
           title: Alert on restarts, unavailable pods and 5xx
           type: boolean

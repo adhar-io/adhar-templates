@@ -47,6 +47,7 @@ The Adhar brand theme (light and dark colors, radius, the logo gradient) lives i
 │   ├── icons.jsx        # inline line icons
 │   ├── useTheme.js      # light/dark toggle, remembered per browser
 │   └── index.css        # Tailwind v4 + Adhar UI preset + Adhar brand theme
+├── e2e/                 # Playwright end-to-end tests (npm run test:e2e)
 └── deploy/              # GitOps tree — ArgoCD syncs this
     ├── rollout.yaml     # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
@@ -61,3 +62,16 @@ npm run dev
 ```
 
 Access the deployed app at `https://${{ values.hostname }}:8443`.
+
+## End-to-end tests
+
+Playwright tests against the production build live in [`e2e/`](e2e/README.md):
+
+```sh
+npx playwright install chromium   # once per machine
+npm run test:e2e                  # builds, serves and tests the production build
+```
+
+CI runs them on every build; `E2E_BASE_URL=<url> npm run test:e2e` tests a
+deployed environment instead.
+

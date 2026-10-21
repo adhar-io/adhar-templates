@@ -3,6 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <title>${{ values.name }}</title>
+    <!-- Asset URLs resolve from the site root, not from the current path: without
+         this a deep link such as /orders/42 (served index.html by push-state)
+         loads main.js from /orders/main.js, gets index.html back, and the app
+         never boots. -->
+    <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${{ values.description | escape }}" />
     <meta name="theme-color" content="#2563eb" />
