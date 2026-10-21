@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="452" viewBox="0 0 1020 452" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" role="img" aria-label="Create, build, promote and run: how an Adhar template becomes a running service">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6E7781"/></marker></defs>
+<rect width="1020" height="452" rx="12" fill="#FFFFFF"/>
+<rect x="16" y="16" width="220" height="420" rx="10" fill="#F6F8FA" stroke="#D0D7DE"/>
+<rect x="16" y="16" width="220" height="4" rx="2" fill="#0969DA"/>
+<text x="32" y="46" font-size="15" font-weight="600" fill="#0969DA">1 · Create</text>
+<text x="32" y="66" font-size="12" fill="#59636E">Adhar Console, once</text>
+<rect x="32" y="84" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="32" y="94" width="3" height="26" rx="1.5" fill="#0969DA"/>
+<text x="46" y="103" font-size="13" font-weight="600" fill="#1F2328">Fill in the form</text>
+<text x="46" y="120" font-size="11.5" fill="#59636E">name · owner · options</text>
+<line x1="126.0" y1="132" x2="126.0" y2="149" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="32" y="152" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="32" y="162" width="3" height="26" rx="1.5" fill="#0969DA"/>
+<text x="46" y="171" font-size="13" font-weight="600" fill="#1F2328">fetch:template</text>
+<text x="46" y="188" font-size="11.5" fill="#59636E">render skeleton/</text>
+<line x1="126.0" y1="200" x2="126.0" y2="217" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="32" y="220" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="32" y="230" width="3" height="26" rx="1.5" fill="#0969DA"/>
+<text x="46" y="239" font-size="13" font-weight="600" fill="#1F2328">publish:gitea</text>
+<text x="46" y="256" font-size="11.5" fill="#59636E">new repo: source + deploy/</text>
+<line x1="126.0" y1="268" x2="126.0" y2="285" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="32" y="288" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="32" y="298" width="3" height="26" rx="1.5" fill="#0969DA"/>
+<text x="46" y="307" font-size="13" font-weight="600" fill="#1F2328">adhar:create-argocd-app</text>
+<text x="46" y="324" font-size="11.5" fill="#59636E">GitOps application</text>
+<line x1="126.0" y1="336" x2="126.0" y2="353" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="32" y="356" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="32" y="366" width="3" height="26" rx="1.5" fill="#0969DA"/>
+<text x="46" y="375" font-size="13" font-weight="600" fill="#1F2328">catalog:register</text>
+<text x="46" y="392" font-size="11.5" fill="#59636E">component + owner + docs</text>
+<rect x="272" y="16" width="220" height="420" rx="10" fill="#F6F8FA" stroke="#D0D7DE"/>
+<rect x="272" y="16" width="220" height="4" rx="2" fill="#BF3989"/>
+<text x="288" y="46" font-size="15" font-weight="600" fill="#BF3989">2 · Build</text>
+<text x="288" y="66" font-size="12" fill="#59636E">app-ci, on every push</text>
+<rect x="288" y="84" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="288" y="94" width="3" height="26" rx="1.5" fill="#BF3989"/>
+<text x="302" y="103" font-size="13" font-weight="600" fill="#1F2328">Check</text>
+<text x="302" y="120" font-size="11.5" fill="#59636E">gitleaks · Trivy fs · tests</text>
+<line x1="382.0" y1="132" x2="382.0" y2="149" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="288" y="152" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="288" y="162" width="3" height="26" rx="1.5" fill="#BF3989"/>
+<text x="302" y="171" font-size="13" font-weight="600" fill="#1F2328">Build</text>
+<text x="302" y="188" font-size="11.5" fill="#59636E">Cloud Native Buildpacks</text>
+<line x1="382.0" y1="200" x2="382.0" y2="217" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="288" y="220" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="288" y="230" width="3" height="26" rx="1.5" fill="#BF3989"/>
+<text x="302" y="239" font-size="13" font-weight="600" fill="#1F2328">Scan</text>
+<text x="302" y="256" font-size="11.5" fill="#59636E">Trivy image gate + SBOM</text>
+<line x1="382.0" y1="268" x2="382.0" y2="285" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="288" y="288" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="288" y="298" width="3" height="26" rx="1.5" fill="#BF3989"/>
+<text x="302" y="307" font-size="13" font-weight="600" fill="#1F2328">Sign</text>
+<text x="302" y="324" font-size="11.5" fill="#59636E">cosign signs the digest</text>
+<line x1="382.0" y1="336" x2="382.0" y2="353" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="288" y="356" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="288" y="366" width="3" height="26" rx="1.5" fill="#BF3989"/>
+<text x="302" y="375" font-size="13" font-weight="600" fill="#1F2328">Harbor</text>
+<text x="302" y="392" font-size="11.5" fill="#59636E">signed image</text>
+<rect x="528" y="16" width="220" height="420" rx="10" fill="#F6F8FA" stroke="#D0D7DE"/>
+<rect x="528" y="16" width="220" height="4" rx="2" fill="#9A6700"/>
+<text x="544" y="46" font-size="15" font-weight="600" fill="#9A6700">3 · Promote</text>
+<text x="544" y="66" font-size="12" fill="#59636E">Kargo, by image digest</text>
+<rect x="544" y="84" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="544" y="94" width="3" height="26" rx="1.5" fill="#9A6700"/>
+<text x="558" y="103" font-size="13" font-weight="600" fill="#1F2328">dev</text>
+<text x="558" y="120" font-size="11.5" fill="#59636E">every build lands here</text>
+<line x1="638.0" y1="132" x2="638.0" y2="171" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="544" y="174" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="544" y="184" width="3" height="26" rx="1.5" fill="#9A6700"/>
+<text x="558" y="193" font-size="13" font-weight="600" fill="#1F2328">test</text>
+<text x="558" y="210" font-size="11.5" fill="#59636E">auto, once dev is healthy</text>
+<line x1="638.0" y1="222" x2="638.0" y2="261" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="544" y="264" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="544" y="274" width="3" height="26" rx="1.5" fill="#9A6700"/>
+<text x="558" y="283" font-size="13" font-weight="600" fill="#1F2328">Load + chaos tests</text>
+<text x="558" y="300" font-size="11.5" fill="#59636E">k6 gate · Litmus faults</text>
+<line x1="638.0" y1="312" x2="638.0" y2="351" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="544" y="354" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="544" y="364" width="3" height="26" rx="1.5" fill="#9A6700"/>
+<text x="558" y="373" font-size="13" font-weight="600" fill="#1F2328">prod</text>
+<text x="558" y="390" font-size="11.5" fill="#59636E">manual Release approval</text>
+<rect x="784" y="16" width="220" height="420" rx="10" fill="#F6F8FA" stroke="#D0D7DE"/>
+<rect x="784" y="16" width="220" height="4" rx="2" fill="#1A7F37"/>
+<text x="800" y="46" font-size="15" font-weight="600" fill="#1A7F37">4 · Run</text>
+<text x="800" y="66" font-size="12" fill="#59636E">each environment</text>
+<rect x="800" y="84" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="800" y="94" width="3" height="26" rx="1.5" fill="#1A7F37"/>
+<text x="814" y="103" font-size="13" font-weight="600" fill="#1F2328">Argo CD</text>
+<text x="814" y="120" font-size="11.5" fill="#59636E">syncs deploy/envs/&lt;env&gt;</text>
+<line x1="894.0" y1="132" x2="894.0" y2="149" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="800" y="152" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="800" y="162" width="3" height="26" rx="1.5" fill="#1A7F37"/>
+<text x="814" y="171" font-size="13" font-weight="600" fill="#1F2328">Kyverno</text>
+<text x="814" y="188" font-size="11.5" fill="#59636E">admits signed images only</text>
+<line x1="894.0" y1="200" x2="894.0" y2="217" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="800" y="220" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="800" y="230" width="3" height="26" rx="1.5" fill="#1A7F37"/>
+<text x="814" y="239" font-size="13" font-weight="600" fill="#1F2328">Argo Rollout</text>
+<text x="814" y="256" font-size="11.5" fill="#59636E">canary 25% → 50% → 100%</text>
+<line x1="894.0" y1="268" x2="894.0" y2="285" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="800" y="288" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="800" y="298" width="3" height="26" rx="1.5" fill="#1A7F37"/>
+<text x="814" y="307" font-size="13" font-weight="600" fill="#1F2328">Service + HTTPRoute</text>
+<text x="814" y="324" font-size="11.5" fill="#59636E">Postgres · Valkey · Kafka</text>
+<line x1="894.0" y1="336" x2="894.0" y2="353" stroke="#6E7781" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="800" y="356" width="188" height="46" rx="7" fill="#FFFFFF" stroke="#AFB8C1"/>
+<rect x="800" y="366" width="3" height="26" rx="1.5" fill="#1A7F37"/>
+<text x="814" y="375" font-size="13" font-weight="600" fill="#1F2328">OpenTelemetry</text>
+<text x="814" y="392" font-size="11.5" fill="#59636E">Tempo · Mimir · Loki</text>
+<path d="M222,243.0 H254 V107.0 H285" fill="none" stroke="#6E7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<path d="M478,379.0 H510 V107.0 H541" fill="none" stroke="#6E7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<path d="M734,107.0 H766 V107.0 H797" fill="none" stroke="#6E7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+</svg>

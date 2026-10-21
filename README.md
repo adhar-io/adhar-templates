@@ -30,13 +30,20 @@ the platform:
 - 🔐 **Secure by default.** Images are built with buildpacks (no Dockerfile),
   scanned with Trivy, given an SBOM, signed with cosign, and checked again by
   Kyverno at admission. If the platform did not sign an image, it does not run.
-- 🚀 **Progressive delivery.** Argo CD syncs `deploy/`, and Argo Rollouts shifts
-  traffic to new versions in canary steps.
+- 🚀 **Promoted, then progressively delivered.** Every build lands in `dev`.
+  Kargo promotes the signed digest to `test` once `dev` is healthy, and to
+  `prod` on a manual Release. In each environment Argo Rollouts shifts traffic
+  in canary steps.
 - 📈 **Observable from the first request.** OpenTelemetry sends traces, metrics
   and logs to Tempo, Mimir and Loki with nothing to configure.
 - 🧩 **Backing services on demand.** PostgreSQL, a Valkey cache and Kafka are
   provisioned next to the app, and their connection details reach it as
   environment variables, never as committed secrets.
+- 🛡️ **Production-ready from day one.** The form's **Operations** step sets
+  lifecycle, tier, SLO, runbook and on-call, and ships alerts, a
+  PodDisruptionBudget, optional autoscaling, a k6 load test and automated
+  chaos experiments, so the service starts with a scorecard score instead of
+  earning one later.
 - 📚 **Documented and catalogued.** Every app ships with TechDocs (`docs/` and
   `mkdocs.yml`) and registers itself in the Service Catalog with its owner.
 
@@ -45,71 +52,50 @@ the platform:
 ### Applications
 
 Each of these creates its own Gitea repository (source plus a GitOps `deploy/`
-tree) and an Argo CD Application.
+tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 
 | Template | Stack | Backing services | Highlights |
 |---|---|---|---|
-| [`springboot-web-service`](templates/springboot-web-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres · Valkey · Kafka (each optional) | ⭐ Recommended Java golden path |
-| [`springboot-hexagon-service`](templates/springboot-hexagon-service) | Java · Spring Boot · Adhar Kit | Postgres (optional) | Ports and adapters layout |
-| [`quarkus-web-service`](templates/quarkus-web-service) | Java · Quarkus | Postgres (optional) | Fast startup, low memory |
+| [`springboot-web-service`](templates/springboot-web-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres · Valkey · Kafka (each optional) | ⭐ Recommended Java golden path, Keycloak JWT auth, `compose.yaml` for local dev |
+| [`springboot-hexagon-service`](templates/springboot-hexagon-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres (optional) | Ports and adapters layout, Keycloak JWT auth |
+| [`quarkus-web-service`](templates/quarkus-web-service) | Java 21 · Quarkus 3 | Postgres (optional) | Fast startup, low memory |
 | [`nodejs-web-service`](templates/nodejs-web-service) | Node.js · Express | Postgres (optional) | |
-| [`go-web-service`](templates/go-web-service) | Go · net/http | Postgres (optional) | Minimal image, OTel built in |
-| [`python-web-service`](templates/python-web-service) | Python · Flask | Postgres (optional) | |
-| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · Adhar UI | Postgres (optional) | Full-stack SSR + API routes |
-| [`react-spa-app`](templates/react-spa-app) | React · Vite · Adhar UI | | Static SPA |
-| [`angular-spa-app`](templates/angular-spa-app) | Angular · Adhar UI | | Static SPA |
-| [`agent-service`](templates/agent-service) | Python AI agent | | Isolated `AgentWorkload` with a gateway identity |
-
-### Everything that is not an application
-
-This collection holds application templates only. Databases, caches, Kafka,
-buckets, search and vector stores are **Adhar Resources** — declared next to the
-application in its `deploy/base` (the skeletons already carry a `Database`,
-`Cache` or `Messaging` where the template offers one) or created from the
-console's Adhar Resources page. Organisations, teams, projects and environments
-are tenancy, provisioned through the console's switcher (Organisation/Team XRs)
-and the project composition — not scaffolded from a template. The former
-`organisation`, `team`, `project`, `application`, `environment`, `secret`,
-`repository` and data-resource templates were removed on 2026-10-16 for that
-reason.
+| [`go-web-service`](templates/go-web-service) | Go 1.25 · net/http | Postgres (optional) | Minimal image, OTel built in |
+| [`python-web-service`](templates/python-web-service) | Python · Flask · gunicorn | Postgres (optional) | |
+| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes |
+| [`react-spa-app`](templates/react-spa-app) | React 19 · Vite · Adhar UI | | Static SPA served by nginx |
+| [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · Adhar UI | | Static SPA served by nginx |
+| [`agent-service`](templates/agent-service) | Python · FastAPI AI agent | | ⭐ Isolated `AgentWorkload`: own namespace, default-deny network, gateway identity limited to the models and tools you list, token budget alerts |
 
 ## How it works
 
-```mermaid
-flowchart LR
-    subgraph Create["Adhar Console · Create"]
-        F[Developer fills the form]
-    end
-    F --> T[fetch:template]
-    T --> P[publish:gitea<br/>new repo: source + deploy/]
-    P --> A[adhar:create-argocd-app]
-    P --> R[catalog:register]
-
-    subgraph CI["Secure supply chain (app-ci on every push)"]
-        B[Buildpacks build] --> S[Trivy scan + SBOM] --> G[cosign sign] --> H[(Harbor)]
-    end
-    P -. git push .-> B
-
-    subgraph Cluster
-        K{{Kyverno<br/>verify signature}} --> RO[Argo Rollout<br/>canary]
-        RO --- SVC[Service + HTTPRoute]
-        RO --- BS[(Postgres · Valkey · Kafka)]
-    end
-    A --> K
-    H --> K
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/how-it-works-dark.svg">
+  <img src=".github/assets/how-it-works-light.svg" alt="Create, build, promote and run: the Console scaffolds a repo, app-ci builds, scans and signs the image into Harbor, Kargo promotes it from dev to test to prod, and Argo CD, Kyverno and Argo Rollouts run it." width="100%">
+</picture>
 
 1. The **platform bootstrap** mirrors this repository into Gitea and registers
    [`catalog-info.yaml`](catalog-info.yaml), a Backstage `Location` that lists
    every template, so all of them appear under **Create**.
 2. **Scaffolding** renders the template's `skeleton/` with the form values and
    publishes it to a new Gitea repository. It then creates an Argo CD
-   Application for `deploy/` and registers the component in the catalog.
+   Application for `deploy/`, registers the component in the catalog, and
+   copies `perf/` into the Performance Center as the service's load test.
 3. **Every push** runs the platform's `app-ci` pipeline. The new repository has
    nothing to define.
-4. **Argo CD** syncs `deploy/`. Kyverno admits only the signed image, and Argo
-   Rollouts rolls it out as a canary. Backing-service claims in the same tree
-   are reconciled by CloudNativePG and the Crossplane control plane.
+4. **Kargo** promotes the signed image digest by editing only the `images:`
+   block of each overlay in `deploy/envs/`: `dev` on every build, `test`
+   automatically once `dev` is healthy, and `prod` only through a manually
+   approved Release.
+5. **Argo CD** syncs each overlay into the project's namespace for that
+   environment. Kyverno admits only the signed image and pins it to the
+   verified digest, and Argo Rollouts rolls it out as a canary (25%, 50%,
+   100%). Backing-service claims in the same tree are reconciled by
+   CloudNativePG and the Crossplane control plane.
+6. **In `test`**, the platform runs the k6 load test against the latency
+   target and, if chaos testing is on, a daily series of Litmus faults. Each
+   result feeds the service's production-readiness scorecard. Chaos never runs
+   in `prod`.
 
 ### The secure supply chain
 
@@ -120,6 +106,7 @@ flowchart LR
 | Scan | Trivy (image) + syft SBOM | Enforced severity gate, SBOM attested |
 | Sign | cosign | Signs the digest only after every gate passes |
 | Admit | Kyverno `verify-supply-chain-images` | Unsigned images never start, including ones applied by hand |
+| Promote | Kargo | The digest that passed `dev` is the one that reaches `test` and `prod` |
 | Deploy | Argo CD + Argo Rollouts | Git is the source of truth, and a revert is the rollback |
 
 ## Spring Boot: pick your backing services
@@ -145,6 +132,29 @@ Credentials stay in Secrets that the platform generates. The generated code
 contains no hostnames and no passwords, and every setting falls back to the
 `localhost` ports in `compose.yaml` for local development.
 
+## Every template: the Operations step
+
+All templates end with the same **Operations** step. Its answers land in
+`catalog-info.yaml` and the deploy manifests, which is what on-call and the
+scorecard read.
+
+| Field | Default | Where it goes |
+|---|---|---|
+| Lifecycle | `experimental` | Catalog `spec.lifecycle` |
+| Tier | `standard` | `adhar.io/tier`, sets alert severity |
+| Documentation, runbook, on-call | empty | Catalog annotations and links |
+| Availability SLO | `99.9` | `adhar.io/slo`, the target alerts are tuned against |
+| Latency target (p95) | `500` ms | k6 thresholds and the Performance Center gate |
+| Load-test path | readiness probe | The endpoint `perf/load.js` calls |
+| Automated chaos testing | on | Daily Litmus faults in `test` (`pod-delete`, `pod-network-latency`, `pod-cpu-hog` by default) |
+| Alerts | on | `PrometheusRule` for restarts, unavailable pods and 5xx |
+| PodDisruptionBudget | on | Keeps one replica through drains and upgrades |
+| Autoscale on CPU | off | `HorizontalPodAutoscaler` at 70% CPU, up to the maximum replicas |
+
+Every template also takes optional **custom hostnames**. The service always
+answers on `<name>.<environment>.<platform domain>`, and the extra hostnames are
+added to the `prod` route.
+
 ## Repository layout
 
 ```text
@@ -156,16 +166,26 @@ adhar-templates/
         ├── template.yaml      # the form (parameters) + scaffolder steps
         └── skeleton/          # rendered into the new app's repository
             ├── catalog-info.yaml   # the new component's catalog entry
-            ├── mkdocs.yml, docs/   # TechDocs: overview, architecture, runbook
+            ├── mkdocs.yml, docs/   # TechDocs: overview, architecture, operations
+            ├── perf/               # k6 load test + Performance Center gate
             ├── <app source>
-            ├── compose.yaml        # local backing services (where offered)
+            ├── compose.yaml        # local backing services (springboot-web-service)
             └── deploy/             # GitOps tree Argo CD syncs
-                ├── rollout.yaml    # Argo Rollout (canary) of the signed image
-                ├── service.yaml
-                ├── httproute.yaml  # Cilium Gateway route
-                ├── database.yaml   # CloudNativePG cluster   (if requested)
-                ├── cache.yaml      # Valkey claim            (if requested)
-                └── kafka.yaml      # Kafka claim + topics    (if requested)
+                ├── base/
+                │   ├── kustomization.yaml
+                │   ├── rollout.yaml    # Argo Rollout (canary) of the signed image
+                │   ├── service.yaml
+                │   ├── httproute.yaml  # Gateway API route
+                │   ├── alerts.yaml     # PrometheusRule      (if enabled)
+                │   ├── pdb.yaml        # PodDisruptionBudget (if enabled)
+                │   ├── hpa.yaml        # autoscaler          (if enabled)
+                │   ├── database.yaml   # CloudNativePG cluster   (if requested)
+                │   ├── cache.yaml      # Valkey claim            (if requested)
+                │   └── kafka.yaml      # Kafka claim + topics    (if requested)
+                └── envs/
+                    ├── dev/            # namespace, image digest, hostnames
+                    ├── test/           # 2 replicas, so chaos tests measure resilience
+                    └── prod/           # 2 replicas, promoted by Release only
 ```
 
 ## Authoring a template
@@ -175,13 +195,19 @@ adhar-templates/
    then add form `parameters` and pass them to `fetch:template` as `values`.
 3. In `skeleton/`, reference values as `${{ values.name }}` and use
    `{%- if values.flag %} … {%- endif %}` for optional pieces. Wrap a whole
-   manifest in a condition, as `deploy/database.yaml` does, so it renders empty
-   when the option is off.
+   manifest in a condition, as `deploy/base/database.yaml` does, so it renders
+   empty when the option is off, or list it conditionally in
+   `deploy/base/kustomization.yaml`, as `pdb.yaml` and `hpa.yaml` are.
 4. Add the template to `targets` in [`catalog-info.yaml`](catalog-info.yaml).
 5. Follow these conventions:
-   - **Leave `hostname` as the local fallback.** The Console and CLI replace it
-     with the cluster's real base domain before rendering.
-   - **Commit no secrets.** Reference Secrets by name from `deploy/rollout.yaml`.
+   - **Leave `hostname` and the `*HostnamesJson` values as local fallbacks.**
+     The Console and CLI replace them with the cluster's real base domain
+     before rendering.
+   - **Keep the Operations step** and pass its values to `fetch:template`, or
+     the alerts, PDB, HPA and SLO never reach the skeleton.
+   - **Never edit `images:` in the overlays by hand.** Kargo owns that block,
+     so put environment differences in `patches:`.
+   - **Commit no secrets.** Reference Secrets by name from `deploy/base/rollout.yaml`.
    - **Set probes, requests and limits** on every container, with probe
      timeouts above one second. The scorecard checks for all of them.
    - **Ship `docs/`** that explain the generated service rather than the
@@ -197,7 +223,9 @@ platform matches behaviour on your laptop, and no cloud account is needed.
 `supply-chain` package (kpack builder `adhar-builder`, the `adhar-pipeline`
 service account, the cosign key and the `verify-supply-chain-images` Kyverno
 policy), plus `harbor`, `cnpg`, `kyverno`, `argo-rollouts`, and the Crossplane
-control plane for cache, Kafka and other self-service resources.
+control plane for cache, Kafka and other self-service resources. Promotion
+needs Kargo, and the load and chaos tests need the Performance Center and
+Litmus.
 
 ## License
 
