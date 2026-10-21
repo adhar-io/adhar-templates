@@ -132,6 +132,11 @@ spec:
           type: boolean
           description: The platform kills a pod in test daily under a steady-state probe and scores whether the service kept answering. Never runs in prod.
           default: true
+        chaosExperiments:
+          title: Chaos scenarios
+          type: string
+          description: Litmus faults the platform runs against this service in test, in order, each its own scorecard signal. Any fault in the catalogue, comma-separated.
+          default: "pod-delete,pod-network-latency,pod-cpu-hog"
         enableAlerts:
           title: Alert on restarts, unavailable pods and 5xx
           type: boolean
@@ -179,6 +184,7 @@ spec:
           latencyTargetMs: ${{ parameters.latencyTargetMs }}
           perfPath: ${{ parameters.perfPath }}
           chaosTesting: ${{ parameters.chaosTesting }}
+          chaosExperiments: ${{ parameters.chaosExperiments }}
           withDatabase: ${{ parameters.withDatabase }}
           # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
           # the platform's real base domain before rendering (the Console in

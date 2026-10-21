@@ -1,0 +1,29 @@
+{
+  "title": "${{ values.name }} smoke load",
+  "description": "Ten users for a minute against ${{ values.name }} in test. Shipped with the template; extend it with real user journeys.",
+  "namespace": "test",
+  "parallelism": 1,
+  "arguments": "",
+  "env": {
+    "BASE_URL": "http://${{ values.name }}.test.svc.cluster.local",
+    "TARGET_PATH": "/healthz"
+  },
+  "thresholds": [
+    { "metric": "http_req_duration", "expression": "p(95)<${{ values.latencyTargetMs or '500' }}" },
+    { "metric": "http_req_failed", "expression": "rate<0.01" },
+    { "metric": "checks", "expression": "rate>0.99" }
+  ],
+  "tags": ["smoke", "adhar-template", "${{ values.name }}"],
+  "target": {
+    "namespace": "test",
+    "selector": "app=${{ values.name }}",
+    "service": "${{ values.name }}"
+  },
+  "gate": {
+    "p95Ms": ${{ values.latencyTargetMs or '500' }},
+    "errorRatePct": 1,
+    "requireThresholds": true,
+    "failOnRegression": false,
+    "tolerance": { "latencyPct": 10, "errorRatePts": 0.5, "throughputPct": 10 }
+  }
+}

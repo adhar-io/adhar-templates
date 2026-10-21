@@ -13,6 +13,9 @@ metadata:
 {%- endif %}
 {%- if values.chaosTesting == false %}
     adhar.io/chaos: "false"
+{%- else %}
+    # The faults the platform's resilience runner runs here, in order.
+    adhar.io/chaos-experiments: "${{ values.chaosExperiments or 'pod-delete,pod-network-latency,pod-cpu-hog' }}"
 {%- endif %}
   labels:
     app: ${{ values.name }}

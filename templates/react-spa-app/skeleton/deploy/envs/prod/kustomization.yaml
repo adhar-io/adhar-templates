@@ -14,6 +14,15 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
+  # The autoscaler may add replicas, never go below this environment's floor:
+  # with the base's minReplicas of 1 it scaled test/prod to one pod, Argo CD
+  # put the second back, and the JVM's boot window failed every verification.
+  # A patch whose target is absent (no HPA) is a no-op.
+  - target: {kind: HorizontalPodAutoscaler, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
   - target: {kind: HTTPRoute, name: "${{ values.name }}"}
     patch: |-
       - op: replace
