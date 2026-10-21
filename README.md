@@ -5,11 +5,7 @@
   <img src=".github/assets/adhar-logo.svg" alt="Adhar" width="220">
 </picture>
 
-# Adhar Templates
-
-**Golden paths for the Adhar Internal Developer Platform.**<br>
-Pick a template in the Adhar Console, fill in a short form, and get a running,
-signed, observable service, with no boilerplate and no infra tickets.
+# Adhar Templates - Golden paths for the Adhar Internal Developer Platform
 
 [![Backstage Software Templates](https://img.shields.io/badge/Backstage-Software%20Templates-9BF0E1?logo=backstage&logoColor=white)](https://backstage.io/docs/features/software-templates/)
 [![GitOps: Argo CD](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D?logo=argo&logoColor=white)](https://argo-cd.readthedocs.io/)
@@ -17,9 +13,9 @@ signed, observable service, with no boilerplate and no infra tickets.
 [![Control plane: Crossplane](https://img.shields.io/badge/control%20plane-Crossplane-8B5CF6)](https://www.crossplane.io/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](#license)
 
-[Templates](#template-catalog) · [How it works](#how-it-works) · [Spring Boot backing services](#spring-boot-pick-your-backing-services) · [Authoring](#authoring-a-template) · [Local dev](#run-it-locally)
-
 </div>
+
+> Pick a template in the Adhar Console, fill in a short form, and get a running, signed, observable service, with no boilerplate and no infra tickets.
 
 ---
 
