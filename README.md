@@ -5,7 +5,7 @@
   <img src=".github/assets/adhar-logo.svg" alt="Adhar" width="220">
 </picture>
 
-# Adhar Templates - Golden paths for the Adhar Internal Developer Platform
+# Adhar Templates - Golden paths for the Adhar IDP
 
 [![Backstage Software Templates](https://img.shields.io/badge/Backstage-Software%20Templates-9BF0E1?logo=backstage&logoColor=white)](https://backstage.io/docs/features/software-templates/)
 [![GitOps: Argo CD](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D?logo=argo&logoColor=white)](https://argo-cd.readthedocs.io/)
@@ -17,7 +17,6 @@
 
 > Pick a template in the Adhar Console, fill in a short form, and get a running, signed, observable service, with no boilerplate and no infra tickets.
 
----
 
 ## Why
 
