@@ -21,6 +21,7 @@ spec:
     - ./templates/react-spa-app/template.yaml
     - ./templates/quarkus-web-service/template.yaml
     - ./templates/springboot-hexagon-service/template.yaml
+    - ./templates/springboot-gateway-service/template.yaml
     - ./templates/angular-spa-app/template.yaml
     - ./templates/tanstack-start-fullstack-app/template.yaml
     # ── AI agents (isolated AgentWorkload + gateway identity) ──

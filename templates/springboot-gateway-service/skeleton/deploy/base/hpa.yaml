@@ -1,0 +1,38 @@
+# CPU-based autoscaling of the Rollout. The overlay's replica patch is the
+# floor; this is the ceiling.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: ${{ values.name }}
+  minReplicas: 1
+  maxReplicas: ${{ values.maxReplicas or 6 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  # A gateway sees load before anything behind it does, so scale up at once
+  # (double every 30 s) and scale down slowly, so a short lull between bursts
+  # does not shed the capacity the next burst needs.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60

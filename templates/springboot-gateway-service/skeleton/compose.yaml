@@ -1,0 +1,23 @@
+# Local dependencies for `mvn spring-boot:run` — on the localhost ports
+# application.yaml falls back to when the cluster's environment is absent.
+#
+#   docker compose up -d
+#   UPSTREAM_URL=http://localhost:3000 mvn -s settings.xml spring-boot:run
+#
+# `echo` stands in for the upstream: it answers every request with what it
+# received, so you can see exactly what the gateway forwards (path, X-Request-ID,
+# X-User-ID, X-User-Roles).
+services:
+  echo:
+    image: mendhak/http-https-echo:35
+    environment:
+      HTTP_PORT: 3000
+    ports:
+      - "3000:3000"
+{%- if values.withRateLimit %}
+  # The rate limiter's token buckets.
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "6379:6379"
+{%- endif %}

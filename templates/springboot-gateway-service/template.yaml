@@ -1,0 +1,345 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-gateway-service
+  title: Spring Cloud Gateway (Adhar Kit)
+  description: >-
+    A reactive API gateway on Spring Cloud Gateway (WebFlux + Reactor Netty),
+    pre-configured with Adhar Kit, for putting many microservices behind one
+    front door. Keycloak JWT authentication with role checks and identity
+    propagation, distributed rate limiting on Valkey, per-route circuit breakers
+    with fallbacks, retries, timeouts, load shedding, CORS, security headers,
+    request IDs and OpenTelemetry. Tuned for high concurrency and shipped
+    through the secure supply chain with Argo Rollouts.
+  tags:
+    - recommended
+    - java
+    - springboot
+    - gateway
+    - webflux
+    - adhar-kit
+    - supply-chain
+    - observability
+    - valkey
+spec:
+  owner: group:platform-engineers
+  type: service
+
+  parameters:
+    - title: Application
+      required: [name]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the gateway (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+
+        customHostnames:
+          title: Custom hostnames
+          type: string
+          description: >-
+            Optional, comma-separated. The gateway always answers on its platform
+            route <name>.<environment>.<platform domain>; list any extra
+            hostnames to serve on as well (each needs a Gateway listener and
+            certificate that covers it).
+
+    # The first route the gateway serves. More routes are a few lines each in
+    # application.yaml; this one makes the gateway useful from the first deploy.
+    - title: Routes
+      description: >-
+        The first upstream the gateway fronts. Add more routes later in
+        src/main/resources/application.yaml.
+      required: [routePath, upstreamUrl]
+      properties:
+        routePath:
+          title: Public path prefix
+          type: string
+          default: /api
+          description: Requests under this prefix go to the upstream, e.g. /api/orders/1.
+          pattern: '^/[-a-z0-9/]*[a-z0-9]$'
+        stripPrefix:
+          title: Strip the prefix before forwarding
+          type: boolean
+          default: true
+          description: /api/orders/1 reaches the upstream as /orders/1. Untick to forward the path unchanged.
+        upstreamUrl:
+          title: Upstream URL
+          type: string
+          default: http://my-service
+          description: >-
+            The service behind the gateway. A bare Service name (http://orders)
+            resolves in the gateway's own namespace, so the same value works in
+            dev, test and prod.
+          pattern: '^https?://[^\s]+$'
+
+    - title: Runtime
+      properties:
+        replicas:
+          title: Replicas
+          type: integer
+          default: 2
+          minimum: 1
+          maximum: 10
+          description: Replicas in dev. test and prod run at least two, and the autoscaler adds more under load.
+
+    - title: Traffic policy
+      description: >-
+        How the gateway protects itself and the services behind it. Every value
+        is a property in application.yaml, so it can be tuned per route later.
+      properties:
+        withAuth:
+          title: Require authentication (Keycloak JWT)
+          type: boolean
+          default: true
+          description: >-
+            Requests need a bearer token from the platform's Keycloak realm
+            `adhar`, validated against its JWKS. The token is relayed to the
+            upstream with the caller's identity in X-User-Id and X-User-Roles.
+            Health probes stay open either way.
+        withRateLimit:
+          title: Distributed rate limiting (Valkey)
+          type: boolean
+          default: true
+          description: >-
+            A token bucket per caller (the JWT subject, or the client IP when
+            anonymous), shared by every replica through a Valkey cache that is
+            provisioned with the gateway. Over the limit answers 429.
+        timeoutMs:
+          title: Upstream timeout (ms)
+          type: integer
+          default: 5000
+          minimum: 100
+          maximum: 120000
+          description: Longest the gateway waits for an upstream response before answering 504.
+        maxInFlight:
+          title: Maximum in-flight requests per replica
+          type: integer
+          default: 2000
+          minimum: 50
+          maximum: 100000
+          description: >-
+            Load shedding. Above this many concurrent requests a replica answers
+            503 with Retry-After at once, instead of queueing until everything
+            times out.
+        corsOrigins:
+          title: CORS allowed origins
+          type: string
+          default: ""
+          description: Comma-separated browser origins allowed to call the gateway, e.g. https://app.example.com. Empty allows none.
+      dependencies:
+        withRateLimit:
+          oneOf:
+            - properties:
+                withRateLimit:
+                  const: false
+            - properties:
+                withRateLimit:
+                  const: true
+                rateLimitPerSecond:
+                  title: Requests per second per caller
+                  type: integer
+                  default: 100
+                  minimum: 1
+                  maximum: 100000
+                rateLimitBurst:
+                  title: Burst capacity per caller
+                  type: integer
+                  default: 200
+                  minimum: 1
+                  maximum: 200000
+                  description: Requests a caller may send at once before the per-second rate applies.
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - adhar.localtest.me:8443
+
+    - title: Operations
+      description: What on-call and the service scorecard need to know. Everything here lands in catalog-info.yaml and the deploy manifests, so the service starts with a score instead of earning one later.
+      properties:
+        lifecycle:
+          title: Lifecycle
+          type: string
+          description: experimental while it is being built, production once it is GA, deprecated when it is being retired.
+          enum: [experimental, production, deprecated]
+          default: experimental
+        tier:
+          title: Tier
+          type: string
+          description: How much the business depends on it; sets alert severity.
+          enum: [critical, high, standard, low]
+          default: standard
+        docsUrl:
+          title: Documentation URL
+          type: string
+          description: Leave empty to point at the repository's docs/ folder.
+          default: ""
+        runbookUrl:
+          title: Runbook URL
+          type: string
+          description: What to do when it pages. Linked from the catalog and the scorecard.
+          default: ""
+        oncall:
+          title: On-call
+          type: string
+          description: Team or channel paged for this service, e.g. "#team-payments-oncall".
+          default: ""
+        sloTarget:
+          title: Availability SLO (%)
+          type: string
+          description: The availability objective the alerts are tuned against.
+          default: "99.9"
+        latencyTargetMs:
+          title: Latency target, p95 (ms)
+          type: string
+          description: The automated load test and the live SLO check fail the service above this.
+          default: "500"
+        perfPath:
+          title: Load-test path
+          type: string
+          description: The endpoint the platform load-tests, e.g. "/api/items". Empty uses the readiness probe path.
+          default: ""
+        chaosTesting:
+          title: Automated chaos testing
+          type: boolean
+          description: The platform kills a pod in test daily under a steady-state probe and scores whether the service kept answering. Never runs in prod.
+          default: true
+        chaosExperiments:
+          title: Chaos scenarios
+          type: string
+          description: The faults this service's resilience suite runs, in order, under a continuous health probe — after every promotion into test (a failure blocks prod) and hourly for the scorecard. Chosen for this kind of service; the suite (deploy/base/resilience.yaml) describes each one and can be edited later.
+          default: "pod-delete,pod-memory-hog,pod-network-latency"
+        enableAlerts:
+          title: Alert on restarts, unavailable pods and 5xx
+          type: boolean
+          description: Ships a PrometheusRule with the service (adhar.io/alerts).
+          default: true
+        enablePdb:
+          title: PodDisruptionBudget
+          type: boolean
+          description: Keeps at least one replica through node drains and upgrades.
+          default: true
+        enableHpa:
+          title: Autoscale on CPU
+          type: boolean
+          description: A HorizontalPodAutoscaler on the Rollout, 70% CPU, up to the maximum below. On by default for a gateway, because every request to the services behind it passes through it.
+          default: true
+        maxReplicas:
+          title: Maximum replicas when autoscaling
+          type: integer
+          default: 6
+  steps:
+    - id: template
+      name: Generate the gateway
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          replicas: ${{ parameters.replicas }}
+          # Operations. Without these the form's answers never reached the skeleton:
+          # no service shipped its PDB, HPA or alerts and every SLO read the default.
+          lifecycle: ${{ parameters.lifecycle }}
+          tier: ${{ parameters.tier }}
+          docsUrl: ${{ parameters.docsUrl }}
+          runbookUrl: ${{ parameters.runbookUrl }}
+          oncall: ${{ parameters.oncall }}
+          sloTarget: ${{ parameters.sloTarget }}
+          enableAlerts: ${{ parameters.enableAlerts }}
+          enablePdb: ${{ parameters.enablePdb }}
+          enableHpa: ${{ parameters.enableHpa }}
+          maxReplicas: ${{ parameters.maxReplicas }}
+          latencyTargetMs: ${{ parameters.latencyTargetMs }}
+          perfPath: ${{ parameters.perfPath }}
+          chaosTesting: ${{ parameters.chaosTesting }}
+          chaosExperiments: ${{ parameters.chaosExperiments }}
+          withAuth: ${{ parameters.withAuth }}
+          withRateLimit: ${{ parameters.withRateLimit }}
+          rateLimitPerSecond: ${{ parameters.rateLimitPerSecond or 100 }}
+          rateLimitBurst: ${{ parameters.rateLimitBurst or 200 }}
+          timeoutMs: ${{ parameters.timeoutMs }}
+          maxInFlight: ${{ parameters.maxInFlight }}
+          corsOrigins: ${{ parameters.corsOrigins }}
+          routePath: ${{ parameters.routePath }}
+          stripPrefix: ${{ parameters.stripPrefix }}
+          upstreamUrl: ${{ parameters.upstreamUrl }}
+          port: 8080
+          # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
+          # the platform's real base domain before rendering (the Console in
+          # apps/console/app/server/scaffolder.ts, the CLI in cmd/apps/scaffold.go),
+          # because a template cannot know which domain the cluster serves. Left
+          # as a literal it produced an HTTPRoute for a hostname the Gateway does
+          # not answer on, so a freshly created service had a URL that never
+          # resolved. Do not "fix" this by hardcoding another domain.
+          hostname: ${{ parameters.name }}.adhar.localtest.me
+          # Every hostname the HTTPRoute serves, as a JSON list (the renderer
+          # substitutes strings, and a JSON list is a valid YAML flow sequence).
+          # The scaffolder rewrites this to [<name>.<environment>.<domain>] plus
+          # parameters.customHostnames; this literal is the local fallback.
+          hostnamesJson: '["${{ parameters.name }}.dev.adhar.localtest.me"]'
+          # One list per environment (dev/test/prod overlays patch the HTTPRoute
+          # with these); the scaffolder sets them to <name>.<env>.<domain> and
+          # appends parameters.customHostnames to prod.
+          devHostnamesJson: '["${{ parameters.name }}.dev.adhar.localtest.me"]'
+          testHostnamesJson: '["${{ parameters.name }}.test.adhar.localtest.me"]'
+          prodHostnamesJson: '["${{ parameters.name }}.prod.adhar.localtest.me"]'
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+
+          # The host the repo was created on, so catalog-info.yaml's docs link
+          # points at the real Gitea rather than a hardcoded domain.
+          giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
+    - id: publish
+      name: Publish to Gitea
+      action: publish:gitea
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: create-argocd-app
+      name: Create ArgoCD deployment
+      action: adhar:create-argocd-app
+      input:
+        appName: ${{ parameters.name }}
+        appNamespace: adhar-system
+        argoInstance: local
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: "deploy"
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Source repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

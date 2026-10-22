@@ -1,0 +1,11 @@
+# The identity the gateway runs as. Its own ServiceAccount rather than the
+# namespace default, with NO Kubernetes API token mounted: the gateway routes by
+# Service DNS name and never calls the API server, so a compromised gateway pod
+# gets no credential to use against the cluster.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+automountServiceAccountToken: false

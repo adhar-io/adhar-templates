@@ -1,0 +1,33 @@
+# prod: promoted only by a Release (manual approval).
+# Three replicas: every request to the services behind the gateway passes
+# through it, so losing one of two during a node drain would halve capacity at
+# once. With three, a drain costs a third and the autoscaler covers the rest.
+# The namespace is the project's prod environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  - target: {kind: Rollout, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  # The autoscaler may add replicas, never go below this environment's floor:
+  # with the base's minReplicas of 1 it scaled test/prod to one pod, Argo CD
+  # put the second back, and the JVM's boot window failed every verification.
+  # A patch whose target is absent (no HPA) is a no-op.
+  - target: {kind: HorizontalPodAutoscaler, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+  - target: {kind: HTTPRoute, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames
+        value: ${{ values.prodHostnamesJson }}

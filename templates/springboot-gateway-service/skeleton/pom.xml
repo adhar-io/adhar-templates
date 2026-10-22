@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Adhar Kit parent — Spring Boot, the Spring Cloud release train, the
+       platform's CVE floors, the JDK 25 enforcer rule and the 80% coverage
+       gate. Resolved from the platform's Nexus (see settings.xml). -->
+  <parent>
+    <groupId>com.adhar.kit</groupId>
+    <artifactId>adhar-kit-parent</artifactId>
+    <version>0.1.0</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.adhar.service</groupId>
+  <artifactId>${{ values.name }}</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>${{ values.name }}</name>
+  <description>${{ values.description }}</description>
+
+  <dependencies>
+    <!-- The gateway: Spring Cloud Gateway on WebFlux and Reactor Netty. Every
+         request is a non-blocking event on a small, fixed set of event-loop
+         threads, which is what lets one replica hold tens of thousands of
+         concurrent connections. Nothing on the request path may block. -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+    </dependency>
+    <!-- Per-route circuit breakers and time limits, as Reactor operators. -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+{%- if values.withAuth %}
+    <!-- Reactive JWT validation against Keycloak's JWKS. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+    </dependency>
+{%- endif %}
+{%- if values.withRateLimit %}
+    <!-- Valkey for the distributed rate limiter. Reactive (Lettuce), so a slow
+         Valkey never parks an event-loop thread. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+    </dependency>
+{%- endif %}
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- Serves /actuator/prometheus for the platform's PodMonitor. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <!-- Traces over OTLP to the platform collector; the trace context is
+         propagated to every upstream call. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-opentelemetry</artifactId>
+    </dependency>
+    <!-- Native epoll transport on Linux: fewer system calls and less garbage
+         per connection than the NIO fallback. Reactor Netty picks it up when it
+         is on the classpath; macOS and Windows keep using NIO. -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <classifier>linux-x86_64</classifier>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <classifier>linux-aarch_64</classifier>
+    </dependency>
+
+    <!-- Adhar Kit, module by module.
+
+         NOT adhar-kit-starter: the starter and adhar-kit-security are built for
+         Spring MVC (servlet filters, SecurityFilterChain) and bring Tomcat and
+         spring-webmvc with them. With MVC on the classpath Spring Boot starts a
+         servlet application and the gateway does not run. So the gateway takes
+         the kit's framework-neutral modules and does its web concerns (auth,
+         CORS, rate limiting, request IDs) as reactive filters.
+
+         Nor adhar-kit-logging (0.1.0): its auto-configuration declares servlet
+         filters in its method signatures, so without the servlet API it fails
+         at startup with NoClassDefFoundError: jakarta/servlet/Filter, and its
+         JSON layout copies ~60 logback settings into every log line. The
+         gateway logs JSON through Spring Boot's structured logging instead
+         (logging.structured in application.yaml). -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-core</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-webmvc</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- adhar-kit-core's @Retry/@Memoize/@Async aspects are AspectJ; the kit
+         expects the weaver on the classpath but does not bring it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aspectj</artifactId>
+    </dependency>
+    <!-- Shared header names (X-Request-ID, X-Correlation-ID, X-User-ID) that
+         every Adhar service reads, so identity and request IDs line up end to
+         end. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-commons</artifactId>
+    </dependency>
+    <!-- Resilience4j for the whole application: the kit exports every route's
+         circuit breaker as metrics (resilience4j_circuitbreaker_*), reports it
+         in health and records its state changes as events. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-resilience</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-config</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-health</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-metrics</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-tracing</artifactId>
+    </dependency>
+
+    <!-- Integration tests (`mvn verify`, run by failsafe; `mvn test` runs only
+         the fast unit tests). src/test/resources/karate holds Karate API tests
+         that ApiIT runs against the real gateway on a random port, in front of
+         a stub upstream{% if values.withRateLimit %} and a Testcontainers Valkey{% endif %}. -->
+    <dependency>
+      <groupId>io.karatelabs</groupId>
+      <artifactId>karate-junit5</artifactId>
+      <version>1.5.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <!-- One Resilience4j version. Spring Cloud CircuitBreaker 5.0 (the 2025.1
+       train) is built against Resilience4j 2.3.0, and so is adhar-kit-resilience,
+       but adhar-kit-bom pins resilience4j-spring-boot3 alone at 2.4.0 — a jar
+       from one release calling into another's internals. The BOM here takes
+       precedence over the parent's; move it in step with Spring Cloud. -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-bom</artifactId>
+        <version>2.3.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <!-- Produces the executable jar buildpacks turn into the image. -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- Runs the *IT integration tests in `integration-test` and fails the
+           build in `verify`. Version and executions come from the parent. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <!-- adhar-kit-parent gates `mvn verify` on 80% instruction coverage. The
+           bootstrap class only holds main(), which no test calls — the tests
+           start the application through Spring instead — so it is left out. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes combine.children="append">
+            <exclude>io/adhar/service/Application.class</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- Also declared for dependency resolution; parent resolution uses
+       settings.xml (BP_MAVEN_SETTINGS_PATH), which mirrors these to the same
+       Nexus group. The platform publishes adhar-kit to Nexus `maven-hosted`,
+       never to the Gitea Maven registry. -->
+  <repositories>
+    <repository>
+      <id>adhar-nexus</id>
+      <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>adhar-nexus</id>
+      <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+</project>

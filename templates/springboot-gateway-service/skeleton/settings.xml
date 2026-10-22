@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven settings used by the buildpack (BP_MAVEN_SETTINGS_PATH=settings.xml).
+
+     Resolution goes through the platform's NEXUS, not the Gitea Maven registry.
+     That is where `adhar-kit-parent` actually is: the adhar-libraries package's
+     release pipeline runs `mvn deploy` into Nexus `maven-hosted`
+     (platform/stack/packages/application/adhar-libraries/manifests/maven-release.yaml),
+     and nothing has ever published Maven artifacts to Gitea. Pointing at Gitea
+     failed the build at the parent POM with "adhar-kit-parent:pom:0.1.0
+     (absent)", which reads as a broken library rather than a misconfigured repo.
+
+     `maven-public` is a Nexus group: it serves maven-hosted AND proxies Maven
+     Central, so one URL resolves both the platform's libraries and third-party
+     dependencies — which is why it is declared as `mirrorOf *`.
+
+     The <mirror> is also what makes this work at all over plain HTTP. Maven
+     3.8.1+ ships a blocker (`maven-default-http-blocker`, `mirrorOf
+     external:http:*`) that refuses any http:// repository, and an in-cluster
+     Service URL counts as external. A user-declared mirror for the same
+     repository takes precedence over that blocker; without it Maven reports
+     "Blocked mirror for repositories" and no amount of correcting the URL helps.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>nexus-public</id>
+      <name>Adhar Nexus (maven-public: maven-hosted + Central proxy)</name>
+      <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>adhar-nexus</id>
+      <!-- The repository ids are mirrored by the entry above; declaring them
+           keeps `central` resolvable when a plugin asks for it by id, and gives
+           the parent POM a repository to be found in before the reactor starts
+           (the pom's own <repositories> cannot resolve its own parent). -->
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>http://nexus.adhar-system.svc.cluster.local:8081/repository/maven-public/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>adhar-nexus</activeProfile>
+  </activeProfiles>
+</settings>

@@ -1,0 +1,28 @@
+# dev: the first environment every build lands in; Kargo promotes it onward once Prometheus says it is healthy.
+# The namespace is the project's dev environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  - target: {kind: Rollout, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: ${{ values.replicas }}
+  # The autoscaler's floor is this environment's replica count, so it never
+  # scales below what Argo CD then puts back. A no-op when there is no HPA.
+  - target: {kind: HorizontalPodAutoscaler, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: ${{ values.replicas }}
+  - target: {kind: HTTPRoute, name: "${{ values.name }}"}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames
+        value: ${{ values.devHostnamesJson }}

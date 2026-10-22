@@ -1,0 +1,68 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description }}
+  annotations:
+    adhar.io/owner: ${{ values.owner }}
+    adhar.io/description: "${{ values.description }}"
+    adhar.io/lifecycle: ${{ values.lifecycle or 'experimental' }}
+    adhar.io/tier: ${{ values.tier or 'standard' }}
+    adhar.io/dashboard: https://grafana.${{ values.platformBaseDomain or 'adhar.localtest.me' }}/d/app-${{ values.name }}
+    adhar.io/slo: "${{ values.sloTarget or '99.9' }}"
+{%- if values.enableAlerts %}
+    adhar.io/alerts: "true"
+{%- endif %}
+{%- if values.runbookUrl %}
+    adhar.io/runbook: ${{ values.runbookUrl }}
+{%- endif %}
+{%- if values.docsUrl %}
+    adhar.io/docs: ${{ values.docsUrl }}
+{%- endif %}
+{%- if values.oncall %}
+    adhar.io/oncall: "${{ values.oncall }}"
+{%- endif %}
+    argocd/app-name: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
+    # TechDocs. `dir:.` is the Backstage standard and is what a TechDocs builder
+    # consumes; the `docs` link below is what works with no builder installed,
+    # because Gitea renders docs/*.md as readable Markdown from the first commit.
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - title: Dashboard
+      url: https://grafana.${{ values.platformBaseDomain or 'adhar.localtest.me' }}/d/app-${{ values.name }}
+      icon: dashboard
+{%- if values.runbookUrl %}
+    - title: Runbook
+      url: ${{ values.runbookUrl }}
+      icon: runbook
+{%- endif %}
+{%- if values.oncall %}
+    - title: On-call
+      url: "${{ values.oncall }}"
+      icon: on-call
+{%- endif %}
+    - title: Documentation
+      # An absolute URL, because Gitea renders docs/*.md as readable Markdown
+      # from the first commit — so the docs work with no TechDocs builder
+      # installed. `giteaHost` comes from the RepoUrlPicker via parseRepoUrl, so
+      # it is the host the repo was actually created on rather than a guess.
+      url: https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}/src/branch/main/docs
+      icon: docs
+  tags:
+    - java
+    - springboot
+    - gateway
+    - webflux
+    - adhar-kit
+{%- if values.withRateLimit %}
+    - valkey
+{%- endif %}
+spec:
+  type: service
+  lifecycle: ${{ values.lifecycle or 'experimental' }}
+  owner: ${{ values.owner }}
+{%- if values.withRateLimit %}
+  dependsOn:
+    - resource:default/${{ values.name }}-cache
+{%- endif %}

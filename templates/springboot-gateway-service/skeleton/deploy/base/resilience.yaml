@@ -1,0 +1,67 @@
+# This application's RESILIENCE SUITE — what the platform proves about it
+# before it may reach prod. A Spring Cloud Gateway on the JVM, so its suite is:
+#
+#   selected     the faults that run, in order (the "Chaos scenarios" field
+#                when the service was created; edit it here any time)
+#   experiments  each fault's hypothesis and tuning — the catalogue `selected`
+#                picks from; add an entry to tune a fault or describe a new one
+#   probePath    what "still answering" means: the steady-state probe hits it
+#                continuously during every fault. The gateway's landing page,
+#                not a health probe: it passes through the same filters as real
+#                traffic (load shedding included) and needs no token or upstream
+#   perf         the load test's target and thresholds
+#
+# The platform's resilience runner (adhar-scorecards) reads this ConfigMap in
+# each environment: hourly for the scorecard, and as the PROMOTION GATE after
+# every promotion into test — a build that fails its load test or any fault
+# here is not verified in test, so it never reaches prod. Results appear on the
+# service's scorecard and on the console's Chaos page.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${{ values.name }}-resilience
+  labels:
+    adhar.io/resilience-suite: "true"
+    adhar.io/application: ${{ values.name }}
+data:
+  suite.json: |
+    {
+      "selected": "${{ values.chaosExperiments or 'pod-delete,pod-memory-hog,pod-network-latency' }}",
+      "probePath": "/",
+      "perf": {
+        "path": "${{ values.perfPath }}",
+        "p95Ms": ${{ values.latencyTargetMs or '500' }},
+        "errorRate": 0.01
+      },
+      "gate": { "enabled": true },
+      "experiments": [
+        {
+          "name": "pod-delete",
+          "hypothesis": "keeps answering while one of its pods is killed and replaced \u2014 enough replicas, readiness gating traffic, no state held in the pod",
+          "env": {
+            "CHAOS_INTERVAL": "10"
+          }
+        },
+        {
+          "name": "pod-memory-hog",
+          "hypothesis": "stays healthy when its container is squeezed for memory \u2014 the heap and caches fit inside the limit instead of being OOM-killed",
+          "env": {
+            "MEMORY_CONSUMPTION": "256"
+          }
+        },
+        {
+          "name": "pod-network-latency",
+          "hypothesis": "answers within its latency budget when the network to it slows by 300 ms \u2014 timeouts and retries are tuned, not left at defaults",
+          "env": {
+            "NETWORK_LATENCY": "300"
+          }
+        },
+        {
+          "name": "pod-cpu-hog",
+          "hypothesis": "keeps answering when its CPU is saturated \u2014 no work starves the request path or the health check",
+          "env": {
+            "CPU_CORES": "1"
+          }
+        }
+      ]
+    }

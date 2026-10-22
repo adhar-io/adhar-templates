@@ -1,0 +1,273 @@
+spring:
+  application:
+    name: ${{ values.name }}
+  # Trace and request context follows a request across Reactor's thread hops,
+  # so log lines carry the traceId of the request they belong to.
+  reactor:
+    context-propagation: auto
+  lifecycle:
+    # In-flight requests get this long to finish on shutdown (the Rollout's
+    # preStop and terminationGracePeriodSeconds are sized around it).
+    timeout-per-shutdown-phase: 25s
+{%- if values.withRateLimit %}
+  data:
+    redis:
+      # Valkey for the rate limiter. SPRING_DATA_REDIS_URL comes from the
+      # control plane's `${{ values.name }}-cache-app` Secret via the Rollout.
+      url: ${SPRING_DATA_REDIS_URL:redis://localhost:6379}
+      timeout: 250ms
+      connect-timeout: 1s
+{%- endif %}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # ── Routes ──────────────────────────────────────────────────────
+          # One entry per upstream. Order matters: the first route whose
+          # predicates match wins. Copy this one for a new upstream: each route
+          # gets its own circuit breaker (named after it) and retry policy, and
+          # inherits default-filters.
+          #
+          # A route's filters run in the order listed: a request over its rate
+          # limit never reaches the breaker, and retries happen inside the
+          # breaker, so it and its time limit see one call however many
+          # attempts it took. (default-filters interleave with these by
+          # position, which is why the order-sensitive ones live here.)
+          routes:
+            - id: upstream
+              uri: ${UPSTREAM_URL:${{ values.upstreamUrl }}}
+              predicates:
+                - Path=${{ values.routePath }},${{ values.routePath }}/**
+              filters:
+{%- if values.withRateLimit %}
+                # Token bucket per caller (CallerKeyResolver), shared by every
+                # replica through Valkey. Over the limit answers 429 with
+                # X-RateLimit-* headers. If Valkey is unreachable the limiter
+                # lets requests through rather than taking the gateway down.
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@callerKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: ${gateway.rate-limit.replenish-rate}
+                      burstCapacity: ${gateway.rate-limit.burst-capacity}
+                      requestedTokens: 1
+{%- endif %}
+{%- if values.stripPrefix %}
+                # ${{ values.routePath }}/orders/1 reaches the upstream as /orders/1.
+                - RewritePath=${{ values.routePath }}/?(?<segment>.*), /$\{segment}
+{%- endif %}
+                - name: CircuitBreaker
+                  args:
+                    name: upstream
+                    fallbackUri: forward:/fallback/upstream
+                    # Answers that mean the upstream itself is failing, rather
+                    # than rejecting this request: they count towards opening
+                    # the breaker and are answered by the fallback. A 500 is
+                    # the service's own answer and reaches the caller untouched.
+                    statusCodes: [502, 503, 504]
+                # Retry only what is safe to repeat (GET/HEAD), and only failures
+                # that mean the request never reached a healthy instance: an I/O
+                # error (refused, reset or prematurely closed connection — most
+                # often a pooled keep-alive connection the upstream had just
+                # closed), or a 502/503 from a pod that is going away. Never on a
+                # timeout — a slow upstream retried is three times the load on a
+                # backend that is already struggling.
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET,HEAD
+                    statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                    exceptions: java.io.IOException
+                    backoff:
+                      firstBackoff: 25ms
+                      maxBackoff: 250ms
+                      factor: 2
+                      basedOnPreviousValue: false
+              # A route that needs a different timeout than the rest sets it
+              # here, in milliseconds:
+              # metadata:
+              #   response-timeout: 30000
+
+          # ── Applied to every route ──────────────────────────────────────
+          default-filters:
+            # Bodies above this are refused with 413 before they are read.
+            - name: RequestSize
+              args:
+                maxSize: 10MB
+            # Upstreams that also send CORS headers would otherwise produce
+            # duplicates, which browsers reject.
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+          # ── Upstream HTTP client (Reactor Netty) ────────────────────────
+          httpclient:
+            connect-timeout: 2000
+            # Per attempt. An upstream that has not answered by then is a 504.
+            response-timeout: ${gateway.upstream-timeout}
+            pool:
+              # A bounded pool per upstream: under overload, requests wait
+              # (up to acquire-timeout) for a connection instead of opening
+              # thousands and exhausting the upstream's file descriptors.
+              type: FIXED
+              # Matches the per-route bulkhead (gateway.max-concurrent-per-route).
+              max-connections: ${gateway.max-concurrent-per-route}
+              acquire-timeout: 2000
+              # Below the usual 60 s keep-alive of upstream servers, so the
+              # gateway never reuses a connection the other side just closed.
+              max-idle-time: 30s
+              # Recycle connections every few minutes, so new upstream pods
+              # behind a Kubernetes Service get traffic instead of the gateway
+              # pinning every request to the pods that existed at startup.
+              max-life-time: 5m
+              eviction-interval: 15s
+              metrics: true
+
+          # spring_cloud_gateway_requests_seconds{routeId, status, ...}
+          metrics:
+            enabled: true
+
+  # A WebFlux application. Stated rather than inferred, so a servlet library
+  # pulled in later fails loudly instead of quietly switching to Tomcat.
+  main:
+    web-application-type: reactive
+  autoconfigure:
+    exclude:
+      # Spring Boot's fallback in-memory user ("Using generated security
+      # password"): the gateway authenticates bearer tokens or nobody.
+      - org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration
+
+server:
+  port: ${PORT:8080}
+  # HTTP/1.1 and cleartext HTTP/2 on the same port.
+  http2:
+    enabled: true
+  # Keycloak access tokens with many roles outgrow the 8 KB default.
+  max-http-request-header-size: 32KB
+  netty:
+    connection-timeout: 5s
+
+# ── Gateway traffic policy (GatewayProperties) ────────────────────────────
+gateway:
+  max-in-flight: ${{ values.maxInFlight }}
+  max-concurrent-per-route: 1000
+  upstream-timeout: ${{ values.timeoutMs }}ms
+{%- if values.withRateLimit %}
+  rate-limit:
+    # Tokens added to each caller's bucket per second, and the bucket's size:
+    # a caller may burst to burst-capacity, then sustain replenish-rate.
+    replenish-rate: ${{ values.rateLimitPerSecond }}
+    burst-capacity: ${{ values.rateLimitBurst }}
+{%- endif %}
+  cors:
+    allowed-origins: ${{ values.corsOrigins }}
+  circuit-breaker:
+    failure-rate-threshold: 50
+    sliding-window-size: 100
+    minimum-number-of-calls: 20
+    wait-in-open-state: 10s
+    permitted-calls-in-half-open-state: 10
+
+# ── Adhar Kit ─────────────────────────────────────────────────────────────
+adhar:
+  security:
+{%- if values.withAuth %}
+    # Every request needs a bearer JWT from the platform's Keycloak realm
+    # `adhar`, checked against the realm's signing keys — except the landing
+    # page and the platform's probes and metrics. Override the JWKS address
+    # with ADHAR_JWT_JWK_SET_URI when running outside the cluster, e.g.
+    # https://keycloak.<platform-domain>/realms/adhar/protocol/openid-connect/certs.
+    jwt:
+      jwk-set-uri: ${ADHAR_JWT_JWK_SET_URI:http://keycloak.adhar-system.svc.cluster.local:8080/realms/adhar/protocol/openid-connect/certs}
+    authorization:
+      permit-all: /
+      # Path → roles that may call it (Keycloak realm roles, as ROLE_<role>).
+      # authorities:
+      #   "[/api/admin/**]": [ROLE_admin]
+{%- else %}
+    # Authentication is off: every route is public (the gateway's own actuator
+    # endpoints stay closed). To require a Keycloak JWT, see docs/architecture.md.
+    # Path → roles still applies once authentication is on:
+    # authorization:
+    #   authorities:
+    #     "[/api/admin/**]": [ROLE_admin]
+{%- endif %}
+  resilience:
+    health:
+      # The kit reports health DOWN while any circuit breaker is open. For a
+      # gateway an open breaker means it is doing its job — shielding callers
+      # from a failing upstream — and the gateway itself is healthy; reporting
+      # DOWN would page the gateway's owners for someone else's outage. Breaker
+      # state is in metrics, the GatewayCircuitBreakerOpen alert and
+      # /actuator/circuitbreakers.
+      enabled: false
+  tracing:
+    # Traces go through Adhar Kit's OpenTelemetry SDK, which replaces Spring
+    # Boot's — so these, not management.tracing.*, are the settings that apply.
+    # OTLP over gRPC to the platform collector, which fans out to Tempo.
+    open-telemetry:
+      endpoint: ${ADHAR_TRACING_ENDPOINT:http://alloy.adhar-system.svc.cluster.local:4317}
+    sampling:
+      # Every request is traced at the gateway, which decides for the whole
+      # call tree. At very high volume lower this (e.g. 0.1) to cut cost.
+      probability: 1.0
+  commons:
+    # Servlet @RestControllerAdvice; ProblemDetailsErrorHandler is the reactive one.
+    exception-handler:
+      enabled: false
+  health:
+    events:
+      sse-enabled: false
+
+# ── Per-route circuit breakers ────────────────────────────────────────────
+# Routes not listed use gateway.circuit-breaker. Tune one by its breaker's name
+# (the CircuitBreaker filter's `name`) with Resilience4j's own properties —
+# Adhar Kit exports whatever is configured here as metrics and health.
+# resilience4j:
+#   circuitbreaker:
+#     instances:
+#       upstream:
+#         failure-rate-threshold: 25
+#         wait-duration-in-open-state: 30s
+
+# One JSON object per line on stdout, collected into Loki, with the traceId and
+# spanId of the request each line belongs to (spring.reactor.context-propagation).
+logging:
+  structured:
+    format:
+      console: logstash
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # gateway + circuitbreakers need the gateway-admin role (SecurityConfig).
+        include: health,info,metrics,prometheus,gateway,circuitbreakers
+  endpoint:
+    health:
+      probes:
+        enabled: true
+    gateway:
+      access: read-only
+  health:
+{%- if values.withRateLimit %}
+    # The rate limiter fails open, so the gateway serves without Valkey; a
+    # Valkey outage must not mark every replica DOWN.
+    redis:
+      enabled: false
+{%- endif %}
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  # Metrics are also pushed over OTLP to the platform collector (Alloy → Mimir),
+  # beside the Prometheus scrape. Traces are Adhar Kit's (adhar.tracing below).
+  otlp:
+    metrics:
+      export:
+        url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://alloy.adhar-system.svc.cluster.local:4318}/v1/metrics
+        step: 10s
+  metrics:
+    distribution:
+      # Latency histograms, so dashboards and the SLO checks can draw p50/p95/p99.
+      percentiles-histogram:
+        http.server.requests: true
+        spring.cloud.gateway.requests: true

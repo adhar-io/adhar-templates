@@ -58,6 +58,7 @@ tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 |---|---|---|---|
 | [`springboot-web-service`](templates/springboot-web-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres · Valkey · Kafka (each optional) | ⭐ Recommended Java golden path, Keycloak JWT auth, `compose.yaml` for local dev |
 | [`springboot-hexagon-service`](templates/springboot-hexagon-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres (optional) | Ports and adapters layout, Keycloak JWT auth |
+| [`springboot-gateway-service`](templates/springboot-gateway-service) | Java 25 · Spring Cloud Gateway (WebFlux) · Adhar Kit | Valkey for rate limiting (optional) | API gateway: JWT auth, rate limits, circuit breakers, load shedding |
 | [`quarkus-web-service`](templates/quarkus-web-service) | Java 21 · Quarkus 3 | Postgres (optional) | Fast startup, low memory |
 | [`nodejs-web-service`](templates/nodejs-web-service) | Node.js · Express | Postgres (optional) | |
 | [`go-web-service`](templates/go-web-service) | Go 1.25 · net/http | Postgres (optional) | Minimal image, OTel built in |
@@ -132,6 +133,28 @@ Credentials stay in Secrets that the platform generates. The generated code
 contains no hostnames and no passwords, and every setting falls back to the
 `localhost` ports in `compose.yaml` for local development.
 
+## Spring Cloud Gateway: one front door
+
+`springboot-gateway-service` puts many services behind one reactive gateway
+(Spring Cloud Gateway on WebFlux and Reactor Netty). Its form asks for the first
+route (a path prefix and an upstream URL) and a **Traffic policy**:
+
+| Protection | Default | Behaviour |
+|---|---|---|
+| Keycloak JWT | on | Realm roles become `ROLE_<role>`; the caller's identity reaches the upstream as `X-User-ID` / `X-User-Roles`, and spoofed values are removed |
+| Rate limit per caller | on, 100/s, burst 200 | Token bucket in a Valkey claim, shared by every replica; `429` over the limit |
+| Upstream timeout | 5 s | `504` problem response |
+| Load shedding | 2,000 in flight per replica | `503` with `Retry-After` instead of slowing every request down |
+| CORS | no origins | Exact allow-list of browser origins |
+
+Every route also runs behind a circuit breaker, a bulkhead and a GET-only retry,
+with fallbacks that answer RFC 9457 problems. Autoscaling is on by default.
+
+The gateway uses `adhar-kit-parent` and the kit's framework-neutral modules, not
+`adhar-kit-starter`: in Adhar Kit 0.1.0 the starter and the security and logging
+modules are built for Spring MVC and cannot run in a reactive application. The
+generated `docs/architecture.md` explains what the gateway does instead.
+
 ## Every template: the Operations step
 
 All templates end with the same **Operations** step. Its answers land in
@@ -169,7 +192,7 @@ adhar-templates/
             ├── mkdocs.yml, docs/   # TechDocs: overview, architecture, operations
             ├── perf/               # k6 load test + Performance Center gate
             ├── <app source>
-            ├── compose.yaml        # local backing services (springboot-web-service)
+            ├── compose.yaml        # local dependencies (the Spring Boot templates)
             └── deploy/             # GitOps tree Argo CD syncs
                 ├── base/
                 │   ├── kustomization.yaml

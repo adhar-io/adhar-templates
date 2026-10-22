@@ -1,0 +1,157 @@
+# Progressive delivery with Argo Rollouts (canary). The image is the SIGNED
+# Harbor image; the kyverno verify-supply-chain-images policy admits it only if
+# cosign-signed, and mutates :latest to the verified digest — so what runs is
+# exactly what was scanned + signed.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  replicas: ${{ values.replicas }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  strategy:
+    canary:
+      steps:
+        - setWeight: 25
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: ${{ values.name }}
+    spec:
+      # Replicas on different nodes, so one node failing cannot take the
+      # service down (scorecard: spread_across_nodes).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ${{ values.name }}
+      # preStop (10 s) + Spring's graceful shutdown (spring.lifecycle.
+      # timeout-per-shutdown-phase=25s) must fit inside this, or the kubelet
+      # kills the JVM with requests still in flight.
+      terminationGracePeriodSeconds: 45
+      imagePullSecrets:
+        - name: harbor-dockercfg
+      # deploy/base/rbac.yaml — its own identity, with no API token mounted.
+      serviceAccountName: ${{ values.name }}
+      automountServiceAccountToken: false
+      containers:
+        - name: app
+          image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+          # Leave the Service's endpoints before the process stops, so
+          # in-flight requests finish during a rollout or a node drain
+          # (scorecard: graceful_shutdown). The kubelet's own sleep action:
+          # it needs no shell in the image.
+          #
+          # 10 s rather than 5: a gateway holds keep-alive connections from the
+          # platform Gateway, which needs a little longer to notice the endpoint
+          # is gone and stop sending on them.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 10
+          ports:
+            - containerPort: ${{ values.port }}
+              name: http
+          env:
+            - name: PORT
+              value: "${{ values.port }}"
+            # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
+            # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
+            - name: OTEL_SERVICE_NAME
+              value: "${{ values.name }}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://alloy.adhar-system.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=adhar,deployment.environment=local"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            # JVM flags for a latency-sensitive proxy. Generational ZGC keeps GC
+            # pauses well under a millisecond at any heap size, so a collection
+            # never shows up as a p99 spike on every route at once; the heap
+            # itself is still sized by the Paketo memory calculator from the
+            # container limit. ExitOnOutOfMemoryError turns an OOM into a clean
+            # restart instead of a half-alive pod that keeps accepting traffic.
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseZGC -XX:+ExitOnOutOfMemoryError"
+            # The Paketo memory calculator reserves stack for 250 threads by
+            # default. A reactive gateway runs on a handful of event-loop
+            # threads, so reserve for 100 and give the difference to the heap.
+            - name: BPL_JVM_THREAD_COUNT
+              value: "100"
+{%- if values.withRateLimit %}
+            # Valkey for the rate limiter's token buckets. Spring Boot reads the
+            # full redis:// URI from this variable.
+            - name: SPRING_DATA_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-cache-app
+                  key: uri
+{%- endif %}
+          # Spring Boot's own probe groups (management.endpoint.health.probes.enabled),
+          # which LoadSheddingFilter never sheds, so a saturated replica is not
+          # restarted for being busy. The startup probe gives the JVM time to
+          # boot before liveness may restart it; timeouts stay above one second.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: ${{ values.port }}
+            periodSeconds: 3
+            timeoutSeconds: 3
+            # 60 x 3 s = 3 min. The gateway takes the kit's modules rather than
+            # the full starter and boots in seconds, but a busy node can still
+            # stretch that well past a minute.
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: ${{ values.port }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: ${{ values.port }}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          # A JVM cannot start in 128Mi.
+          #
+          # The Paketo memory calculator sizes fixed regions from the container
+          # limit and refuses to launch when they do not fit — at 128Mi it needs
+          # ~838M for metaspace, code cache and thread stacks alone and the pod
+          # crash-loops with "fixed memory regions require 838503K which is
+          # greater than 128M available for allocation". That reads as a broken
+          # image rather than a limit set below the runtime's floor.
+          #
+          # The request stays modest so scheduling is cheap; the LIMIT is what the
+          # calculator reads. Lower it and the service stops starting.
+          #
+          # No CPU limit, on purpose: Netty runs one event-loop thread per core,
+          # and CFS throttling stalls every connection on a throttled loop at
+          # once, which shows up as tail latency on every route. The request is
+          # what the scheduler and the autoscaler's 70% target are measured
+          # against; scale out with replicas, not with a higher limit.
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              # Paketo sizes the heap from this limit. A gateway holds little
+              # state; the headroom is for connection buffers under load.
+              memory: 2Gi
