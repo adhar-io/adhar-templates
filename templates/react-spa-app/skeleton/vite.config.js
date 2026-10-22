@@ -1,13 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
 {%- if values.withLocalisation %}
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 // src/i18n/<language>.json are the translations built into the image. This
 // plugin copies them to dist/i18n/, where nginx serves them at /i18n/ whenever
-// Tolgee is not configured or not answering (nginx-i18n.conf), and serves them
+// Tolgee is not configured or not answering (nginx-app.conf), and serves them
 // at the same path under `npm run dev` / `vite preview`.
 function bundledTranslations() {
   const dir = fileURLToPath(new URL('./src/i18n/', import.meta.url))
@@ -34,7 +35,11 @@ function bundledTranslations() {
 }
 {%- endif %}
 
+// The version telemetry reports (src/telemetry.js): package.json's.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [react(), tailwindcss(){% if values.withLocalisation %}, bundledTranslations(){% endif %}],
   // @adhar-ui/react ships TypeScript source; let Vite transpile it.
   optimizeDeps: {

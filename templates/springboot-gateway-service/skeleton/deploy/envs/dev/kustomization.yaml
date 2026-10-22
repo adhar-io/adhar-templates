@@ -14,6 +14,11 @@ patches:
       - op: replace
         path: /spec/replicas
         value: ${{ values.replicas }}
+      # The environment this overlay deploys: the `environment` metric tag, the
+      # `env` log field and the traces' deployment.environment.name (adhar-kit).
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: ADHAR_ENVIRONMENT, value: "dev"}
   # The autoscaler's floor is this environment's replica count, so it never
   # scales below what Argo CD then puts back. A no-op when there is no HPA.
   - target: {kind: HorizontalPodAutoscaler, name: "${{ values.name }}"}

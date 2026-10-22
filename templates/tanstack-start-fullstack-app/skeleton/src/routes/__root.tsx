@@ -6,7 +6,9 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import { buttonVariants } from '@adhar-ui/react'
+import { useEffect } from 'react'
 import { I18nProvider, loadI18n, useTranslate } from '../localisation'
+import { startTelemetry } from '../telemetry'
 import appCss from '../styles.css?url'
 
 // Applied before first paint so the saved (or system) theme never flashes.
@@ -37,6 +39,11 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const i18n = Route.useLoaderData()
+  // Faro RUM and analytics (src/telemetry.ts), configured at runtime by
+  // /runtime-config.json. An effect runs in the browser only, after hydration.
+  useEffect(() => {
+    void startTelemetry()
+  }, [])
   return (
     // The theme class is set by the inline script, so it differs from the
     // server render by design.

@@ -1,10 +1,10 @@
-// Renders nginx-i18n.conf the way the nginx buildpack does when the container
+// Renders nginx-app.conf the way the nginx buildpack does when the container
 // starts: Go text/template with an `env` function. Only the constructs that
 // file uses are implemented — `env "X"`, `or`, `and`, `if`/`else`/`end` and the
 // `{{-`/`-}}` trim markers — and anything else is an error, exactly as a
 // template the buildpack cannot render stops nginx from starting.
 //
-//   node e2e/nginx/render.mjs nginx-i18n.conf > rendered.conf   (reads process.env)
+//   node e2e/nginx/render.mjs nginx-app.conf > rendered.conf   (reads process.env)
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 

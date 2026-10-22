@@ -121,3 +121,38 @@ Localisation was turned off when this app was scaffolded, so there is one
 language and no Tolgee project. The string table still keeps the texts out of
 the components, and `/i18n/en.json` serves it.
 {%- endif %}
+
+## Telemetry
+
+The page and the server report to the platform on their own.
+
+- **Server metrics.** `server.mjs` serves Prometheus metrics on port 9464
+  (`src/server/metrics.mjs`, scraped through `deploy/base/podmonitor.yaml`):
+  requests by method, route template and status with a latency histogram,
+  under the names the app's Grafana dashboard reads, plus Node.js runtime
+  metrics. Traces and OTLP metrics also go to the platform collector
+  (`OTEL_*` in deploy/base/rollout.yaml).
+- **Real-user monitoring (Grafana Faro).** In the browser only
+  (`src/telemetry.ts`, started from `src/routes/__root.tsx`). What it sends is
+  decided at runtime by `GET /runtime-config.json`, which the server answers from
+  the Pod's environment (`src/server/edge.mjs`), so the one image promoted from
+  dev to prod reports under each environment's name. `FARO_URL` points at
+  `https://faro.<platform domain>/collect`: page loads, web vitals (LCP, INP, CLS,
+  FCP, TTFB), JavaScript errors, fetch timings and browser traces whose
+  `traceparent` joins this server's own trace in Tempo. The **Frontend** section
+  of the app's Grafana dashboard (`/d/app-${{ values.name }}`) shows it.
+{%- if values.withAnalytics %}
+- **Product analytics (PostHog).** On when the optional Secret
+  `${{ values.name }}-posthog` exists in the environment's namespace (keys
+  `api-key`: the environment's project key `phc_…`; `host`: where `/ingest`
+  forwards to, e.g. `http://posthog-events.adhar-system.svc.cluster.local:8000`;
+  optional `ui-host` and `session-replay: "true"`). Events go to `/ingest` on
+  this origin and the server forwards them without cookies or the visitor's
+  address. Autocapture and page views (route changes included) are on, session
+  replay is off unless `session-replay` is `"true"`, element text is masked, and
+  Do Not Track, Global Privacy Control and `window.adharAnalytics.optOut()` stop it.
+{%- endif %}
+
+**Testing:** `npm test` covers `/runtime-config.json`{% if values.withAnalytics %}, the `/ingest` proxy{% endif %} and the
+metrics; `npm run test:e2e` checks what the page sends when configured and that
+it sends nothing when not.

@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts"{% if values.withLocalisation %},
-    "test:nginx": "bash e2e/nginx/test.sh"{% endif %}
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:nginx": "bash e2e/nginx/test.sh"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -16,7 +16,10 @@
     "@adhar-ui/react": "^0.1.0",
     "@adhar-ui/tokens": "^0.1.0",
     "@adhar-ui/icons": "^0.1.0",
-    "@adhar-ui/utils": "^0.1.0"{% if values.withLocalisation %},
+    "@adhar-ui/utils": "^0.1.0",
+    "@grafana/faro-web-sdk": "2.12.1",
+    "@grafana/faro-web-tracing": "2.12.1"{% if values.withAnalytics %},
+    "posthog-js": "1.438.3"{% endif %}{% if values.withLocalisation %},
     "@tolgee/react": "7.3.0"{% endif %}
   },
   "devDependencies": {
@@ -26,5 +29,8 @@
     "tailwindcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@adhar-ui/tailwind-preset": "^0.1.0"
+  },
+  "overrides": {
+    "@grafana/faro-core": "2.12.1"
   }
 }

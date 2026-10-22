@@ -54,8 +54,37 @@ spec:
           env:
             - name: PORT
               value: "8080"
+            # Browser telemetry, served to the page as /runtime-config.json
+            # (nginx-app.conf, src/telemetry.js). APP_ENVIRONMENT is set by each
+            # overlay (deploy/envs/<env>); FARO_URL is the platform's Faro
+            # receiver, its public route, because the browser posts to it. Empty
+            # turns real-user monitoring off.
+            - name: APP_ENVIRONMENT
+              value: ""
+            - name: FARO_URL
+              value: "{% if values.platformBaseDomain %}https://faro.${{ values.platformBaseDomain }}/collect{% endif %}"
+{%- if values.withAnalytics %}
+            # PostHog product analytics, from the optional Secret <app>-posthog
+            # (keys api-key, host, ui-host, session-replay) the platform creates
+            # with this environment's project key. Without it analytics is off
+            # and /ingest answers 404. `host` is where /ingest forwards to, the
+            # in-cluster capture service
+            # (http://posthog-events.adhar-system.svc.cluster.local:8000).
+            - name: POSTHOG_KEY
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: api-key, optional: true}
+            - name: POSTHOG_HOST
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: host, optional: true}
+            - name: POSTHOG_UI_HOST
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: ui-host, optional: true}
+            - name: POSTHOG_SESSION_REPLAY
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: session-replay, optional: true}
+{%- endif %}
 {%- if values.withLocalisation %}
-            # Tolgee, for /i18n/<language>.json (nginx-i18n.conf). The platform
+            # Tolgee, for /i18n/<language>.json (nginx-app.conf). The platform
             # creates the Secret with a READ-ONLY project key when it creates the
             # app's Tolgee project. Every key is optional: without the Secret the
             # app starts and serves the translations built into the image.

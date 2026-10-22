@@ -22,7 +22,8 @@
               { "glob": "*.json", "input": "src/i18n", "output": "i18n" }{% endif %}
             ],
             "styles": ["src/styles.css"],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": ["ua-parser-js", "@opentelemetry/api", "@opentelemetry/otlp-transformer", "@opentelemetry/semantic-conventions"]
           },
           "configurations": {
             "production": {

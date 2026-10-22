@@ -1,0 +1,19 @@
+# Prometheus scrapes the server's own metrics (src/server/metrics.mjs, port
+# 9464): request rate, status codes and the latency histogram under the names
+# the per-application Grafana dashboard reads, plus Node.js runtime metrics.
+# kube-prometheus selects every PodMonitor on the cluster, so nothing else
+# needs to change.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

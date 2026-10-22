@@ -16,13 +16,12 @@ value = "dist"
 [[build.env]]
 name = "BP_WEB_SERVER_ENABLE_PUSH_STATE"
 value = "true"
-{%- if values.withLocalisation %}
 
-# /i18n/<language>.json: proxied to Tolgee at runtime, with the translations
-# built into dist/i18n/ as the fallback. The buildpack includes this file in
-# the server block of the nginx.conf it generates and renders its env
-# templates at container start.
+# nginx-app.conf is included in the server block of the nginx.conf the
+# buildpack generates and rendered from the Pod's environment at container
+# start. It serves /runtime-config.json (what the browser's telemetry turns on){% if values.withAnalytics %},
+# /ingest/ (PostHog, same-origin){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json (Tolgee, with the
+# translations built into dist/i18n/ as the fallback){% endif %}.
 [[build.env]]
 name = "BP_WEB_SERVER_INCLUDE_FILE_PATH"
-value = "nginx-i18n.conf"
-{%- endif %}
+value = "nginx-app.conf"

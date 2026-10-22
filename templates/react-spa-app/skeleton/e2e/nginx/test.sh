@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Tests nginx-i18n.conf — /i18n/<language>.json proxied to Tolgee with the
-# built-in translations as the fallback — in a real nginx, against a stand-in
-# Tolgee (mock-tolgee.mjs). Needs Docker or Podman (CONTAINER_CLI=podman) and a
-# production build in dist/:
+# Tests nginx-app.conf in a real nginx: /runtime-config.json rendered from the
+# Pod's environment{% if values.withAnalytics %}, /ingest/ forwarding to PostHog (a stand-in,
+# mock-posthog.mjs){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json proxied to Tolgee with the
+# built-in translations as the fallback (against mock-tolgee.mjs){% endif %}. Needs Docker
+# or Podman (CONTAINER_CLI=podman) and a production build in dist/:
 #
 #   npm run build && npm run test:nginx
 #
 # It renders the file the way the nginx buildpack does at container start
-# (render.mjs), starts nginx with the server block the buildpack generates
-# (nginx.conf) and checks: no Tolgee configured, Tolgee answering, Tolgee
-# erroring, slow, unreachable, and a language nobody has.
+# (render.mjs) and starts nginx with the server block the buildpack generates
+# (nginx.conf).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 CLI=${CONTAINER_CLI:-docker}
@@ -17,21 +17,33 @@ WEB_ROOT=${WEB_ROOT:-dist}
 NGINX_IMAGE=${NGINX_IMAGE:-nginx:1.31-alpine}
 NODE_IMAGE=${NODE_IMAGE:-node:22-alpine}
 PORT=${NGINX_TEST_PORT:-18090}
-NET=i18n-test-$$
+NET=nginx-test-$$
 WORK=$(mktemp -d)
 failures=0
 
+[ -f "$WEB_ROOT/index.html" ] || { echo "no $WEB_ROOT/index.html — run the production build first" >&2; exit 2; }
+{%- if values.withLocalisation %}
 [ -f "$WEB_ROOT/i18n/en.json" ] || { echo "no $WEB_ROOT/i18n/en.json — run the production build first" >&2; exit 2; }
+{%- endif %}
 
 cleanup() {
-  $CLI rm -f "$NET-nginx" "$NET-tolgee" >/dev/null 2>&1 || true
+  $CLI rm -f "$NET-nginx" "$NET-tolgee" "$NET-posthog" >/dev/null 2>&1 || true
   $CLI network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
 trap cleanup EXIT
 
 $CLI network create "$NET" >/dev/null
+# The DNS server nginx resolves the stand-ins with: Docker's embedded one, or
+# the network's gateway under Podman.
+RESOLVER=127.0.0.11
+[ "$CLI" = podman ] && RESOLVER=$($CLI network inspect "$NET" -f '{{(index .Subnets 0).Gateway}}')
+{%- if values.withLocalisation %}
 $CLI run -d --name "$NET-tolgee" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-tolgee.mjs >/dev/null
+{%- endif %}
+{%- if values.withAnalytics %}
+$CLI run -d --name "$NET-posthog" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-posthog.mjs >/dev/null
+{%- endif %}
 
 # Start nginx with the include rendered from the given environment.
 # A fresh directory per start: Docker Desktop can keep serving a bind mount's
@@ -44,14 +56,15 @@ start_nginx() {
   mkdir -p "$ws/$WEB_ROOT"
   cp -R "$WEB_ROOT/." "$ws/$WEB_ROOT/"
   sed "s#WEB_ROOT#$WEB_ROOT#" e2e/nginx/nginx.conf > "$ws/nginx.conf"
-  env -i PATH="$PATH" "$@" node e2e/nginx/render.mjs nginx-i18n.conf > "$ws/nginx-i18n.conf"
+  env -i PATH="$PATH" "$@" node e2e/nginx/render.mjs nginx-app.conf > "$ws/nginx-app.conf"
   $CLI run -d --name "$NET-nginx" --network "$NET" -p "127.0.0.1:$PORT:8080" -v "$ws:/workspace:ro" \
     "$NGINX_IMAGE" nginx -p /workspace -c /workspace/nginx.conf >/dev/null
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && return 0; sleep 0.2; done
   $CLI logs "$NET-nginx"; echo "nginx did not start" >&2; exit 1
 }
 
-tolgee_mode() { $CLI exec "$NET-tolgee" wget -q -O /dev/null --post-data= "http://localhost:8085/__mode/$1"; }
+ok() { echo "ok   $1"; }
+fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
 # check <description> <path> <expected status> <expected X-Translations-Source> [text the body must contain]
 check() {
@@ -60,13 +73,71 @@ check() {
   got=$(curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -H 'Cookie: session=secret' "http://127.0.0.1:$PORT$path")
   got_source=$(tr -d '\r' < "$WORK/headers" | sed -n 's/^[Xx]-[Tt]ranslations-[Ss]ource: //p')
   if [ "$got" = "$status" ] && [ "$got_source" = "$source" ] && { [ -z "$body" ] || grep -qF "$body" "$WORK/body"; }; then
-    echo "ok   $desc"
+    ok "$desc"
   else
-    echo "FAIL $desc: status $got (want $status), source '$got_source' (want '$source')"; head -c 300 "$WORK/body"; echo
-    failures=$((failures + 1))
+    fail "$desc: status $got (want $status), source '$got_source' (want '$source')"; head -c 300 "$WORK/body"; echo
   fi
 }
 
+# runtime_config <description> <JavaScript expression over `c`, the parsed body>
+runtime_config() {
+  local got
+  got=$(curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' "http://127.0.0.1:$PORT/runtime-config.json")
+  if [ "$got" = 200 ] && grep -qi '^content-type: application/json' "$WORK/headers" && grep -qi '^cache-control: no-store' "$WORK/headers" \
+    && node -e "const c = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); process.exit(($2) ? 0 : 1)" "$WORK/body"; then
+    ok "$1"
+  else
+    fail "$1: status $got, body $(head -c 300 "$WORK/body")"
+  fi
+}
+
+echo "# nothing configured"
+start_nginx
+runtime_config "/runtime-config.json is valid JSON with telemetry off" "c.environment === '' && c.faro.url === ''{% if values.withAnalytics %} && c.posthog === null{% endif %}"
+check "the app still answers /" / 200 ""
+{%- if values.withAnalytics %}
+check "/ingest/ answers 404 without a PostHog key" /ingest/e/ 404 ""
+{%- endif %}
+
+echo "# Faro{% if values.withAnalytics %} and PostHog{% endif %} configured"
+TELEMETRY=(APP_ENVIRONMENT=dev FARO_URL=https://faro.example.test/collect{% if values.withAnalytics %} POSTHOG_KEY=phc_test POSTHOG_HOST="http://$NET-posthog:8086" NGINX_RESOLVER=$RESOLVER{% endif %})
+start_nginx "${TELEMETRY[@]}"
+runtime_config "/runtime-config.json carries the environment and the Faro receiver" "c.environment === 'dev' && c.faro.url === 'https://faro.example.test/collect'"
+{%- if values.withAnalytics %}
+runtime_config "... and the PostHog key, with events sent same-origin to /ingest" "c.posthog.key === 'phc_test' && c.posthog.apiHost === '/ingest' && c.posthog.replay !== 'true'"
+got=$(curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X POST --data-binary '{"event":"$pageview"}' \
+  -H 'Content-Type: application/json' -H 'Cookie: session=secret' -H 'Authorization: Bearer user-token' -H 'X-Forwarded-For: 203.0.113.7' \
+  "http://127.0.0.1:$PORT/ingest/e/?compression=gzip-js")
+last=$($CLI exec "$NET-posthog" wget -q -O- http://localhost:8086/__last)
+if [ "$got" = 200 ] && node -e "
+  const l = JSON.parse(process.argv[1]), h = l.headers
+  process.exit(l.method === 'POST' && l.url === '/e/?compression=gzip-js' && l.size > 0 ? 0 : 1)" "$last"; then
+  ok "/ingest/e/ reaches PostHog's /e/ with the query and body"
+else
+  fail "/ingest/e/: status $got, PostHog saw $last"
+fi
+if node -e "const h = JSON.parse(process.argv[1]).headers; process.exit(h.cookie || h.authorization || h['x-forwarded-for'] || h['x-real-ip'] ? 1 : 0)" "$last"; then
+  ok "forwards no cookie, credential or visitor address"
+else
+  fail "headers PostHog received: $last"
+fi
+grep -qi '^set-cookie' "$WORK/headers" && fail "PostHog's Set-Cookie reached the browser" || ok "hides PostHog's Set-Cookie"
+check "/ingest/static/array.js is forwarded as /static/array.js" /ingest/static/array.js 200 ""
+last=$($CLI exec "$NET-posthog" wget -q -O- http://localhost:8086/__last)
+grep -q '"url":"/static/array.js"' <<<"$last" && ok "PostHog saw /static/array.js" || fail "PostHog saw $last"
+$CLI stop "$NET-posthog" >/dev/null
+got=$(curl -s -m 20 -o /dev/null -w '%{http_code}' -X POST --data-binary '{}' "http://127.0.0.1:$PORT/ingest/e/")
+[[ "$got" =~ ^50[24]$ ]] && ok "an unreachable PostHog is a quick 502/504, not a hang" || fail "unreachable PostHog answered $got"
+check "the app still answers / without PostHog" / 200 ""
+$CLI start "$NET-posthog" >/dev/null
+
+echo "# session replay switched on"
+start_nginx "${TELEMETRY[@]}" POSTHOG_SESSION_REPLAY=true
+runtime_config "/runtime-config.json passes the replay switch on" "c.posthog.replay === 'true'"
+{%- endif %}
+{%- if values.withLocalisation %}
+
+tolgee_mode() { $CLI exec "$NET-tolgee" wget -q -O /dev/null --post-data= "http://localhost:8085/__mode/$1"; }
 BUILT_IN_EN=$(node -e "console.log(require('./src/i18n/en.json')['features.heading'])")
 
 echo "# no Tolgee configured"
@@ -77,8 +148,7 @@ check "anything else under /i18n is 404" /i18n/en.txt 404 ""
 check "the app still answers /" / 200 ""
 
 echo "# Tolgee configured"
-TOLGEE=(TOLGEE_API_URL="http://$NET-tolgee:8085" TOLGEE_PROJECT_ID=7 TOLGEE_API_KEY=tgpak_test NGINX_RESOLVER=127.0.0.11)
-[ "$CLI" = podman ] && TOLGEE[3]=NGINX_RESOLVER=$($CLI network inspect "$NET" -f '{{(index .Subnets 0).Gateway}}')
+TOLGEE=(TOLGEE_API_URL="http://$NET-tolgee:8085" TOLGEE_PROJECT_ID=7 TOLGEE_API_KEY=tgpak_test NGINX_RESOLVER=$RESOLVER)
 start_nginx "${TOLGEE[@]}"
 tolgee_mode ok
 check "proxies to Tolgee's export" /i18n/en.json 200 tolgee "From Tolgee (en)"
@@ -105,5 +175,6 @@ echo "# a wrong key"
 $CLI start "$NET-tolgee" >/dev/null
 start_nginx "${TOLGEE[@]/tgpak_test/tgpak_wrong}"
 check "Tolgee refusing the key falls back" /i18n/en.json 200 bundled "$BUILT_IN_EN"
+{%- endif %}
 
-[ "$failures" -eq 0 ] && echo "all nginx /i18n checks passed" || { echo "$failures check(s) failed"; exit 1; }
+[ "$failures" -eq 0 ] && echo "all nginx checks passed" || { echo "$failures check(s) failed"; exit 1; }

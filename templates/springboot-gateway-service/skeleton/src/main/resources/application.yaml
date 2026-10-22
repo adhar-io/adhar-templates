@@ -158,7 +158,9 @@ gateway:
     burst-capacity: ${{ values.rateLimitBurst }}
 {%- endif %}
   cors:
-    allowed-origins: ${{ values.corsOrigins }}
+    # Quoted (dump): an origin list of `*` is a YAML alias left bare, and the
+    # application then fails to start on "while scanning an alias".
+    allowed-origins: ${{ values.corsOrigins | dump }}
   circuit-breaker:
     failure-rate-threshold: 50
     sliding-window-size: 100
@@ -202,9 +204,11 @@ adhar:
   tracing:
     # Traces go through Adhar Kit's OpenTelemetry SDK, which replaces Spring
     # Boot's — so these, not management.tracing.*, are the settings that apply.
-    # OTLP over gRPC to the platform collector, which fans out to Tempo.
-    open-telemetry:
-      endpoint: ${ADHAR_TRACING_ENDPOINT:http://alloy.adhar-system.svc.cluster.local:4317}
+    # The collector comes from the Rollout's OTEL_EXPORTER_OTLP_* variables
+    # (OTLP/HTTP to Alloy, which forwards to Tempo), like every other service;
+    # set adhar.tracing.open-telemetry.endpoint only to send traces elsewhere.
+    # (Pinning the gRPC port here while the Rollout said http/protobuf sent
+    # HTTP requests to a gRPC listener.)
     sampling:
       # Every request is traced at the gateway, which decides for the whole
       # call tree. At very high volume lower this (e.g. 0.1) to cut cost.

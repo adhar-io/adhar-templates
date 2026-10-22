@@ -52,9 +52,44 @@ spec:
                 seconds: 5
           ports:
             - containerPort: ${{ values.port }}
+            # Prometheus metrics (src/server/metrics.mjs, deploy/base/podmonitor.yaml);
+            # not on the Service, so never reachable through the public route.
+            - name: metrics
+              containerPort: 9464
           env:
             - name: PORT
               value: "${{ values.port }}"
+            # Browser telemetry, served to the page as /runtime-config.json
+            # (src/server/edge.mjs, src/telemetry.ts). APP_ENVIRONMENT is set by each
+            # overlay (deploy/envs/<env>); FARO_URL is the platform's Faro
+            # receiver, its public route, because the browser posts to it. Empty
+            # turns real-user monitoring off.
+            - name: APP_ENVIRONMENT
+              value: ""
+            - name: FARO_URL
+              value: "{% if values.platformBaseDomain %}https://faro.${{ values.platformBaseDomain }}/collect{% endif %}"
+{%- if values.withAnalytics %}
+            # PostHog product analytics, from the optional Secret <app>-posthog
+            # (keys api-key, host, ui-host, session-replay) the platform creates
+            # with this environment's project key. Without it analytics is off
+            # and /ingest answers 404. `host` is where /ingest forwards to, the
+            # in-cluster capture service
+            # (http://posthog-events.adhar-system.svc.cluster.local:8000).
+            - name: POSTHOG_KEY
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: api-key, optional: true}
+            - name: POSTHOG_HOST
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: host, optional: true}
+            - name: POSTHOG_UI_HOST
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: ui-host, optional: true}
+            - name: POSTHOG_SESSION_REPLAY
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-posthog, key: session-replay, optional: true}
+{%- endif %}
+            - name: METRICS_PORT
+              value: "9464"
             # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
             # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
             - name: OTEL_SERVICE_NAME

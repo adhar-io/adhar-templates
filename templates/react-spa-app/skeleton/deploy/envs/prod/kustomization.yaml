@@ -23,6 +23,16 @@ patches:
       - op: replace
         path: /spec/minReplicas
         value: 2
+  # The environment's name, for telemetry (deploy/base/rollout.yaml). The
+  # `test` op fails the build if the base's env order ever moves it.
+  - target: {kind: Rollout, name: "${{ values.name }}"}
+    patch: |-
+      - op: test
+        path: /spec/template/spec/containers/0/env/1/name
+        value: APP_ENVIRONMENT
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1
+        value: {name: APP_ENVIRONMENT, value: prod}
   - target: {kind: HTTPRoute, name: "${{ values.name }}"}
     patch: |-
       - op: replace

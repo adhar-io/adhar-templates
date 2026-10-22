@@ -9,7 +9,7 @@
 //   1. GET /i18n/<language>.json from this app's own origin. nginx proxies it to
 //      Tolgee's export API with a read-only key the browser never sees, and
 //      answers with the copy built into the image when Tolgee is not configured
-//      or not answering (nginx-i18n.conf).
+//      or not answering (nginx-app.conf).
 //   2. If even that request fails, the English copy bundled into the JavaScript
 //      (a lazily loaded chunk, fetched only in that case).
 //   3. A key missing in the chosen language falls back to English.

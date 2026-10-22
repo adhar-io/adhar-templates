@@ -86,6 +86,23 @@ spec:
           default: "en,de"
           pattern: '^en(\s*,\s*[a-z]{2,3}(-[A-Za-z0-9]{2,8})?)*$'
 
+    - title: Analytics
+      description: >-
+        Grafana Faro real-user monitoring (web vitals, JavaScript errors, page
+        loads, browser traces into Tempo) is always wired in and reports to the
+        platform's Faro receiver. PostHog adds product analytics on top.
+      properties:
+        withAnalytics:
+          title: Product analytics with PostHog
+          type: boolean
+          description: >-
+            posthog-js with autocapture and page views, configured at runtime
+            from the optional Secret <name>-posthog (this environment's project
+            key) and sent same-origin through /ingest. Respects Do Not Track and
+            an opt-out; no session replay unless the environment turns it on.
+            Without the Secret nothing is sent.
+          default: true
+
     - title: Repository
       required: [repoUrl]
       properties:
@@ -203,6 +220,7 @@ spec:
           # what keeps it to language tags.
           withLocalisation: ${{ parameters.withLocalisation }}
           languages: ${{ parameters.languages or 'en,de' }}
+          withAnalytics: ${{ parameters.withAnalytics }}
           port: 8080
           # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this with
           # the platform's real base domain before rendering (the Console in
