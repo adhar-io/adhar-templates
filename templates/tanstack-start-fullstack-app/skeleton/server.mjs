@@ -18,10 +18,14 @@ serve({
   fetch: app.fetch,
 })
 
-// GET /metrics for Prometheus, on a port the HTTPRoute does not expose.
+// GET /metrics for Prometheus, on a port the HTTPRoute does not expose. A port
+// that is taken costs the metrics, never the app: an unhandled listen error
+// would otherwise take the whole server down with it.
 const metricsPort = Number(process.env.METRICS_PORT ?? 9464)
 createServer(async (req, res) => {
   if (req.url !== '/metrics') return res.writeHead(404).end()
   res.writeHead(200, { 'content-type': metrics.registry.contentType })
   res.end(await metrics.registry.metrics())
-}).listen(metricsPort)
+})
+  .on('error', (error) => console.warn(`metrics endpoint not started on :${metricsPort}: ${error.message}`))
+  .listen(metricsPort)

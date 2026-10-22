@@ -55,7 +55,7 @@ spec:
             - name: PORT
               value: "8080"
             # Browser telemetry, served to the page as /runtime-config.json
-            # (nginx-app.conf, src/telemetry.js). APP_ENVIRONMENT is set by each
+            # (nginx-app.conf, src/app/telemetry.ts). APP_ENVIRONMENT is set by each
             # overlay (deploy/envs/<env>); FARO_URL is the platform's Faro
             # receiver, its public route, because the browser posts to it. Empty
             # turns real-user monitoring off.
