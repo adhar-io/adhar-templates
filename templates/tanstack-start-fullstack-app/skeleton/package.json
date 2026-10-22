@@ -6,6 +6,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "node server.mjs",
+    "test": "node --test src/server/*.test.ts",
     "test:e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
@@ -17,7 +18,8 @@
     "@adhar-ui/tokens": "^0.1.0",
     "@adhar-ui/utils": "^0.1.0",
     "@opentelemetry/auto-instrumentations-node": "^0.52.0",
-    "srvx": "^1.0.5"{% if values.withDatabase %},
+    "srvx": "^1.0.5"{% if values.withLocalisation %},
+    "@tolgee/react": "7.3.0"{% endif %}{% if values.withDatabase %},
     "pg": "^8.12.0"{% endif %}
   },
   "devDependencies": {

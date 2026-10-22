@@ -5,7 +5,8 @@
   "scripts": {
     "start": "ng serve",
     "build": "ng build",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts"
+    "test:e2e": "playwright test -c e2e/playwright.config.ts"{% if values.withLocalisation %},
+    "test:nginx": "bash e2e/nginx/test.sh"{% endif %}
   },
   "dependencies": {
     "@angular/common": "^20.3.32",
@@ -15,7 +16,8 @@
     "@angular/router": "^20.3.32",
     "@adhar-ui/angular": "^0.1.0",
     "@adhar-ui/tokens": "^0.1.0",
-    "@adhar-ui/utils": "^0.1.0",
+    "@adhar-ui/utils": "^0.1.0",{% if values.withLocalisation %}
+    "@tolgee/ngx": "7.3.0",{% endif %}
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "^0.15.0"

@@ -65,6 +65,21 @@ spec:
               value: "http/protobuf"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=adhar,deployment.environment=local"
+{%- if values.withLocalisation %}
+            # Tolgee, for /i18n/<language>.json (src/server/i18n.ts). The platform
+            # creates the Secret with a READ-ONLY project key when it creates the
+            # app's Tolgee project. Every key is optional: without the Secret the
+            # app starts and serves the translations built into the image.
+            - name: TOLGEE_API_URL
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-tolgee, key: api-url, optional: true}
+            - name: TOLGEE_PROJECT_ID
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-tolgee, key: project-id, optional: true}
+            - name: TOLGEE_API_KEY
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-tolgee, key: api-key, optional: true}
+{%- endif %}
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER

@@ -13,16 +13,15 @@ import {
 import { cn } from '@adhar-ui/utils'
 import { Activity, ArrowRight, BookOpen, Check, Code, GitBranch, Moon, Palette, ShieldCheck, Sun } from '../components/icons'
 import { useTheme } from '../components/useTheme'
+import { LanguageSwitcher, useTranslate } from '../localisation'
 
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
+// The app's name is not translated. Every other user-visible string is a key in
+// src/i18n/<language>.json, looked up with t() (see src/localisation.tsx).
 const APP_NAME = ${{ values.name | dump }}
-// JSON-encoded at scaffold time, so quotes in the description are safe.
-const DESCRIPTION = ${{
-  (values.description or 'A full-stack TanStack Start app: server-rendered React and API routes in one service, styled with Adhar UI.') | dump
-}}
 const OWNER = ${{ values.owner | dump }}
 const REPO_URL = 'https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}'
 const DOCS_URL = `${REPO_URL}/src/branch/main/docs`
@@ -30,32 +29,17 @@ const DOCS_URL = `${REPO_URL}/src/branch/main/docs`
 // Adhar UI components are unstyled shells; the look comes from its variant
 // functions, so every styled element composes one of them.
 const features = [
-  {
-    icon: ShieldCheck,
-    title: 'Signed supply chain',
-    body: 'Every push is built with buildpacks, scanned, SBOM-attested and cosign-signed. Unsigned images never start.',
-  },
-  {
-    icon: GitBranch,
-    title: 'GitOps delivery',
-    body: 'Argo CD syncs deploy/ and Argo Rollouts shifts traffic in canary steps. A revert is the rollback.',
-  },
-  {
-    icon: Activity,
-    title: 'Observable',
-    body: 'OpenTelemetry auto-instrumentation sends traces and metrics from the server to the platform collector.',
-  },
-  {
-    icon: Palette,
-    title: 'Adhar UI',
-    body: 'Design tokens, Tailwind preset and accessible component variants — light and dark out of the box.',
-  },
+  { icon: ShieldCheck, key: 'features.supplyChain' },
+  { icon: GitBranch, key: 'features.gitops' },
+  { icon: Activity, key: 'features.observable' },
+  { icon: Palette, key: 'features.adharUi' },
 ]
 
+// Commands are code, not prose, so only their titles are translated.
 const steps = [
-  { title: 'Run it locally', code: 'npm install && npm run dev' },
-  { title: 'Add a page or API', code: 'src/routes/…' },
-  { title: 'Ship it', code: 'git push origin main' },
+  { title: 'getStarted.runLocally', code: 'npm install && npm run dev' },
+  { title: 'getStarted.addPage', code: 'src/routes/…' },
+  { title: 'getStarted.ship', code: 'git push origin main' },
 ]
 
 type Health = { service: string; status: string; db?: string }
@@ -84,29 +68,30 @@ function useHealth() {
 
 function ServiceStatus() {
   const state = useHealth()
+  const { t } = useTranslate()
   const rows: { label: string; value: ReactNode }[] = [
-    { label: 'Rendering', value: 'Server-side (SSR) + hydration' },
+    { label: t('status.rendering'), value: t('status.rendering.value') },
     {
-      label: 'API',
+      label: t('status.api'),
       value:
         state.kind === 'loading' ? (
           <span className="inline-block h-4 w-24 animate-pulse rounded bg-muted" />
         ) : state.kind === 'ok' ? (
           <code className="font-mono text-xs">GET /api/hello · {state.ms} ms</code>
         ) : (
-          <span className="text-destructive">unreachable</span>
+          <span className="text-destructive">{t('status.unreachable')}</span>
         ),
     },
 {%- if values.withDatabase %}
     {
-      label: 'PostgreSQL',
+      label: t('status.database'),
       value:
         state.kind === 'ok' && state.health.db && state.health.db !== 'error' ? (
           <code className="font-mono text-xs">{new Date(state.health.db).toLocaleTimeString()}</code>
         ) : state.kind === 'loading' ? (
           <span className="inline-block h-4 w-20 animate-pulse rounded bg-muted" />
         ) : (
-          <span className="text-destructive">not connected</span>
+          <span className="text-destructive">{t('status.notConnected')}</span>
         ),
     },
 {%- endif %}
@@ -116,21 +101,21 @@ function ServiceStatus() {
     <Card className={cn(cardVariants({ padding: 'default' }), 'animate-fade-in motion-reduce:animate-none shadow-xl shadow-primary/5')}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium">Service status</p>
-          <p className="text-xs text-muted-foreground">Live from this app's server route</p>
+          <p className="text-sm font-medium">{t('status.title')}</p>
+          <p className="text-xs text-muted-foreground">{t('status.subtitle')}</p>
         </div>
         {state.kind === 'ok' ? (
           // Keyed so each state mounts fresh rather than color-morphing from grey.
           <Badge key="ok" className={badgeVariants({ variant: 'success' })} dot>
-            Healthy
+            {t('status.healthy')}
           </Badge>
         ) : state.kind === 'error' ? (
           <Badge key="down" className={badgeVariants({ variant: 'destructive' })}>
-            Down
+            {t('status.down')}
           </Badge>
         ) : (
           <Badge key="checking" className={badgeVariants({ variant: 'secondary' })}>
-            Checking…
+            {t('status.checking')}
           </Badge>
         )}
       </div>
@@ -151,6 +136,7 @@ function ServiceStatus() {
 
 function Home() {
   const { dark, toggle } = useTheme()
+  const { t } = useTranslate()
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -162,14 +148,15 @@ function Home() {
           </a>
           <nav className="flex items-center gap-1">
             <a href={DOCS_URL} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'hidden sm:inline-flex')}>
-              Docs
+              {t('nav.docs')}
             </a>
             <a href={REPO_URL} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'hidden sm:inline-flex')}>
-              Repository
+              {t('nav.repository')}
             </a>
+            <LanguageSwitcher className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'cursor-pointer bg-transparent')} />
             <Button
               className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
-              aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+              aria-label={dark ? t('theme.switchToLight') : t('theme.switchToDark')}
               onClick={toggle}
             >
               {dark ? <Sun /> : <Moon />}
@@ -187,13 +174,13 @@ function Home() {
               <h1 className="mt-6 max-w-3xl break-words text-4xl font-bold tracking-tight sm:text-6xl">
                 <span className="text-brand-gradient">{APP_NAME}</span>
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">{DESCRIPTION}</p>
+              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t('app.description')}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#get-started" className={buttonVariants({ size: 'lg' })}>
-                  Get started <ArrowRight />
+                  {t('hero.getStarted')} <ArrowRight />
                 </a>
                 <a href={DOCS_URL} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-                  <BookOpen /> Read the docs
+                  <BookOpen /> {t('hero.readDocs')}
                 </a>
               </div>
             </div>
@@ -203,16 +190,16 @@ function Home() {
 
         <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6" aria-labelledby="platform">
           <h2 id="platform" className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            What the platform gives you
+            {t('features.heading')}
           </h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map(({ icon: FeatureIcon, title, body }) => (
-              <Card key={title} className={cardVariants({ padding: 'default', interactive: true })}>
+            {features.map(({ icon: FeatureIcon, key }) => (
+              <Card key={key} className={cardVariants({ padding: 'default', interactive: true })}>
                 <div className="mb-4 inline-flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <FeatureIcon />
                 </div>
-                <h3 className={cn(cardTitleVariants(), 'text-base')}>{title}</h3>
-                <p className={cn(cardDescriptionVariants(), 'mt-2')}>{body}</p>
+                <h3 className={cn(cardTitleVariants(), 'text-base')}>{t(`${key}.title`)}</h3>
+                <p className={cn(cardDescriptionVariants(), 'mt-2')}>{t(`${key}.body`)}</p>
               </Card>
             ))}
           </div>
@@ -223,7 +210,7 @@ function Home() {
             <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-gradient" />
             <div className="flex items-center gap-2 text-primary">
               <Code />
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">Get started</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{t('getStarted.heading')}</h2>
             </div>
             <ol className="mt-6 grid gap-4 md:grid-cols-3">
               {steps.map((step, i) => (
@@ -232,7 +219,7 @@ function Home() {
                     <span className="inline-flex size-6 items-center justify-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
                       {i + 1}
                     </span>
-                    {step.title}
+                    {t(step.title)}
                   </div>
                   <code className="mt-3 block rounded-md bg-background px-3 py-2 font-mono text-xs text-muted-foreground">
                     {step.code}
@@ -248,9 +235,9 @@ function Home() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <img src="/adhar-symbol.svg" alt="" className="size-5" />
-            Built on the Adhar platform
+            {t('footer.builtOn')}
           </div>
-          <span>Owned by {OWNER}</span>
+          <span>{t('footer.ownedBy', { owner: OWNER })}</span>
         </div>
       </footer>
     </div>

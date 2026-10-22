@@ -59,8 +59,20 @@ spec:
           env:
             - name: PORT
               value: "${{ values.port }}"
-            # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
-            # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
+            # Pod identity. adhar-kit falls back to the namespace for the
+            # `environment` metric tag / `env` log field when ADHAR_ENVIRONMENT
+            # (set per environment in deploy/envs/*) is absent.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # OpenTelemetry — traces over OTLP/HTTP to the Alloy collector, which
+            # forwards them to Tempo. adhar-kit maps these standard variables onto its
+            # exporter (Spring Boot itself does not read OTEL_*).
             - name: OTEL_SERVICE_NAME
               value: "${{ values.name }}"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -68,7 +80,9 @@ spec:
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "http/protobuf"
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.namespace=adhar,deployment.environment=local"
+              # No deployment.environment here: it is per environment, and the kit
+              # fills deployment.environment.name from ADHAR_ENVIRONMENT.
+              value: "service.namespace=adhar"
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER

@@ -16,3 +16,13 @@ value = "dist"
 [[build.env]]
 name = "BP_WEB_SERVER_ENABLE_PUSH_STATE"
 value = "true"
+{%- if values.withLocalisation %}
+
+# /i18n/<language>.json: proxied to Tolgee at runtime, with the translations
+# built into dist/i18n/ as the fallback. The buildpack includes this file in
+# the server block of the nginx.conf it generates and renders its env
+# templates at container start.
+[[build.env]]
+name = "BP_WEB_SERVER_INCLUDE_FILE_PATH"
+value = "nginx-i18n.conf"
+{%- endif %}

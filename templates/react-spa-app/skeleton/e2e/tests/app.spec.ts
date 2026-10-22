@@ -62,3 +62,88 @@ test.describe('unknown routes', () => {
     await expectImagesLoaded(page)
   })
 })
+{%- if values.withLocalisation %}
+
+// Localisation: the texts are fetched at runtime from /i18n/<language>.json
+// (Tolgee, through this app's own server), with the copy built into the app as
+// the fallback. See src/i18n.jsx.
+const LANGUAGES = ${{ values.languages | dump }}.split(',').map((tag) => tag.trim())
+// The switching tests use the German example translation (src/i18n/de.json).
+const GERMAN = LANGUAGES.includes('de')
+
+test.describe('localisation', () => {
+  // Chrome logs a failed fetch as a console error. A test that makes /i18n fail
+  // on purpose accepts exactly those entries; any other error still fails it.
+  function dropFailedTranslationFetches(pageErrors: string[]) {
+    const rest = pageErrors.filter((error) => !/Failed to load resource: .*status of 500\b/.test(error))
+    pageErrors.length = 0
+    pageErrors.push(...rest)
+  }
+
+  test('GET /i18n/en.json answers with the English texts', async ({ request }) => {
+    const response = await request.get('/i18n/en.json')
+    expect(response.status()).toBe(200)
+    expect(response.headers()['content-type']).toContain('application/json')
+    expect(await response.json()).toMatchObject({ 'features.heading': expect.any(String) })
+  })
+
+  test('the page shows the texts /i18n/en.json returns at runtime', async ({ page }) => {
+    // Stand in for an edit made in Tolgee: the page must show it without a rebuild.
+    await page.route('**/i18n/en.json', async (route) => {
+      const response = await route.fetch()
+      const texts = await response.json()
+      await route.fulfill({ response, json: { ...texts, 'features.heading': 'Edited in Tolgee' } })
+    })
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Edited in Tolgee' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What the platform gives you' })).toHaveCount(0)
+  })
+
+  test('the language switcher changes the visible text and remembers the choice', async ({ page }) => {
+    test.skip(!GERMAN, 'German is not one of this app\'s languages')
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'What the platform gives you' })).toBeVisible()
+
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('de')
+    await expect(page.getByRole('heading', { name: 'Was die Plattform mitbringt' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de')
+    // A key German does not translate falls back to English, not to the key.
+    await expect(page.getByText('app.description')).toHaveCount(0)
+
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Was die Plattform mitbringt' })).toBeVisible()
+
+    await page.getByRole('combobox', { name: 'Sprache' }).selectOption('en')
+    await expect(page.getByRole('heading', { name: 'What the platform gives you' })).toBeVisible()
+  })
+
+  test('still renders every text when /i18n fails, from the translations built into the app', async ({ page, pageErrors }) => {
+    let failed = 0
+    await page.route('**/i18n/*.json', (route) => {
+      failed++
+      return route.fulfill({ status: 500, body: 'Tolgee is down' })
+    })
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: APP_NAME })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What the platform gives you' })).toBeVisible()
+    await expect(page.getByText('Delivery pipeline')).toBeVisible()
+
+    if (GERMAN) {
+      await page.getByRole('combobox', { name: 'Language' }).selectOption('de')
+      await expect(page.getByRole('heading', { name: 'Was die Plattform mitbringt' })).toBeVisible()
+    }
+    expect(failed, 'requests to /i18n that failed').toBeGreaterThan(0)
+    dropFailedTranslationFetches(pageErrors)
+  })
+})
+
+test.describe('localisation in a German browser', () => {
+  test.use({ locale: 'de-DE' })
+
+  test('starts in German', async ({ page }) => {
+    test.skip(!GERMAN, 'German is not one of this app\'s languages')
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Was die Plattform mitbringt' })).toBeVisible()
+  })
+})
+{%- endif %}

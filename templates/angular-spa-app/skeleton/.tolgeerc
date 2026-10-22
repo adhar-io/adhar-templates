@@ -1,0 +1,15 @@
+{% if values.withLocalisation -%}
+{
+  "$schema": "https://docs.tolgee.io/cli-schema.json",
+  "format": "JSON_TOLGEE",
+  "push": {
+    "files": [{ "path": "src/i18n/en.json", "language": "en" }],
+    "forceMode": "KEEP"
+  },
+  "pull": {
+    "path": "src/i18n",
+    "fileStructureTemplate": "{languageTag}.{extension}",
+    "delimiter": ""
+  }
+}
+{%- endif %}

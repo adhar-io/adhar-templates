@@ -14,6 +14,11 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      # The environment this overlay deploys: the `environment` metric tag, the
+      # `env` log field and the traces' deployment.environment.name (adhar-kit).
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: ADHAR_ENVIRONMENT, value: "dev"}
   - target: {kind: HTTPRoute, name: "${{ values.name }}"}
     patch: |-
       - op: replace

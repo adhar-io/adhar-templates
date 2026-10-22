@@ -16,6 +16,11 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
+      # The environment this overlay deploys: the `environment` metric tag, the
+      # `env` log field and the traces' deployment.environment.name (adhar-kit).
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: ADHAR_ENVIRONMENT, value: "test"}
   # The autoscaler may add replicas, never go below this environment's floor:
   # with the base's minReplicas of 1 it scaled test/prod to one pod, Argo CD
   # put the second back, and the JVM's boot window failed every verification.

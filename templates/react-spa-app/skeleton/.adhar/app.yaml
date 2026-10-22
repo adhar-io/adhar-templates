@@ -1,0 +1,43 @@
+{% if values.withLocalisation -%}
+# Control-plane descriptor: this application's Application XR
+# (platform.adhar.io). The platform's adhar-services ApplicationSet adopts every
+# repository carrying this file and applies this directory.
+#
+# It is the SAME object the scaffolder creates (same name, namespace and
+# parameters), so adoption keeps it in Git rather than adding a second one.
+# Its `localisation` block is what makes the platform create this app's Tolgee
+# project with these languages, the read-only Secret <app>-tolgee the running
+# app reads (deploy/base/rollout.yaml) and the CI Secret <app>-tolgee-ci that
+# `tolgee push` / `tolgee pull` use before each build (.tolgeerc). The name
+# must stay the repository's name: CI finds <repository>-tolgee-ci by it.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Application
+metadata:
+  name: ${{ values.repoName }}
+  namespace: adhar-system
+  labels:
+    adhar.io/managed-by: adhar-console
+    adhar.io/project: adhar
+    adhar.io/application: ${{ values.repoName }}
+    adhar.io/scaffolded: "true"
+spec:
+  compositionSelector:
+    matchLabels:
+      feature: apps
+  parameters:
+    project: adhar
+    displayName: ${{ values.repoName }}
+    source:
+      repoURL: https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}.git
+      path: deploy
+      targetRevision: main
+    localisation:
+      provider: tolgee
+      baseLanguage: en
+      languages: [${{ values.languages }}]
+{%- else -%}
+# Localisation is off for this app (scaffolded with withLocalisation: false), so
+# there is no control-plane descriptor here: the scaffolder created the
+# Application. To turn Tolgee on later, declare the Application in this file
+# with spec.parameters.localisation (provider: tolgee, baseLanguage, languages).
+{%- endif %}
