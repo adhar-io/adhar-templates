@@ -2,6 +2,11 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: quarkus-web-service
+  labels:
+    # The per-application Grafana dashboard template this kind of app gets
+    # (backend-jvm | backend-generic | frontend | fullstack). A scaffolder stamps
+    # it on the Application XR as the label adhar.io/dashboard-type.
+    adhar.io/dashboard-type: backend-jvm
   title: Quarkus Web Service
   description: >-
     A Quarkus (supersonic, subatomic Java) REST service with the OpenTelemetry

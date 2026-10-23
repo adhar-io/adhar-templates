@@ -63,8 +63,16 @@ spec:
               value: "http://alloy.adhar-system.svc.cluster.local:4318"
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "http/protobuf"
+            # The pod's namespace and name, so the OTLP metrics carry
+            # k8s_namespace_name / k8s_pod_name in Mimir: the app's Grafana
+            # dashboard selects an environment by them (the same image runs in
+            # dev, test and prod, so nothing baked in can tell them apart).
+            - name: POD_NAMESPACE
+              valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+            - name: POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.namespace=adhar,deployment.environment=local"
+              value: "service.namespace=adhar,deployment.environment=local,k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER

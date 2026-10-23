@@ -20,9 +20,11 @@ metadata:
     adhar.io/project: adhar
     adhar.io/application: ${{ values.repoName }}
     adhar.io/scaffolded: "true"
-    # Opens the Frontend (browser, Grafana Faro) section of the app's Grafana
-    # dashboard; without it the section is one closed row.
+    # A browser app: its Grafana dashboard is the `frontend` template, which
+    # opens on real-user monitoring (Grafana Faro) and carries no JVM or server
+    # sections.
     adhar.io/frontend: "true"
+    adhar.io/dashboard-type: frontend
 spec:
   compositionSelector:
     matchLabels:
