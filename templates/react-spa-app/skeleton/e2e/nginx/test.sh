@@ -105,8 +105,13 @@ start_nginx "${TELEMETRY[@]}"
 runtime_config "/runtime-config.json carries the environment and the Faro receiver" "c.environment === 'dev' && c.faro.url === 'https://faro.example.test/collect'"
 {%- if values.withAnalytics %}
 runtime_config "... and the PostHog key, with events sent same-origin to /ingest" "c.posthog.key === 'phc_test' && c.posthog.apiHost === '/ingest' && c.posthog.replay !== 'true'"
+# Placeholder credentials the proxy must strip before forwarding to PostHog —
+# fixed test strings, not secrets. Kept out of the curl line so secret scanners
+# (gitleaks' curl-auth-header rule) don't fail every app's CI on them.
+FAKE_COOKIE='Cookie: session=test-only'  # gitleaks:allow
+FAKE_AUTH='Authorization: Bearer test-only-not-a-token'  # gitleaks:allow
 got=$(curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X POST --data-binary '{"event":"$pageview"}' \
-  -H 'Content-Type: application/json' -H 'Cookie: session=secret' -H 'Authorization: Bearer user-token' -H 'X-Forwarded-For: 203.0.113.7' \
+  -H 'Content-Type: application/json' -H "$FAKE_COOKIE" -H "$FAKE_AUTH" -H 'X-Forwarded-For: 203.0.113.7' \
   "http://127.0.0.1:$PORT/ingest/e/?compression=gzip-js")
 last=$($CLI exec "$NET-posthog" wget -q -O- http://localhost:8086/__last)
 if [ "$got" = 200 ] && node -e "
