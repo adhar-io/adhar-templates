@@ -77,6 +77,11 @@ export function I18nProvider({ children }) {
   )
 }
 
+/** The language the app shows right now, e.g. for content that is fetched per language. */
+export function useLanguage() {
+  return useTolgee(['language']).getLanguage() ?? BASE_LANGUAGE
+}
+
 // A language's own name for itself: "Deutsch", "English".
 function nativeName(tag) {
   try {
@@ -130,5 +135,9 @@ export function I18nProvider({ children }) {
 
 export function LanguageSwitcher() {
   return null
+}
+
+export function useLanguage() {
+  return BASE_LANGUAGE
 }
 {%- endif %}

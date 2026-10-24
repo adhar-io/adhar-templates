@@ -10,7 +10,10 @@ import {
 } from '@adhar-ui/react'
 import { cn } from '@adhar-ui/utils'
 import { Activity, ArrowRight, BookOpen, Check, Code, GitBranch, Moon, Palette, ShieldCheck, Sun } from './icons.jsx'
-import { LanguageSwitcher, useTranslate } from './i18n.jsx'
+import { LanguageSwitcher, {% if values.withCms %}useLanguage, {% endif %}useTranslate } from './i18n.jsx'
+{%- if values.withCms %}
+import { CMS_COLLECTION, imageUrl, textField, useCollection } from './cms.js'
+{%- endif %}
 import { useTheme } from './useTheme.js'
 
 // The app's name is not translated. Every other user-visible string is a key in
@@ -61,6 +64,67 @@ function Pipeline() {
   )
 }
 
+{% if values.withCms -%}
+// The latest entries of one Strapi collection type, in the language the app is
+// shown in (src/cms.js). Each state says what it is, so an empty or unconnected
+// CMS reads as a next step rather than a broken page.
+function CmsSection() {
+  const { t } = useTranslate()
+  const language = useLanguage()
+  const { status, entries } = useCollection(CMS_COLLECTION, { locale: language })
+  const date = new Intl.DateTimeFormat(language, { dateStyle: 'medium' })
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6" aria-labelledby="cms" aria-busy={status === 'loading'}>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 id="cms" className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            {t('cms.heading')}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('cms.subtitle')}</p>
+        </div>
+        <Badge className={badgeVariants({ variant: 'outline' })}>{CMS_COLLECTION}</Badge>
+      </div>
+      {status === 'ok' && entries.length > 0 ? (
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {entries.map((entry) => {
+            const image = imageUrl(entry, 'cover', 'image', 'thumbnail')
+            const published = entry.publishedAt ? new Date(entry.publishedAt) : null
+            return (
+              <li key={entry.documentId ?? entry.id}>
+                <Card className={cn(cardVariants({ padding: 'default' }), 'h-full overflow-hidden')}>
+                  {image && <img src={image} alt="" loading="lazy" className="-mx-6 -mt-6 mb-4 aspect-video w-[calc(100%+3rem)] max-w-none object-cover" />}
+                  <h3 className={cn(cardTitleVariants(), 'text-base')}>
+                    {textField(entry, 'title', 'name', 'heading') || t('cms.untitled')}
+                  </h3>
+                  {textField(entry, 'description', 'summary', 'excerpt') && (
+                    <p className={cn(cardDescriptionVariants(), 'mt-2 line-clamp-3')}>
+                      {textField(entry, 'description', 'summary', 'excerpt')}
+                    </p>
+                  )}
+                  {published && !Number.isNaN(published.valueOf()) && (
+                    <time dateTime={entry.publishedAt} className="mt-3 block text-xs text-muted-foreground">
+                      {date.format(published)}
+                    </time>
+                  )}
+                </Card>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <Card className={cn(cardVariants({ padding: 'default' }), 'mt-6 text-sm text-muted-foreground')} role="status">
+          {status === 'loading' && t('cms.loading')}
+          {status === 'ok' && t('cms.empty', { type: CMS_COLLECTION })}
+          {status === 'off' && t('cms.off', { secret: `${APP_NAME}-strapi` })}
+          {status === 'error' && t('cms.error')}
+        </Card>
+      )}
+    </section>
+  )
+}
+
+{% endif -%}
 // Commands are code, not prose, so only their titles are translated.
 const steps = [
   { title: 'getStarted.runLocally', code: 'npm install && npm run dev' },
@@ -142,7 +206,9 @@ export default function App() {
             ))}
           </div>
         </section>
-
+{% if values.withCms %}
+        <CmsSection />
+{% endif %}
         <section id="get-started" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
           <Card className={cn(cardVariants({ padding: 'lg' }), 'relative overflow-hidden')}>
             <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-gradient" />

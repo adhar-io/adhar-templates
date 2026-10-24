@@ -30,6 +30,15 @@
   "getStarted.runLocally": "Lokal ausführen",
   "getStarted.addPage": "Seite oder API hinzufügen",
   "getStarted.ship": "Ausliefern",
+{%- if values.withCms %}
+  "cms.heading": "Aus dem CMS",
+  "cms.subtitle": "In Strapi veröffentlicht — live ohne neues Release",
+  "cms.loading": "Inhalte werden geladen…",
+  "cms.empty": "Noch nichts veröffentlicht. Veröffentliche in Strapi den ersten Eintrag von {type}.",
+  "cms.off": "Strapi ist in dieser Umgebung noch nicht verbunden: Die App liest ihr API-Token aus dem Secret {secret}.",
+  "cms.error": "Die Inhalte konnten gerade nicht geladen werden. Bitte versuche es gleich noch einmal.",
+  "cms.untitled": "Ohne Titel",
+{%- endif %}
   "footer.builtOn": "Gebaut auf der Adhar-Plattform",
   "footer.ownedBy": "Verantwortlich: {owner}",
   "notFound.title": "Seite nicht gefunden",

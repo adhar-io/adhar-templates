@@ -116,6 +116,50 @@ Localisation was turned off when this app was scaffolded, so there is one
 language and no Tolgee project. The string table still keeps the texts out of
 the templates.
 {%- endif %}
+{%- if values.withCms %}
+
+## Content (Strapi)
+
+Text, articles and media come from the platform's **Strapi** CMS, so editors
+change them without a release. The home page lists the latest published entries
+of the `${{ values.cmsCollection }}` collection type, in the language the app is shown in.
+
+The browser never talks to Strapi: `GET /cms/<path>` on this app's own origin is
+Strapi's REST API at `/api/<path>`, proxied by nginx (`nginx-app.conf`) with a **read-only**
+API token added on the server, and Strapi's media (`/uploads/…`) is served the same
+way. Only GET passes, and Strapi's user, auth and media-library endpoints are never
+proxied. Strapi's public address is behind the platform's single sign-on, which is
+why the app proxies instead of calling it.
+
+| Setting | Where | |
+|---|---|---|
+| `STRAPI_API_TOKEN` | Secret `${{ values.name }}-strapi`, key `api-token` | A read-only (or custom, read-only) Strapi API token. Without it `/cms/` answers `X-Cms: off` and the page shows a setup hint. |
+| `STRAPI_URL` | same Secret, key `api-url` (optional) | Default: the platform's Strapi, `http://strapi.adhar-system.svc.cluster.local:1337` |
+
+**Set it up once per environment:**
+
+1. In Strapi (`https://strapi.<platform domain>/admin`), create the
+   `${{ values.cmsCollection }}` collection type with at least a `title` field
+   (`description`, a `cover` image and i18n are picked up when present), and
+   publish an entry.
+2. Under *Settings → API Tokens*, create a token of type **Read-only** — or
+   **Custom** with only `find`/`findOne` on this app's content types, since the
+   CMS is shared by every app on the platform.
+3. Store it where the Rollout reads it:
+   `kubectl -n <env> create secret generic ${{ values.name }}-strapi --from-literal=api-token=<token>`,
+   then restart the Rollout. (When the platform provisions CMS tokens, it writes
+   this Secret for you.)
+
+**Use it in code** — `src/app/cms.ts`: `fetchCollection(type, { locale, pageSize, sort, filters, populate })`
+returns `{ status: 'ok' | 'off' | 'error', entries }` and never throws, so a CMS
+outage costs a section, never the page. The section on the home page is in `src/app/cms.ts` (`CmsSectionComponent`).
+
+**Locally:** run Strapi yourself or `kubectl -n adhar-system port-forward svc/strapi 1337`,
+and run `STRAPI_URL=http://localhost:1337 STRAPI_API_TOKEN=<token> npm start`;
+`proxy.conf.mjs` proxies `/cms/` the same way.
+
+**Testing:** `npm run test:e2e` (`e2e/tests/cms.spec.ts`) checks every state of the page; `npm run build && npm run test:nginx` runs the proxy in a real nginx against a stand-in Strapi.
+{%- endif %}
 
 ## Telemetry
 

@@ -7,14 +7,17 @@ import { staticMiddleware } from 'srvx/static'
 import app from './dist/server/server.js'
 import { createMetrics } from './src/server/metrics.mjs'
 import { telemetryMiddleware } from './src/server/edge.mjs'
+{%- if values.withCms %}
+import { cmsMiddleware } from './src/server/cms.mjs'
+{%- endif %}
 
 const metrics = createMetrics()
 
 serve({
   port: Number(process.env.PORT ?? ${{ values.port }}),
   // Timing first, so it sees every request; then /runtime-config.json{% if values.withAnalytics %} and
-  // /ingest (src/server/edge.mjs){% endif %}, the static client files and the app.
-  middleware: [metrics.middleware, telemetryMiddleware(), staticMiddleware({ dir: 'dist/client' })],
+  // /ingest (src/server/edge.mjs){% endif %}{% if values.withCms %}, /cms and /uploads (Strapi, src/server/cms.mjs){% endif %}, the static client files and the app.
+  middleware: [metrics.middleware, telemetryMiddleware(), {% if values.withCms %}cmsMiddleware(), {% endif %}staticMiddleware({ dir: 'dist/client' })],
   fetch: app.fetch,
 })
 

@@ -33,6 +33,15 @@
   "getStarted.runLocally": "Run it locally",
   "getStarted.makeItYours": "Make it yours",
   "getStarted.ship": "Ship it",
+{%- if values.withCms %}
+  "cms.heading": "From the CMS",
+  "cms.subtitle": "Published in Strapi — live without a release",
+  "cms.loading": "Loading content…",
+  "cms.empty": "Nothing published yet. Publish the first entry of {type} in Strapi.",
+  "cms.off": "Strapi is not connected in this environment yet: the app reads its API token from the Secret {secret}.",
+  "cms.error": "The content could not be loaded right now. Try again shortly.",
+  "cms.untitled": "Untitled",
+{%- endif %}
   "footer.builtOn": "Built on the Adhar platform",
   "footer.ownedBy": "Owned by {owner}"
 }

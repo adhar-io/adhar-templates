@@ -22,6 +22,7 @@ import {
   isDevMode,
   makeEnvironmentProviders,
   provideEnvironmentInitializer,
+  type Signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -76,6 +77,11 @@ export function provideI18n(): EnvironmentProviders {
 }
 
 // A language's own name for itself: "Deutsch", "English".
+/** The language the app shows right now, e.g. for content that is fetched per language. */
+export function injectLanguage(): Signal<string> {
+  return toSignal(inject(TranslateService).languageAsync, { initialValue: BASE_LANGUAGE });
+}
+
 function nativeName(tag: string): string {
   try {
     return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
@@ -120,6 +126,8 @@ import {
   type PipeTransform,
   input,
   makeEnvironmentProviders,
+  type Signal,
+  signal,
 } from '@angular/core';
 import en from '../i18n/en.json';
 
@@ -135,6 +143,10 @@ export class TranslatePipe implements PipeTransform {
 
 export function provideI18n(): EnvironmentProviders {
   return makeEnvironmentProviders([]);
+}
+
+export function injectLanguage(): Signal<string> {
+  return signal('en').asReadonly();
 }
 
 @Component({

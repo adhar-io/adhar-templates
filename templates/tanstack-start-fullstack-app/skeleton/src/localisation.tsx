@@ -121,6 +121,11 @@ function nativeName(tag: string) {
   }
 }
 
+/** The language the app shows right now, e.g. for content that is fetched per language. */
+export function useLanguage(): string {
+  return useTolgee(['language']).getLanguage() ?? BASE_LANGUAGE
+}
+
 export function LanguageSwitcher({ className }: { className?: string }) {
   const { t } = useTranslate()
   const tolgee = useTolgee(['language'])
@@ -176,5 +181,9 @@ export function I18nProvider({ children }: { state: I18nState; children: ReactNo
 
 export function LanguageSwitcher(_props: { className?: string }) {
   return null
+}
+
+export function useLanguage(): string {
+  return BASE_LANGUAGE
 }
 {%- endif %}

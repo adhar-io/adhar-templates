@@ -13,6 +13,33 @@ wildcard certificate to cover it.
 
 The process serves HTTP directly on `${{ values.port }}`. There is no sidecar
 proxy in front of it inside the pod; TLS terminates at the platform Gateway.
+{%- if values.withCms %}
+
+## Content from Strapi
+
+```text
+browser → GET /cms/${{ values.cmsCollection }}?locale=… → the app's server
+        → http://strapi.adhar-system.svc.cluster.local:1337/api/${{ values.cmsCollection }}  (+ read-only token)
+```
+
+The platform runs one Strapi for every app, inside the cluster. Its public
+address is behind single sign-on, so the app reaches it server-side: the app's server (`src/server/cms.mjs`)
+answers `/cms/` and `/uploads/` on the app's own origin and adds the token from
+the Secret `${{ values.name }}-strapi`. Consequences worth knowing:
+
+- **The token never reaches the browser,** and the browser's cookies never reach
+  Strapi. Make it **read-only** — better, a custom token limited to `find` and
+  `findOne` on this app's content types: the CMS is shared, and a broad token
+  reads every app's content.
+- **Only GET passes,** and Strapi's `users`, `users-permissions`, `auth`,
+  `connect` and `upload` endpoints are refused whatever the token allows.
+- **Answers are cached for a minute** (media for a day; Strapi hashes media
+  names), so a published edit is live within a minute.
+- **Strapi down costs a section, not the page:** the proxy answers 502/504
+  quickly and the page says the content could not be loaded.
+- **No token yet** is not an error: `/cms/` answers an empty 200 with
+  `X-Cms: off` and the page shows how to connect it.
+{%- endif %}
 
 ## Deployment shape
 

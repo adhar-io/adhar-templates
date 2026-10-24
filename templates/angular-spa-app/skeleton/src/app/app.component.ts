@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
 import { badgeVariants, buttonVariants, cardVariants, cn } from '@adhar-ui/angular';
+{%- if values.withCms %}
+import { CmsSectionComponent } from './cms';
+{%- endif %}
 import { IconComponent } from './icon.component';
 import { LanguageSwitcherComponent, TranslatePipe } from './i18n';
 
@@ -7,7 +10,7 @@ import { LanguageSwitcherComponent, TranslatePipe } from './i18n';
 // element below composes one of them with Tailwind utilities.
 @Component({
   selector: 'app-root',
-  imports: [IconComponent, LanguageSwitcherComponent, TranslatePipe],
+  imports: [{% if values.withCms %}CmsSectionComponent, {% endif %}IconComponent, LanguageSwitcherComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex min-h-screen flex-col' },
   template: `
@@ -94,7 +97,9 @@ import { LanguageSwitcherComponent, TranslatePipe } from './i18n';
           }
         </div>
       </section>
-
+{% if values.withCms %}
+      <app-cms-section />
+{% endif %}
       <section id="get-started" class="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
         <div [class]="stepsCard">
           <div aria-hidden="true" class="absolute inset-x-0 top-0 h-1 bg-brand-gradient"></div>

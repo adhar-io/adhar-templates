@@ -44,6 +44,10 @@ the platform:
   PodDisruptionBudget, optional autoscaling, a k6 load test and automated
   chaos experiments, so the service starts with a scorecard score instead of
   earning one later.
+- 🌐 **Frontends that editors and translators can change.** The React,
+  Angular and TanStack Start apps load their texts from Tolgee, can read
+  content from the platform's Strapi CMS, and report real-user monitoring and
+  product analytics, all configured at runtime per environment.
 - 📚 **Documented and catalogued.** Every app ships with TechDocs (`docs/` and
   `mkdocs.yml`) and registers itself in the Service Catalog with its owner.
 
@@ -63,9 +67,9 @@ tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 | [`nodejs-web-service`](templates/nodejs-web-service) | Node.js · Express | Postgres (optional) | |
 | [`go-web-service`](templates/go-web-service) | Go 1.25 · net/http | Postgres (optional) | Minimal image, OTel built in |
 | [`python-web-service`](templates/python-web-service) | Python · Flask · gunicorn | Postgres (optional) | |
-| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes |
-| [`react-spa-app`](templates/react-spa-app) | React 19 · Vite · Adhar UI | | Static SPA served by nginx |
-| [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · Adhar UI | | Static SPA served by nginx |
+| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes; Tolgee, PostHog, Strapi CMS (optional) |
+| [`react-spa-app`](templates/react-spa-app) | React 19 · Vite · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
+| [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
 | [`agent-service`](templates/agent-service) | Python · FastAPI AI agent | | ⭐ Isolated `AgentWorkload`: own namespace, default-deny network, gateway identity limited to the models and tools you list, token budget alerts |
 
 ## How it works
@@ -154,6 +158,58 @@ The gateway uses `adhar-kit-parent` and the kit's framework-neutral modules, not
 `adhar-kit-starter`: in Adhar Kit 0.1.0 the starter and the security and logging
 modules are built for Spring MVC and cannot run in a reactive application. The
 generated `docs/architecture.md` explains what the gateway does instead.
+
+## Frontend apps: texts, content and telemetry
+
+`react-spa-app`, `angular-spa-app` and `tanstack-start-fullstack-app` share
+three opt-in integrations. Each one is configured at runtime from an optional
+Secret in the environment's namespace, so the one image promoted from `dev` to
+`prod` uses each environment's own settings, and an app without the Secret
+starts and works without the feature.
+
+| Form step | Default | What the app gets | Configured by |
+|---|---|---|---|
+| **Localisation** (Tolgee) | on | Texts in `src/i18n/<language>.json`, served at `/i18n/<language>.json` from Tolgee with the built-in files as the fallback; a language switcher | Secret `<app>-tolgee` (`api-url`, `project-id`, read-only `api-key`) |
+| **Analytics** (PostHog) | on | Product analytics through `/ingest` on the app's own origin, with Do Not Track and an opt-out respected. Grafana Faro real-user monitoring is always on. | Secret `<app>-posthog` (`api-key`, `host`) |
+| **Content** (Strapi) | off | Strapi's REST API at `/cms/` and its media at `/uploads/`, read-only; a home-page section listing the latest entries of one content type, in the current language | Secret `<app>-strapi` (`api-token`, optional `api-url`) |
+
+### Content from Strapi
+
+The platform runs one shared **Strapi** CMS in `adhar-system`. Opt in with
+**Content from Strapi** in the form and name the collection type to show
+(`articles` by default). The app is then wired to it with nothing to configure
+in code:
+
+- **Server-side proxy.** The browser calls `/cms/<path>` on the app's own origin.
+  nginx (the SPAs) or the app's Node server (TanStack Start) forwards it to
+  Strapi's `/api/<path>` at `http://strapi.adhar-system.svc.cluster.local:1337`
+  and adds the API token there. The token never reaches the browser. Strapi's
+  public address is behind the platform's single sign-on, so a browser could
+  not call it directly anyway.
+- **Read-only by construction.** Only GET passes. Strapi's `users`,
+  `users-permissions`, `auth`, `connect` and `upload` endpoints are refused
+  whatever the token allows, because the CMS is shared by every app.
+- **Language-aware.** Entries are requested in the language the app is shown
+  in, and fall back to the default locale for content types that are not
+  localised.
+- **Failure-tolerant.** A missing token shows a setup hint (`X-Cms: off`), an
+  empty collection says how to publish the first entry, and a Strapi outage
+  costs the section, never the page.
+- **Tested.** Playwright covers every state of the page. The proxy is tested in
+  a real nginx against a stand-in Strapi (SPAs) or with unit tests (TanStack
+  Start).
+
+**One manual step today.** Nothing on the platform issues Strapi API tokens yet.
+Per environment, create a **Read-only** token in Strapi (*Settings → API
+Tokens*), or a **Custom** one limited to `find`/`findOne` on the app's content
+types, and store it:
+
+```sh
+kubectl -n <env> create secret generic <app>-strapi --from-literal=api-token=<token>
+```
+
+The app picks it up on its next restart. Each generated app's README and
+`docs/` cover setup, local development and troubleshooting.
 
 ## Every template: the Operations step
 
@@ -248,7 +304,9 @@ service account, the cosign key and the `verify-supply-chain-images` Kyverno
 policy), plus `harbor`, `cnpg`, `kyverno`, `argo-rollouts`, and the Crossplane
 control plane for cache, Kafka and other self-service resources. Promotion
 needs Kargo, and the load and chaos tests need the Performance Center and
-Litmus.
+Litmus. Strapi is not in the local profile (it is amd64-only and too heavy for
+Kind), so a frontend with **Content from Strapi** shows its setup hint locally
+unless you point `STRAPI_URL` at a Strapi of your own.
 
 ## License
 

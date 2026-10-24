@@ -2,7 +2,8 @@
 # Tests nginx-app.conf in a real nginx: /runtime-config.json rendered from the
 # Pod's environment{% if values.withAnalytics %}, /ingest/ forwarding to PostHog (a stand-in,
 # mock-posthog.mjs){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json proxied to Tolgee with the
-# built-in translations as the fallback (against mock-tolgee.mjs){% endif %}. Needs Docker
+# built-in translations as the fallback (against mock-tolgee.mjs){% endif %}{% if values.withCms %} and /cms/ + /uploads/ proxied read-only to
+# Strapi (against mock-strapi.mjs){% endif %}. Needs Docker
 # or Podman (CONTAINER_CLI=podman) and a production build (ng build):
 #
 #   npm run build && npm run test:nginx
@@ -27,7 +28,7 @@ failures=0
 {%- endif %}
 
 cleanup() {
-  $CLI rm -f "$NET-nginx" "$NET-tolgee" "$NET-posthog" >/dev/null 2>&1 || true
+  $CLI rm -f "$NET-nginx" "$NET-tolgee" "$NET-posthog"{% if values.withCms %} "$NET-strapi"{% endif %} >/dev/null 2>&1 || true
   $CLI network rm "$NET" >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
@@ -180,6 +181,67 @@ echo "# a wrong key"
 $CLI start "$NET-tolgee" >/dev/null
 start_nginx "${TOLGEE[@]/tgpak_test/tgpak_wrong}"
 check "Tolgee refusing the key falls back" /i18n/en.json 200 bundled "$BUILT_IN_EN"
+{%- endif %}
+{%- if values.withCms %}
+
+strapi_last() { $CLI exec "$NET-strapi" wget -q -O- http://localhost:8087/__last; }
+
+# cms <description> <method> <path> <expected status> <expected X-Cms> [text the body must contain]
+cms() {
+  local desc=$1 method=$2 path=$3 status=$4 cms=$5 body=${6:-}
+  local got got_cms
+  got=$(curl -s -m 20 -X "$method" -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -H "$FAKE_STRAPI_COOKIE" "http://127.0.0.1:$PORT$path")
+  got_cms=$(tr -d '\r' < "$WORK/headers" | sed -n 's/^[Xx]-[Cc]ms: //p')
+  if [ "$got" = "$status" ] && [ "$got_cms" = "$cms" ] && { [ -z "$body" ] || grep -qF "$body" "$WORK/body"; }; then
+    ok "$desc"
+  else
+    fail "$desc: status $got (want $status), X-Cms '$got_cms' (want '$cms')"; head -c 300 "$WORK/body"; echo
+  fi
+}
+# A placeholder session cookie the proxy must not forward — a fixed test string.
+FAKE_STRAPI_COOKIE='Cookie: session=test-only'  # gitleaks:allow
+$CLI run -d --name "$NET-strapi" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-strapi.mjs >/dev/null
+
+echo "# no Strapi token configured"
+start_nginx
+cms "/cms/ answers an empty 200 with X-Cms: off" GET /cms/articles 200 off '"cms":"off"'
+grep -qi '^cache-control: no-store' "$WORK/headers" && ok "... uncached, so a token added later takes effect at once" || fail "cache headers: $(grep -i cache-control "$WORK/headers")"
+cms "/uploads/ answers 404" GET /uploads/cat.png 404 ""
+check "the app still answers /" / 200 ""
+
+echo "# Strapi configured"
+STRAPI=(STRAPI_API_TOKEN=test-strapi-token STRAPI_URL="http://$NET-strapi:8087" NGINX_RESOLVER=$RESOLVER)
+start_nginx "${STRAPI[@]}"
+cms "/cms/articles is Strapi's /api/articles" GET '/cms/articles?locale=de&pagination%5BpageSize%5D=3' 200 strapi 'Hello from Strapi (de)'
+last=$(strapi_last)
+if node -e "
+  const l = JSON.parse(process.argv[1]), h = l.headers
+  process.exit(l.url === '/api/articles?locale=de&pagination%5BpageSize%5D=3' && h.authorization === 'Bearer test-strapi-token' && !h.cookie ? 0 : 1)" "$last"; then
+  ok "sends the token and the query, and no browser cookie"
+else
+  fail "request to Strapi: $last"
+fi
+grep -qi '^set-cookie' "$WORK/headers" && fail "Strapi's Set-Cookie reached the browser" || ok "hides Strapi's Set-Cookie"
+grep -qi '^cache-control: public, max-age=60' "$WORK/headers" && ok "cached for a minute" || fail "cache headers: $(grep -i cache-control "$WORK/headers")"
+before=$(node -e "console.log(JSON.parse(process.argv[1]).count)" "$(strapi_last)")
+cms "a POST is refused" POST /cms/articles 403 strapi
+cms "Strapi's users are never proxied" GET /cms/users 404 strapi
+cms "nor its auth endpoints" GET /cms/auth/local 404 strapi
+cms "nor the media library listing" GET /cms/upload/files 404 strapi
+after=$(node -e "console.log(JSON.parse(process.argv[1]).count)" "$(strapi_last)")
+[ "$before" = "$after" ] && ok "none of those reached Strapi" || fail "Strapi saw $((after - before)) refused request(s)"
+got=$(curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' "http://127.0.0.1:$PORT/uploads/cat.png")
+last=$(strapi_last)
+if [ "$got" = 200 ] && grep -qi '^content-type: image/png' "$WORK/headers" \
+  && node -e "const h = JSON.parse(process.argv[1]).headers; process.exit(h.authorization ? 1 : 0)" "$last"; then
+  ok "/uploads/ serves Strapi's media, without the token"
+else
+  fail "/uploads/cat.png: status $got, Strapi saw $last"
+fi
+$CLI stop "$NET-strapi" >/dev/null
+got=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/cms/articles")
+[[ "$got" =~ ^50[24]$ ]] && ok "an unreachable Strapi is a quick 502/504, not a hang" || fail "unreachable Strapi answered $got"
+check "the app still answers / without Strapi" / 200 ""
 {%- endif %}
 
 [ "$failures" -eq 0 ] && echo "all nginx checks passed" || { echo "$failures check(s) failed"; exit 1; }

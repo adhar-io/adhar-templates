@@ -117,6 +117,42 @@ spec:
             Without the Secret nothing is sent.
           default: true
 
+    - title: Content
+      description: >-
+        Text, articles and media that editors change without a release, from the
+        platform's Strapi CMS. Opt in and the app is wired to it: Strapi's API is
+        served same-origin at /cms/ with a read-only token the browser never sees,
+        media at /uploads/, and the home page lists the entries of one content
+        type. Nothing to configure — the app reads the token from the optional
+        Secret <name>-strapi, and shows a setup hint until it exists.
+      properties:
+        withCms:
+          title: Content from Strapi (platform CMS)
+          type: boolean
+          description: >-
+            Read-only access to the platform's shared Strapi, proxied by the app's
+            own server so it works behind the CMS's single sign-on. Off leaves no
+            CMS code, route or dependency in the app.
+          default: false
+      dependencies:
+        withCms:
+          oneOf:
+            - properties:
+                withCms:
+                  const: false
+            - properties:
+                withCms:
+                  const: true
+                cmsCollection:
+                  title: Content type to show
+                  type: string
+                  default: articles
+                  description: >-
+                    The plural API ID of a Strapi collection type (e.g. articles,
+                    pages, faqs). The home page lists its latest entries; create it
+                    in Strapi's Content-Type Builder with at least a `title` field.
+                  pattern: '^[a-z][a-z0-9-]{0,62}$'
+
     - title: Repository
       required: [repoUrl]
       properties:
@@ -234,6 +270,10 @@ spec:
           # what keeps it to language tags.
           withLocalisation: ${{ parameters.withLocalisation }}
           withAnalytics: ${{ parameters.withAnalytics }}
+          # Strapi (platform CMS). cmsCollection is a Strapi plural API ID; the
+          # pattern above keeps it to a URL path segment.
+          withCms: ${{ parameters.withCms }}
+          cmsCollection: ${{ parameters.cmsCollection or 'articles' }}
           languages: ${{ parameters.languages or 'en,de' }}
           withDatabase: ${{ parameters.withDatabase }}
           port: 3000

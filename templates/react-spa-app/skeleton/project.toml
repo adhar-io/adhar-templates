@@ -21,7 +21,8 @@ value = "true"
 # buildpack generates and rendered from the Pod's environment at container
 # start. It serves /runtime-config.json (what the browser's telemetry turns on){% if values.withAnalytics %},
 # /ingest/ (PostHog, same-origin){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json (Tolgee, with the
-# translations built into dist/i18n/ as the fallback){% endif %}.
+# translations built into dist/i18n/ as the fallback){% endif %}{% if values.withCms %},
+# /cms/ and /uploads/ (Strapi, read-only, with the token added server-side){% endif %}.
 [[build.env]]
 name = "BP_WEB_SERVER_INCLUDE_FILE_PATH"
 value = "nginx-app.conf"

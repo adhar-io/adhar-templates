@@ -98,6 +98,19 @@ spec:
               valueFrom:
                 secretKeyRef: {name: ${{ values.name }}-tolgee, key: api-key, optional: true}
 {%- endif %}
+{%- if values.withCms %}
+            # Strapi, the platform CMS, for /cms/ and /uploads/ (nginx-app.conf). Both keys
+            # of the Secret <app>-strapi are optional: without api-token the app
+            # starts and shows its setup hint; without api-url the platform's
+            # shared Strapi (http://strapi.adhar-system.svc.cluster.local:1337)
+            # is used. The token must be READ-ONLY — see docs/architecture.md.
+            - name: STRAPI_API_TOKEN
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-strapi, key: api-token, optional: true}
+            - name: STRAPI_URL
+              valueFrom:
+                secretKeyRef: {name: ${{ values.name }}-strapi, key: api-url, optional: true}
+{%- endif %}
           readinessProbe:
             httpGet:
               path: /

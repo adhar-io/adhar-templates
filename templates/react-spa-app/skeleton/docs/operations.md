@@ -38,6 +38,20 @@ responses:
 | `CrashLoopBackOff` | the process exits on start | read the logs; this is almost always configuration, not the platform |
 | `Running` but not `Ready` | readiness probe failing | the pod is getting no traffic; check the probe path and timeout |
 | `OOMKilled` | memory limit below actual need | raise the limit in `deploy/rollout.yaml`; do not lower the request to compensate |
+{%- if values.withCms %}
+
+## Content does not show
+
+The home page's CMS section says which case it is:
+
+| It says | Cause | What to do |
+| --- | --- | --- |
+| Strapi is not connected | no Secret `${{ values.name }}-strapi` (key `api-token`) in this namespace | create it with a read-only Strapi API token and restart the Rollout |
+| Nothing published yet | the token works, the collection is empty or unpublished | publish an entry of `${{ values.cmsCollection }}` in Strapi |
+| Could not be loaded | Strapi refused the token (401/403), the content type does not exist (404), or Strapi is down (502/504) | `curl -i https://${{ values.hostname }}/cms/${{ values.cmsCollection }}` shows Strapi's own error; a 401/403 means a deleted or too narrow token |
+
+Edits appear within a minute: `/cms/` answers are cached that long.
+{%- endif %}
 
 ## Changing configuration
 

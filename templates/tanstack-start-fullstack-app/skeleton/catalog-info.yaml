@@ -10,6 +10,10 @@ metadata:
     adhar.io/tier: ${{ values.tier or 'standard' }}
     adhar.io/dashboard: https://grafana.${{ values.platformBaseDomain or 'adhar.localtest.me' }}/d/app-${{ values.name }}
     adhar.io/slo: "${{ values.sloTarget or '99.9' }}"
+{%- if values.withCms %}
+    # Reads content from the platform's Strapi (Secret ${{ values.name }}-strapi).
+    adhar.io/cms: strapi
+{%- endif %}
 {%- if values.enableAlerts %}
     adhar.io/alerts: "true"
 {%- endif %}
@@ -54,6 +58,9 @@ metadata:
     - tanstack
     - fullstack
     - adhar-ui
+{%- if values.withCms %}
+    - strapi
+{%- endif %}
 spec:
   type: service
   lifecycle: ${{ values.lifecycle or 'experimental' }}
