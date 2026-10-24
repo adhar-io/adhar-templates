@@ -188,7 +188,9 @@ name. Without that configuration (`npm run dev`, `vite preview`, e2e tests) it
 sends nothing.
 
 - **Real-user monitoring (Grafana Faro).** `FARO_URL` (deploy/base/rollout.yaml)
-  points at the platform's Faro receiver, `https://faro.<platform domain>/collect`.
+  points at the platform's Faro receiver, `https://faro.<platform domain>/collect`,
+  and falls back to `https://faro.adhar.localtest.me/collect` when no platform
+  domain is injected by the scaffolder.
   Every visit reports page loads, web vitals (LCP, INP, CLS, FCP, TTFB),
   JavaScript errors, fetch/XHR timings and browser traces, tagged with the app's
   name, version (package.json) and environment. Requests to this origin and to

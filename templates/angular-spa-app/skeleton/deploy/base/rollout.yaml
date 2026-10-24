@@ -57,12 +57,12 @@ spec:
             # Browser telemetry, served to the page as /runtime-config.json
             # (nginx-app.conf, src/app/telemetry.ts). APP_ENVIRONMENT is set by each
             # overlay (deploy/envs/<env>); FARO_URL is the platform's Faro
-            # receiver, its public route, because the browser posts to it. Empty
-            # turns real-user monitoring off.
+            # receiver, its public route, because the browser posts to it.
+            # platformBaseDomain defaults to adhar.localtest.me when omitted.
             - name: APP_ENVIRONMENT
               value: ""
             - name: FARO_URL
-              value: "{% if values.platformBaseDomain %}https://faro.${{ values.platformBaseDomain }}/collect{% endif %}"
+              value: "https://faro.${{ values.platformBaseDomain or 'adhar.localtest.me' }}/collect"
 {%- if values.withAnalytics %}
             # PostHog product analytics, from the optional Secret <app>-posthog
             # (keys api-key, host, ui-host, session-replay) the platform creates
