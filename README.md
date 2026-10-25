@@ -67,6 +67,11 @@ tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 | [`nodejs-web-service`](templates/nodejs-web-service) | Node.js · Express | Postgres (optional) | |
 | [`go-web-service`](templates/go-web-service) | Go 1.25 · net/http | Postgres (optional) | Minimal image, OTel built in |
 | [`python-web-service`](templates/python-web-service) | Python · Flask · gunicorn | Postgres (optional) | |
+| [`function-java-service`](templates/function-java-service) | Java 21 · Function XR (`platform.adhar.io/v1alpha1`) | | Java serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-nodejs-service`](templates/function-nodejs-service) | Node.js 20 · Function XR (`platform.adhar.io/v1alpha1`) | | Node.js serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-deno-service`](templates/function-deno-service) | Deno 2 · Function XR (`platform.adhar.io/v1alpha1`) | | Deno serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-go-service`](templates/function-go-service) | Go 1.25 · Function XR (`platform.adhar.io/v1alpha1`) | | Go serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-python-service`](templates/function-python-service) | Python · Flask · Function XR (`platform.adhar.io/v1alpha1`) | | Python serverless function workload with Knative scale-to-zero + on-demand autoscaling |
 | [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes; Tolgee, PostHog, Strapi CMS (optional) |
 | [`react-spa-app`](templates/react-spa-app) | React 19 · Vite · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
 | [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |

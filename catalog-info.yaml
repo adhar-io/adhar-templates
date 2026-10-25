@@ -17,6 +17,11 @@ spec:
     - ./templates/nodejs-web-service/template.yaml
     - ./templates/go-web-service/template.yaml
     - ./templates/python-web-service/template.yaml
+    - ./templates/function-java-service/template.yaml
+    - ./templates/function-nodejs-service/template.yaml
+    - ./templates/function-deno-service/template.yaml
+    - ./templates/function-go-service/template.yaml
+    - ./templates/function-python-service/template.yaml
     - ./templates/springboot-web-service/template.yaml
     - ./templates/react-spa-app/template.yaml
     - ./templates/quarkus-web-service/template.yaml

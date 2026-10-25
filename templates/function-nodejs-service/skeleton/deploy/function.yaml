@@ -1,0 +1,19 @@
+apiVersion: platform.adhar.io/v1alpha1
+kind: Function
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        feature: function
+  parameters:
+    runtime: node20
+    image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+    trigger: ${{ values.trigger }}
+    eventSource: ${{ values.eventSource }}
+    minScale: ${{ values.minScale }}
+    maxScale: ${{ values.maxScale }}
+    timeoutSeconds: ${{ values.timeoutSeconds }}

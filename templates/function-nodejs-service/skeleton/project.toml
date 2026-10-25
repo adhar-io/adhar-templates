@@ -1,0 +1,7 @@
+[project]
+id = "io.adhar.${{ values.name }}"
+name = "${{ values.name }}"
+version = "0.1.0"
+
+[build]
+builder = "paketobuildpacks/builder-jammy-base"
