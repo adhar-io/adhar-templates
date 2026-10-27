@@ -1,0 +1,12 @@
+# The function as one unit; deploy/envs/<env> places it in an environment.
+# Kargo pins the image digest in deploy/envs/<env>, renders that overlay to the
+# environment's branch stage/<env>, and Argo CD syncs the branch (ADR-0026).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - function.yaml
+# Without this, an overlay's `images:` entry — the one Kargo edits — would
+# silently leave `:latest` in place: kustomize knows where a Deployment keeps
+# its image, not where a Function does.
+configurations:
+  - kustomizeconfig.yaml

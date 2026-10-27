@@ -1,0 +1,36 @@
+# The function, as the platform's Function API describes it
+# (platform.adhar.io/v1alpha1; compositions/function/local-knative.yaml): a
+# Knative Service that scales to zero when idle and out under load, its HTTPS
+# URL on the platform Gateway (https://<name>.<environment>.<platform domain>),
+# and the event source its trigger names. One definition for every
+# environment: deploy/envs/<env> puts it in that environment's namespace, and
+# Kargo pins the image there by digest.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Function
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    adhar.io/application: ${{ values.name }}
+    adhar.io/workload: function
+spec:
+  parameters:
+    displayName: ${{ values.name }}
+    # The runtime the image is built for — published to the function as
+    # FUNCTION_RUNTIME and as the platform.adhar.io/runtime label. Python 3.13 — `BP_CPYTHON_VERSION` in `project.toml`.
+    runtime: python313
+    # app-ci pushes here; Kargo replaces the tag with the digest app-ci signed
+    # (kustomizeconfig.yaml is what lets kustomize find this field).
+    image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+    # Knative hands the process this port as $PORT.
+    port: 8080
+    # http, cron, cloudevent, topic or bucket. HTTP is always served; for more
+    # than one event source use `triggers:` instead (see the Function API).
+    trigger: ${{ values.trigger or 'http' }}
+    eventSource: ${{ (values.eventSource or '') | dump }}
+    # public: https://<name>.<environment>.<platform domain>; cluster: in-cluster only.
+    visibility: ${{ values.visibility or 'public' }}
+    minScale: ${{ values.minScale or 0 }}
+    maxScale: ${{ values.maxScale or 10 }}
+    timeoutSeconds: ${{ values.timeoutSeconds or 30 }}
+    application: ${{ values.name }}

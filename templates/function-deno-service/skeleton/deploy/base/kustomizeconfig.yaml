@@ -1,0 +1,6 @@
+# Where a Function keeps its image, for kustomize's `images:` transformer
+# (and so for Kargo's kustomize-set-image, which pins the signed digest).
+images:
+  - group: platform.adhar.io
+    kind: Function
+    path: spec/parameters/image

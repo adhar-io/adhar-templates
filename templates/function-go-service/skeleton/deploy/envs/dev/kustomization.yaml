@@ -1,0 +1,24 @@
+# dev: the first environment every build lands in. Kargo pins the build's digest
+# below, renders this overlay to stage/dev and verifies the function there — its
+# Function health, its revision pods, restarts and 5xx — before test may take it.
+# The namespace is the project's dev environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  # Where it runs, stated on the Function too. The namespace's labels decide
+  # (the composition reports a disagreement on its Placement condition), so
+  # these only keep the object honest when read on its own.
+  - target: {group: platform.adhar.io, kind: Function, name: "${{ values.name }}"}
+    patch: |-
+      - op: add
+        path: /spec/parameters/environment
+        value: dev
+      - op: add
+        path: /spec/parameters/project
+        value: ${{ values.project or 'adhar' }}

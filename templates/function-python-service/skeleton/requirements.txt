@@ -1,2 +1,4 @@
-Flask==3.0.3
-gunicorn==22.0.0
+# Pinned: the image's dependency scan reads these exact versions, and an
+# unpinned one changes under a rebuild nobody reviewed.
+Flask==3.1.3
+gunicorn==26.2.0

@@ -1,0 +1,23 @@
+# prod: promoted only by a Release (manual approval), and only with a build
+# verified in test.
+# The namespace is the project's prod environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  # Where it runs, stated on the Function too. The namespace's labels decide
+  # (the composition reports a disagreement on its Placement condition), so
+  # these only keep the object honest when read on its own.
+  - target: {group: platform.adhar.io, kind: Function, name: "${{ values.name }}"}
+    patch: |-
+      - op: add
+        path: /spec/parameters/environment
+        value: prod
+      - op: add
+        path: /spec/parameters/project
+        value: ${{ values.project or 'adhar' }}

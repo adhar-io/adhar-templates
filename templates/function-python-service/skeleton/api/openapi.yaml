@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A function on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      summary: Whether the function is up.
+      responses:
+        "200":
+          description: The function is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /:
+    get:
+      operationId: invoke
+      summary: Invoke the function.
+      responses:
+        "200":
+          description: What the function did.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invocation"
+    post:
+      operationId: handleEvent
+      summary: Invoke the function with a body. Triggers deliver here too — a schedule or a Broker as a CloudEvent (ce-* headers), a topic through Dapr.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+          application/cloudevents+json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: The request or event was handled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invocation"
+components:
+  schemas:
+    Health:
+      type: object
+      required: [ok, at]
+      properties:
+        ok:
+          type: boolean
+        at:
+          type: string
+          format: date-time
+    Invocation:
+      type: object
+      required: [ok, function, at]
+      properties:
+        ok:
+          type: boolean
+        function:
+          type: string
+          description: FUNCTION_NAME
+        runtime:
+          type: string
+          description: FUNCTION_RUNTIME
+        trigger:
+          type: string
+          description: FUNCTION_TRIGGER — what can invoke the function
+        method:
+          type: string
+        path:
+          type: string
+        event:
+          type: ["string", "null"]
+          description: The CloudEvent type (ce-type header), when an event invoked the function.
+        at:
+          type: string
+          format: date-time

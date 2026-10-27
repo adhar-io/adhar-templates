@@ -2,18 +2,43 @@
 
 ${{ values.description }}
 
-This repository was scaffolded from the **Adhar Function Service (Python)** template.
+A Python function on the Adhar platform, scaffolded from the
+`function-python-service` template. It runs on the platform's Function API: a
+Knative Service per environment that scales to zero when idle and out under
+load, with its own HTTPS URL.
 
-## What it contains
+## Layout
 
-- `app.py` — minimal Flask handler with health and root endpoints
-- `deploy/function.yaml` — `platform.adhar.io/v1alpha1` `Function` resource
-- `project.toml` — buildpack metadata for the app image
+| Path | What it is |
+| --- | --- |
+| `app.py` | the function: a Flask app — `/healthz`, and every other path and method invokes it |
+| `test_app.py` | its tests (pytest), which app-ci runs on every push |
+| `requirements.txt` | Flask and gunicorn, pinned |
+| `Procfile` | how the image starts it: gunicorn on `$PORT` |
+| `.python-version` | the Python version, for local tooling (pyenv, uv) |
+| `deploy/base/function.yaml` | the `Function` every environment runs: runtime, image, trigger, scale, timeout |
+| `deploy/base/kustomizeconfig.yaml` | tells kustomize where a Function keeps its image, so Kargo can pin the signed digest |
+| `deploy/envs/{dev,test,prod}/` | one overlay per environment of the project: namespace, image, environment |
+| `project.toml` | the runtime the image ships (`BP_CPYTHON_VERSION`); the CI tests run on the same one |
+| `api/openapi.yaml` | the function's HTTP interface, published in the catalog |
+| `catalog-info.yaml` | the catalog entry (Component and API) |
+| `docs/` | TechDocs: [overview](docs/index.md), [architecture](docs/architecture.md), [operations](docs/operations.md) |
 
-## Runtime model
+## Run and test locally
 
-The function is deployed through Adhar's `Function` composition:
+Requires Python 3.13 (the version `project.toml` pins).
 
-- scale-to-zero when idle (`minScale: 0` default)
-- autoscale up on traffic (`maxScale` ceiling)
-- per-request timeout (`timeoutSeconds`)
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt pytest
+flask --app app run --port 8080      # or, as the image runs it: gunicorn app:app
+curl -s localhost:8080/healthz
+python -m pytest                     # the suite app-ci runs
+```
+
+## Deploy
+
+Push to `main`. app-ci builds the image, runs the tests on the same runtime,
+scans and signs it; Kargo promotes the signed digest dev → test (automatically,
+once verified) → prod (with a Release); Argo CD deploys each environment's
+`Function`. In dev the function answers at https://${{ values.hostname }}.

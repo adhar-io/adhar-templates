@@ -1,24 +1,51 @@
+"""${{ values.name }}: an HTTP function on Adhar's Function API (Knative).
+
+Knative starts this process on demand, sends it requests on $PORT (8080) and
+scales it to zero when no request has arrived for a while. Events from the
+function's trigger arrive as HTTP POSTs too: a CloudEvent in binary mode (ce-*
+headers) from a schedule or a Broker, or a Dapr topic delivery.
+"""
+
 import os
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
+# Requests larger than this are refused rather than buffered.
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
+
+NAME = os.environ.get("FUNCTION_NAME", ${{ values.name | dump }})
+RUNTIME = os.environ.get("FUNCTION_RUNTIME", "python313")
+TRIGGER = os.environ.get("FUNCTION_TRIGGER", "http")
+METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 
 
-@app.route("/healthz")
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+@app.get("/healthz")
 def healthz():
-    return jsonify(ok=True, at=datetime.now(timezone.utc).isoformat())
+    return jsonify(ok=True, at=now())
 
 
-@app.route("/")
-def root():
+# The function: every path and method but /healthz. Replace the body with what
+# yours does.
+@app.route("/", defaults={"path": ""}, methods=METHODS)
+@app.route("/<path:path>", methods=METHODS)
+def invoke(path):
+    body = request.get_data()
     return jsonify(
         ok=True,
-        function=os.environ.get("FUNCTION_NAME", "${{ values.name }}"),
-        runtime="python312",
-        trigger=os.environ.get("FUNCTION_TRIGGER", "${{ values.trigger }}"),
-        at=datetime.now(timezone.utc).isoformat(),
+        function=NAME,
+        runtime=RUNTIME,
+        trigger=TRIGGER,
+        method=request.method,
+        path="/" + path,
+        event=request.headers.get("ce-type"),
+        received=len(body),
+        at=now(),
     )
 
 

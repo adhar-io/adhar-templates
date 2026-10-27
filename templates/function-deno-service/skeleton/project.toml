@@ -1,3 +1,6 @@
+# Cloud Native Buildpacks project descriptor. app-ci (buildpacks-build) hands
+# every [[build.env]] below to the buildpacks; `builder` records the builder it
+# uses, for `pack build` on a laptop.
 [project]
 id = "io.adhar.${{ values.name }}"
 name = "${{ values.name }}"
@@ -5,3 +8,10 @@ version = "0.1.0"
 
 [build]
 builder = "paketobuildpacks/builder-jammy-base"
+
+# The runtime the image ships: Node.js 24. app-ci's tests run on the
+# same version (detect-toolchain reads this before anything else), so what was
+# tested is what runs. Change it here, and only here.
+[[build.env]]
+name = "BP_NODE_VERSION"
+value = "24"

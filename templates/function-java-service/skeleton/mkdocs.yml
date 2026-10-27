@@ -1,3 +1,27 @@
+# TechDocs for ${{ values.name }}.
+#
+# The platform renders this with MkDocs when a TechDocs builder is configured,
+# and Gitea renders `docs/` as plain Markdown regardless — so these pages are
+# readable from the repository on day one. Paths in `nav` are relative to
+# docs/ (MkDocs' docs_dir).
 site_name: ${{ values.name }}
+site_description: ${{ (values.description or 'A function on the Adhar platform.') | dump }}
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+    - scheme: slate
+      primary: indigo
+
 nav:
-  - Overview: docs/index.md
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Operations: operations.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences

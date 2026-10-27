@@ -3,22 +3,27 @@ kind: Template
 metadata:
   name: function-java-service
   labels:
+    # The per-application Grafana dashboard template this kind of app gets
+    # (backend-jvm | backend-generic | frontend | fullstack). A scaffolder stamps
+    # it on the Application XR as the label adhar.io/dashboard-type.
     adhar.io/dashboard-type: backend-generic
-  title: Function Service (Java)
+    # What each environment runs: a Function (platform.adhar.io/v1alpha1) on
+    # Knative, not a Rollout. On the Application XR (as this label, or as
+    # spec.parameters.type: function) it is what makes the delivery chain verify
+    # a scale-to-zero workload by what Knative reports.
+    adhar.io/workload: function
+  title: Function (Java)
   description: >-
-    A serverless Function XR template for Adhar. It scaffolds a Java
-    function repo and a deploy manifest that provisions `kind: Function`
-    (`platform.adhar.io/v1alpha1`) with Knative scale-to-zero and on-demand
-    autoscaling.
+    A Java function on Adhar's Function API (Knative): it scales to zero when idle and out under load, answers HTTPS on its own URL in every environment, and can be invoked by a schedule, CloudEvents or a topic. JDK HttpServer, no runtime dependencies, so it starts fast from zero. app-ci builds, tests, scans and signs it; Kargo promotes it dev → test → prod; Argo CD deploys it from deploy/envs/<env>.
   tags:
-    - recommended
     - function
     - serverless
     - knative
     - java
 spec:
   owner: group:platform-engineers
-  type: service
+  type: function
+
   parameters:
     - title: Function
       required: [name]
@@ -26,7 +31,7 @@ spec:
         name:
           title: Name
           type: string
-          description: Unique name of the function (lowercase, DNS-friendly)
+          description: Unique name of the function (lowercase, DNS-friendly). It names the Knative Service and the URL.
           pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
           maxLength: 40
           ui:autofocus: true
@@ -43,35 +48,49 @@ spec:
             catalogFilter:
               kind: [Group, User]
     - title: Runtime
+      description: How the function is invoked and scaled. Everything here lands in deploy/base/function.yaml, where it can be changed later.
       properties:
         trigger:
           title: Trigger
           type: string
-          enum: [http, cloudevent, topic, bucket, cron]
+          description: The function always answers HTTP; any other trigger adds the event source that invokes it.
+          enum: [http, cron, cloudevent, topic, bucket]
           default: http
         eventSource:
           title: Event source
           type: string
           default: ""
-          description: Optional source for non-HTTP triggers, e.g. kafka://orders-events
+          description: >-
+            What a non-HTTP trigger reads. cron: a schedule, e.g. */5 * * * *.
+            topic: a topic, e.g. orders.v1 or pubsub/orders.v1 (Dapr; keeps one
+            instance warm). cloudevent: CloudEvent attributes, e.g.
+            type=com.acme.order.created,source=shop. bucket: not implemented yet.
+        visibility:
+          title: Visibility
+          type: string
+          description: public serves https://<name>.<environment>.<platform domain> through the platform Gateway (TLS, DNS); cluster keeps the function reachable only inside the cluster.
+          enum: [public, cluster]
+          default: public
         timeoutSeconds:
-          title: Timeout (seconds)
+          title: Request timeout (seconds)
           type: integer
           default: 30
           minimum: 1
-          maximum: 300
+          maximum: 600
         minScale:
-          title: Min scale
+          title: Minimum instances
           type: integer
+          description: 0 scales the function to zero when idle; the first request after that waits for a cold start.
           default: 0
           minimum: 0
           maximum: 20
         maxScale:
-          title: Max scale
+          title: Maximum instances
           type: integer
           default: 10
           minimum: 1
           maximum: 200
+
     - title: Repository
       required: [repoUrl]
       properties:
@@ -84,6 +103,41 @@ spec:
             allowedHosts:
               - adhar.localtest.me:8443
 
+    - title: Operations
+      description: What on-call and the scorecard need to know. Everything here lands in catalog-info.yaml, so the function starts with a score instead of earning one later.
+      properties:
+        lifecycle:
+          title: Lifecycle
+          type: string
+          description: experimental while it is being built, production once it is GA, deprecated when it is being retired.
+          enum: [experimental, production, deprecated]
+          default: experimental
+        tier:
+          title: Tier
+          type: string
+          description: How much the business depends on it.
+          enum: [critical, high, standard, low]
+          default: standard
+        docsUrl:
+          title: Documentation URL
+          type: string
+          description: Leave empty to point at the repository's docs/ folder.
+          default: ""
+        runbookUrl:
+          title: Runbook URL
+          type: string
+          description: What to do when it pages. Linked from the catalog and the scorecard.
+          default: ""
+        oncall:
+          title: On-call
+          type: string
+          description: Team or channel paged for this function, e.g. "#team-payments-oncall".
+          default: ""
+        sloTarget:
+          title: Availability SLO (%)
+          type: string
+          description: The availability objective the function is measured against.
+          default: "99.9"
   steps:
     - id: template
       name: Generate the function
@@ -96,9 +150,27 @@ spec:
           owner: ${{ parameters.owner }}
           trigger: ${{ parameters.trigger }}
           eventSource: ${{ parameters.eventSource }}
+          visibility: ${{ parameters.visibility }}
           timeoutSeconds: ${{ parameters.timeoutSeconds }}
           minScale: ${{ parameters.minScale }}
           maxScale: ${{ parameters.maxScale }}
+          lifecycle: ${{ parameters.lifecycle }}
+          tier: ${{ parameters.tier }}
+          docsUrl: ${{ parameters.docsUrl }}
+          runbookUrl: ${{ parameters.runbookUrl }}
+          oncall: ${{ parameters.oncall }}
+          sloTarget: ${{ parameters.sloTarget }}
+          # LOCAL-DEVELOPMENT FALLBACK ONLY. The scaffolder overrides this (and
+          # platformBaseDomain) with the platform's real domain before rendering
+          # (the Console in apps/console/app/server/scaffolder.ts, the CLI in
+          # cmd/apps/scaffold.go): a template cannot know which domain the
+          # cluster serves. It is only used in docs and catalog links — the
+          # Function composition derives the real URL itself.
+          hostname: ${{ parameters.name }}.dev.adhar.localtest.me
+          # Parsed from the RepoUrlPicker so catalog links point at the Gitea the
+          # repository was actually created on.
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
           giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
     - id: publish
       name: Publish to Gitea
@@ -108,8 +180,11 @@ spec:
         repoUrl: ${{ parameters.repoUrl }}
         defaultBranch: main
 
+    # The repository is delivered like every application: an Application
+    # (type: function) whose deploy/envs/<env> overlays Kargo promotes and
+    # Argo CD syncs into each environment of the project.
     - id: create-argocd-app
-      name: Create ArgoCD deployment
+      name: Deliver through the project's environments
       action: adhar:create-argocd-app
       input:
         appName: ${{ parameters.name }}
