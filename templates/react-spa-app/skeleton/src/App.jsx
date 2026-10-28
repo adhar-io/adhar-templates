@@ -1,13 +1,4 @@
-import {
-  Badge,
-  Button,
-  Card,
-  badgeVariants,
-  buttonVariants,
-  cardDescriptionVariants,
-  cardTitleVariants,
-  cardVariants,
-} from '@adhar-ui/react'
+import { Badge, Button, Card, buttonVariants, cardDescriptionVariants, cardTitleVariants } from '@adhar-ui/react'
 import { cn } from '@adhar-ui/utils'
 import { Activity, ArrowRight, BookOpen, Check, Code, GitBranch, Moon, Palette, ShieldCheck, Sun } from './icons.jsx'
 import { LanguageSwitcher, {% if values.withCms %}useLanguage, {% endif %}useTranslate } from './i18n.jsx'
@@ -23,8 +14,11 @@ const OWNER = ${{ values.owner | dump }}
 const REPO_URL = 'https://${{ values.giteaHost }}/${{ values.gitOwner }}/${{ values.repoName }}'
 const DOCS_URL = `${REPO_URL}/src/branch/main/docs`
 
-// Adhar UI components are unstyled shells; the look comes from its variant
-// functions, so every styled element composes one of them.
+// Adhar UI components (Button, Badge, Card) style themselves from their props:
+// pass variant / size / padding to them. Their variant function handed over as
+// a className does not replace the component's default variant, it lands on
+// top of it (a ghost button that way still renders solid primary). The variant
+// functions are for plain elements, such as the links in the header.
 const features = [
   { icon: ShieldCheck, key: 'features.supplyChain' },
   { icon: GitBranch, key: 'features.gitops' },
@@ -38,13 +32,13 @@ const pipeline = ['pipeline.build', 'pipeline.scan', 'pipeline.sign', 'pipeline.
 function Pipeline() {
   const { t } = useTranslate()
   return (
-    <Card className={cn(cardVariants({ padding: 'default' }), 'animate-fade-in motion-reduce:animate-none shadow-xl shadow-primary/5')}>
+    <Card padding="default" className="animate-fade-in motion-reduce:animate-none shadow-xl shadow-primary/5">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium">{t('pipeline.title')}</p>
           <p className="text-xs text-muted-foreground">{t('pipeline.subtitle')}</p>
         </div>
-        <Badge className={badgeVariants({ variant: 'outline' })}>main</Badge>
+        <Badge variant="outline">main</Badge>
       </div>
       <ol className="mt-6 space-y-1">
         {pipeline.map((stage, i) => (
@@ -83,7 +77,7 @@ function CmsSection() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('cms.subtitle')}</p>
         </div>
-        <Badge className={badgeVariants({ variant: 'outline' })}>{CMS_COLLECTION}</Badge>
+        <Badge variant="outline">{CMS_COLLECTION}</Badge>
       </div>
       {status === 'ok' && entries.length > 0 ? (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -92,7 +86,7 @@ function CmsSection() {
             const published = entry.publishedAt ? new Date(entry.publishedAt) : null
             return (
               <li key={entry.documentId ?? entry.id}>
-                <Card className={cn(cardVariants({ padding: 'default' }), 'h-full overflow-hidden')}>
+                <Card padding="default" className="h-full overflow-hidden">
                   {image && <img src={image} alt="" loading="lazy" className="-mx-6 -mt-6 mb-4 aspect-video w-[calc(100%+3rem)] max-w-none object-cover" />}
                   <h3 className={cn(cardTitleVariants(), 'text-base')}>
                     {textField(entry, 'title', 'name', 'heading') || t('cms.untitled')}
@@ -113,7 +107,7 @@ function CmsSection() {
           })}
         </ul>
       ) : (
-        <Card className={cn(cardVariants({ padding: 'default' }), 'mt-6 text-sm text-muted-foreground')} role="status">
+        <Card padding="default" className="mt-6 text-sm text-muted-foreground" role="status">
           {status === 'loading' && t('cms.loading')}
           {status === 'ok' && t('cms.empty', { type: CMS_COLLECTION })}
           {status === 'off' && t('cms.off', { secret: `${APP_NAME}-strapi` })}
@@ -151,9 +145,10 @@ export default function App() {
             <a href={REPO_URL} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'hidden sm:inline-flex')}>
               {t('nav.repository')}
             </a>
-            <LanguageSwitcher className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'cursor-pointer bg-transparent')} />
+            <LanguageSwitcher />
             <Button
-              className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+              variant="ghost"
+              size="icon-sm"
               aria-label={dark ? t('theme.switchToLight') : t('theme.switchToDark')}
               onClick={toggle}
             >
@@ -168,7 +163,7 @@ export default function App() {
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-brand-glow" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:grid-cols-[1.15fr_1fr]">
             <div className="animate-slide-up motion-reduce:animate-none">
-              <Badge className={badgeVariants({ variant: 'success' })} dot>
+              <Badge variant="success" dot>
                 {t('hero.badge')}
               </Badge>
               <h1 className="mt-6 max-w-3xl break-words text-4xl font-bold tracking-tight sm:text-6xl">
@@ -196,7 +191,7 @@ export default function App() {
           </h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {features.map(({ icon: FeatureIcon, key }) => (
-              <Card key={key} className={cardVariants({ padding: 'default', interactive: true })}>
+              <Card key={key} padding="default" interactive>
                 <div className="mb-4 inline-flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <FeatureIcon />
                 </div>
@@ -210,7 +205,7 @@ export default function App() {
         <CmsSection />
 {% endif %}
         <section id="get-started" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
-          <Card className={cn(cardVariants({ padding: 'lg' }), 'relative overflow-hidden')}>
+          <Card padding="lg" className="relative overflow-hidden">
             <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-brand-gradient" />
             <div className="flex items-center gap-2 text-primary">
               <Code />

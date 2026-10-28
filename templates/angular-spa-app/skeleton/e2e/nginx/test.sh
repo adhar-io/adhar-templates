@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Tests nginx-app.conf in a real nginx: /runtime-config.json rendered from the
-# Pod's environment{% if values.withAnalytics %}, /ingest/ forwarding to PostHog (a stand-in,
+# Tests nginx-app.conf in a real nginx: how index.html and the build's hashed
+# bundles are cached, /runtime-config.json rendered from the Pod's
+# environment{% if values.withAnalytics %}, /ingest/ forwarding to PostHog (a stand-in,
 # mock-posthog.mjs){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json proxied to Tolgee with the
 # built-in translations as the fallback (against mock-tolgee.mjs){% endif %}{% if values.withCms %} and /cms/ + /uploads/ proxied read-only to
 # Strapi (against mock-strapi.mjs){% endif %}. Needs Docker
@@ -56,6 +57,9 @@ start_nginx() {
   local ws="$WORK/ws$starts"
   mkdir -p "$ws/$WEB_ROOT"
   cp -R "$WEB_ROOT/." "$ws/$WEB_ROOT/"
+  # Every file gets the buildpack's reproducible timestamp (1 Jan 1980), as in
+  # the image: the validators nginx would send are made from it.
+  find "$ws/$WEB_ROOT" -exec env TZ=UTC touch -t 198001010000.01 {} +
   sed "s#WEB_ROOT#$WEB_ROOT#" e2e/nginx/nginx.conf > "$ws/nginx.conf"
   env -i PATH="$PATH" "$@" node e2e/nginx/render.mjs nginx-app.conf > "$ws/nginx-app.conf"
   $CLI run -d --name "$NET-nginx" --network "$NET" -p "127.0.0.1:$PORT:8080" -v "$ws:/workspace:ro" \
@@ -92,6 +96,59 @@ runtime_config() {
   fi
 }
 
+# fetch <path> [curl options]: prints the status; the headers and the body land in $WORK
+fetch() {
+  local path=$1
+  shift
+  curl -s -m 15 -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' "$@" "http://127.0.0.1:$PORT$path"
+}
+
+# header <name>: that header of the last response, empty when it was not sent
+header() {
+  tr -d '\r' < "$WORK/headers" | awk -v name="$1" 'index(tolower($0), tolower(name) ":") == 1 { sub(/^[^:]*:[ \t]*/, ""); value = $0 } END { print value }'
+}
+
+# cache_control <description> <expected>: the last response's Cache-Control
+cache_control() {
+  if [ "$(header cache-control)" = "$2" ]; then ok "$1"; else fail "$1: Cache-Control '$(header cache-control)' (want '$2')"; fi
+}
+
+# app_shell <description> <path> [curl options]: answered with index.html, never
+# stored, and with no validator a browser could match an old copy against
+app_shell() {
+  local desc=$1 path=$2 got
+  shift 2
+  got=$(fetch "$path" "$@")
+  if [ "$got" = 200 ] && grep -qF '<app-root>' "$WORK/body" && [[ "$(header content-type)" == text/html* ]] \
+    && [ "$(header cache-control)" = no-store ] && [ -z "$(header etag)$(header last-modified)" ]; then
+    ok "$desc"
+  else
+    fail "$desc: status $got, Content-Type '$(header content-type)', Cache-Control '$(header cache-control)', ETag '$(header etag)', Last-Modified '$(header last-modified)'"
+  fi
+}
+
+# immutable <path> <content type pattern>: a hashed build file, cached for a year
+immutable() {
+  local got
+  got=$(fetch "$1")
+  if [ "$got" = 200 ] && [[ "$(header content-type)" == $2 ]]; then
+    cache_control "$1 is cached for a year, immutable" "public, max-age=31536000, immutable"
+  else
+    fail "$1: status $got, Content-Type '$(header content-type)'"
+  fi
+}
+
+# missing <path>: a build name this build does not have, a 404 that is never stored
+missing() {
+  local got
+  got=$(fetch "$1")
+  if [ "$got" = 404 ] && ! grep -qF '<app-root>' "$WORK/body"; then
+    cache_control "$1, a name this build does not have, is a 404, never stored, not index.html" no-store
+  else
+    fail "$1: status $got (want 404, not index.html)"
+  fi
+}
+
 echo "# nothing configured"
 start_nginx
 runtime_config "/runtime-config.json is valid JSON with telemetry off" "c.environment === '' && c.faro.url === ''{% if values.withAnalytics %} && c.posthog === null{% endif %}"
@@ -99,6 +156,25 @@ check "the app still answers /" / 200 ""
 {%- if values.withAnalytics %}
 check "/ingest/ answers 404 without a PostHog key" /ingest/e/ 404 ""
 {%- endif %}
+
+echo "# caching"
+app_shell "/ is index.html, never stored, with no validator" /
+app_shell "so is a client-side route" /some/client/route
+app_shell "and one with a dot in it" /users/jane.doe
+app_shell "and /index.html itself" /index.html
+app_shell "and a compressed index.html" / --compressed
+# What a browser holding an old copy sends on reload: the build's timestamp and
+# an ETag made of it and the size, which the next build's index.html usually
+# shares. It must get the running build's index.html, not a 304.
+size=$(wc -c < "$WEB_ROOT/index.html")
+app_shell "a reload revalidating an old copy gets index.html, not a 304" / \
+  -H "If-None-Match: $(printf '"%x-%x"' 315532801 $((size)))" -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:01 GMT'
+immutable "/$(cd "$WEB_ROOT" && ls main-*.js | head -1)" '*javascript*'
+immutable "/$(cd "$WEB_ROOT" && ls styles-*.css | head -1)" 'text/css*'
+missing /main-MISSING0.js
+missing /chunk-MISSING0.js
+missing /styles-MISSING0.css
+missing /media/font-MISSING0.woff2
 
 echo "# Faro{% if values.withAnalytics %} and PostHog{% endif %} configured"
 TELEMETRY=(APP_ENVIRONMENT=dev FARO_URL=https://faro.example.test/collect{% if values.withAnalytics %} POSTHOG_KEY=phc_test POSTHOG_HOST="http://$NET-posthog:8086" NGINX_RESOLVER=$RESOLVER{% endif %})
@@ -149,6 +225,7 @@ BUILT_IN_EN=$(node -e "console.log(require('./src/i18n/en.json')['features.headi
 echo "# no Tolgee configured"
 start_nginx
 check "serves the built-in English" /i18n/en.json 200 bundled "$BUILT_IN_EN"
+cache_control "... cached for a minute" "public, max-age=60"
 check "a language with no file is 404" /i18n/xx.json 404 bundled
 check "anything else under /i18n is 404" /i18n/en.txt 404 ""
 check "the app still answers /" / 200 ""
@@ -158,6 +235,7 @@ TOLGEE=(TOLGEE_API_URL="http://$NET-tolgee:8085" TOLGEE_PROJECT_ID=7 TOLGEE_API_
 start_nginx "${TOLGEE[@]}"
 tolgee_mode ok
 check "proxies to Tolgee's export" /i18n/en.json 200 tolgee "From Tolgee (en)"
+cache_control "... cached for a minute, whatever Tolgee says" "public, max-age=60"
 last=$($CLI exec "$NET-tolgee" wget -q -O- http://localhost:8085/__last)
 if grep -q '"x-api-key":"tgpak_test"' <<<"$last" && ! grep -qi 'cookie' <<<"$last" \
   && grep -q 'export?languages=en&format=JSON&zip=false&structureDelimiter=' <<<"$last"; then
@@ -238,6 +316,7 @@ if [ "$got" = 200 ] && grep -qi '^content-type: image/png' "$WORK/headers" \
 else
   fail "/uploads/cat.png: status $got, Strapi saw $last"
 fi
+cache_control "... cached for a day" "public, max-age=86400"
 $CLI stop "$NET-strapi" >/dev/null
 got=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/cms/articles")
 [[ "$got" =~ ^50[24]$ ]] && ok "an unreachable Strapi is a quick 502/504, not a hang" || fail "unreachable Strapi answered $got"

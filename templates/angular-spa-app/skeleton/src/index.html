@@ -20,6 +20,62 @@
         document.documentElement.classList.toggle('dark', dark)
       } catch {}
     </script>
+    <script>
+      // A deploy replaces the build's bundles (main-<hash>.js, chunk-<hash>.js,
+      // styles-<hash>.css: each is named after a hash of its content). A page
+      // from before it, or a Pod of the other version mid-rollout, can ask for
+      // one that no longer exists, and the app never starts. Reload once to get
+      // the running build. A second failure on the same path leaves the page as
+      // it is instead of looping; the guard clears once a load has stayed
+      // healthy for ten seconds.
+      ;(function () {
+        var failed = false
+        var key = function () {
+          return 'adhar:asset-reload:' + location.pathname
+        }
+        function recover(url) {
+          if (failed) return
+          failed = true
+          try {
+            if (sessionStorage.getItem(key())) return
+            sessionStorage.setItem(key(), '1')
+          } catch (e) {
+            return // no storage, so no guard: never reload
+          }
+          var reloading = false
+          var reload = function () {
+            if (reloading) return
+            reloading = true
+            location.reload()
+          }
+          // A reload revalidates the page but not the files it loads: fetch the
+          // failed one past the cache first, so a bad copy cached under its name
+          // is replaced too.
+          fetch(url, { cache: 'reload' }).then(reload, reload)
+          setTimeout(reload, 3000)
+        }
+        addEventListener(
+          'error',
+          function (event) {
+            var el = event.target
+            var url = el instanceof HTMLScriptElement ? el.src : el instanceof HTMLLinkElement ? el.href : ''
+            if (!url) return
+            var u = new URL(url, location.href)
+            if (u.origin === location.origin && /^\/[^/]+-[A-Z0-9]{8}\.(?:js|css)$/.test(u.pathname)) recover(url)
+          },
+          true
+        )
+        addEventListener('load', function () {
+          var loaded = key()
+          setTimeout(function () {
+            if (failed) return
+            try {
+              sessionStorage.removeItem(loaded)
+            } catch (e) {}
+          }, 10000)
+        })
+      })()
+    </script>
   </head>
   <body>
     <app-root></app-root>

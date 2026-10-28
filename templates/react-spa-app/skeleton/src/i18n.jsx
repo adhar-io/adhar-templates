@@ -14,6 +14,8 @@
 //      loaded chunk per language, fetched only in that case).
 //   3. A key missing in the chosen language falls back to English.
 import { useEffect } from 'react'
+import { buttonVariants } from '@adhar-ui/react'
+import { cn } from '@adhar-ui/utils'
 import {
   BackendFetch,
   DevTools,
@@ -25,6 +27,7 @@ import {
   useTolgee,
   useTranslate,
 } from '@tolgee/react'
+import { ChevronDown } from './icons.jsx'
 
 export { useTranslate }
 
@@ -91,24 +94,34 @@ function nativeName(tag) {
   }
 }
 
+// A native <select>, so keyboards, screen readers and phones get the browser's
+// own picker, styled as one of the ghost buttons beside it. Its built-in arrow
+// and inner spacing never line up with a button, so appearance-none removes
+// both and a chevron is drawn over the right-hand padding instead. className
+// goes on the wrapper, for placing the control.
 export function LanguageSwitcher({ className }) {
   const { t } = useTranslate()
   const instance = useTolgee(['language'])
   if (LANGUAGES.length < 2) return null
 
   return (
-    <select
-      aria-label={t('nav.language')}
-      className={className}
-      value={instance.getLanguage()}
-      onChange={(event) => instance.changeLanguage(event.target.value)}
-    >
-      {LANGUAGES.map((tag) => (
-        <option key={tag} value={tag}>
-          {nativeName(tag)}
-        </option>
-      ))}
-    </select>
+    <div className={cn('relative inline-flex items-center', className)}>
+      <select
+        aria-label={t('nav.language')}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'peer appearance-none bg-transparent pr-8')}
+        value={instance.getLanguage()}
+        onChange={(event) => instance.changeLanguage(event.target.value)}
+      >
+        {LANGUAGES.map((tag) => (
+          // The open list is drawn by the browser: give it the theme's popover
+          // colours, or a dark page can get light text on a light list.
+          <option key={tag} value={tag} lang={tag} className="bg-popover text-popover-foreground">
+            {nativeName(tag)}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground transition-colors peer-hover:text-accent-foreground" />
+    </div>
   )
 }
 {%- else -%}

@@ -77,3 +77,8 @@ export const Check = (p) => (
     <path d="M20 6 9 17l-5-5" />
   </Icon>
 )
+export const ChevronDown = (p) => (
+  <Icon {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+)

@@ -67,6 +67,10 @@
 
   * {
     border-color: hsl(var(--border));
+    /* Focus rings sit a 2px gap away from the control (ring-offset-2), and
+       Tailwind paints that gap white unless told otherwise: a white frame
+       around every focused control in dark mode. Paint it the page instead. */
+    --tw-ring-offset-color: hsl(var(--background));
   }
 
   body {
