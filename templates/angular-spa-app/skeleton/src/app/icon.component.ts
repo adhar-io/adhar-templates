@@ -19,6 +19,7 @@ const PATHS: Record<string, string[]> = {
   'book-open': ['M12 7v14', 'M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'],
   code: ['m16 18 6-6-6-6', 'm8 6-6 6 6 6'],
   check: ['M20 6 9 17l-5-5'],
+  'chevron-down': ['m6 9 6 6 6-6'],
 };
 
 @Component({

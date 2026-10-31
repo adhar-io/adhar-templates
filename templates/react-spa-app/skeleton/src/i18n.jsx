@@ -97,8 +97,12 @@ function nativeName(tag) {
 // A native <select>, so keyboards, screen readers and phones get the browser's
 // own picker, styled as one of the ghost buttons beside it. Its built-in arrow
 // and inner spacing never line up with a button, so appearance-none removes
-// both and a chevron is drawn over the right-hand padding instead. className
-// goes on the wrapper, for placing the control.
+// both and a chevron is drawn over the right-hand padding instead: pr-7 with
+// the chevron at right-2 puts it about as far from the text as from the edge,
+// the way an icon sits in a button. A select is as wide as its LONGEST option,
+// which strands the chevron after a shorter one ("English" beside "Deutsch");
+// field-sizing-content fits it to the language shown, where the browser
+// supports it. className goes on the wrapper, for placing the control.
 export function LanguageSwitcher({ className }) {
   const { t } = useTranslate()
   const instance = useTolgee(['language'])
@@ -108,7 +112,7 @@ export function LanguageSwitcher({ className }) {
     <div className={cn('relative inline-flex items-center', className)}>
       <select
         aria-label={t('nav.language')}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'peer appearance-none bg-transparent pr-8')}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'peer appearance-none bg-transparent pr-7 field-sizing-content')}
         value={instance.getLanguage()}
         onChange={(event) => instance.changeLanguage(event.target.value)}
       >
@@ -120,7 +124,7 @@ export function LanguageSwitcher({ className }) {
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground transition-colors peer-hover:text-accent-foreground" />
+      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground transition-colors peer-hover:text-accent-foreground" />
     </div>
   )
 }

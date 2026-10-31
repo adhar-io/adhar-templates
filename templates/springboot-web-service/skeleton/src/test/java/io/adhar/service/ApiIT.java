@@ -55,7 +55,14 @@ import com.intuit.karate.junit5.Karate;
  * through the application's real validation path.
 {%- endif %}
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        // CI runs this test INSIDE a Kubernetes pod (the pipeline's test step), where
+        // Spring Boot detects the Kubernetes cloud platform and adhar-kit-kubernetes
+        // (Spring Cloud Kubernetes) starts discovery informers as the CI pod's service
+        // account. They never sync, so the context fails with "Timeout waiting for
+        // informers cache to be ready". The test runs the application as it runs on a
+        // laptop; discovery itself runs in the deployed Rollout (deploy/base/rbac.yaml).
+        properties = "spring.main.cloud-platform=none")
 @Import(TestcontainersConfiguration.class)
 class ApiIT {
 {%- if values.withAuth %}

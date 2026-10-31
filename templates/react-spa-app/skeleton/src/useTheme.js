@@ -9,6 +9,22 @@ export function useTheme() {
     document.documentElement.classList.toggle('dark', dark)
   }, [dark])
 
+  // Until the user picks a theme, keep following the system's while the page
+  // is open: an OS that turns dark at sunset turns an open tab dark too, not
+  // only the next page load.
+  useEffect(() => {
+    const system = window.matchMedia('(prefers-color-scheme: dark)')
+    const follow = (event) => {
+      let picked = null
+      try {
+        picked = localStorage.getItem('theme')
+      } catch {}
+      if (!picked) setDark(event.matches)
+    }
+    system.addEventListener('change', follow)
+    return () => system.removeEventListener('change', follow)
+  }, [])
+
   const toggle = useCallback(() => {
     setDark((current) => {
       try {

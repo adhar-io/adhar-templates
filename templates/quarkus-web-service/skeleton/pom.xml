@@ -14,13 +14,36 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>21</maven.compiler.release>
-    <quarkus.platform.version>3.15.1</quarkus.platform.version>
+    <!-- 3.33 LTS. On 3.15.1 app-ci's source scan failed with six HIGH findings
+         in what that BOM manages: quarkus-rest (CVE-2025-1247),
+         quarkus-vertx-http (CVE-2026-39852, CVE-2026-50559 - no fixed release
+         on the 3.15 line) and the PostgreSQL driver 42.7.4 (CVE-2025-49146,
+         CVE-2026-42198, CVE-2026-54291; this BOM manages 42.7.13). Move
+         quarkus-micrometer-registry-otlp with it. -->
+    <quarkus.platform.version>3.33.4.1</quarkus.platform.version>
     <!-- Build a runnable uber-jar so buildpacks can turn it into the image. -->
     <quarkus.package.jar.type>uber-jar</quarkus.package.jar.type>
   </properties>
 
   <dependencyManagement>
     <dependencies>
+      <!-- HIGH CVE-2026-102554: Guava before 33.7.2 is on the runtime
+           classpath through quarkus-opentelemetry -> quarkus-grpc-common ->
+           vertx-grpc, and quarkus-bom 3.33.4.1 manages it at 33.5.0-jre, which
+           the supply-chain scans (HIGH/CRITICAL) refuse. Guava 33.7.2 needs
+           failureaccess 1.0.3; the BOM manages that at 1.0.1. Entries declared
+           here outrank the imported BOM; drop both once
+           quarkus.platform.version manages Guava 33.7.2-jre or later. -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>33.7.2-jre</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>failureaccess</artifactId>
+        <version>1.0.3</version>
+      </dependency>
       <dependency>
         <groupId>io.quarkus.platform</groupId>
         <artifactId>quarkus-bom</artifactId>
@@ -50,7 +73,8 @@
     <dependency>
       <groupId>io.quarkiverse.micrometer.registry</groupId>
       <artifactId>quarkus-micrometer-registry-otlp</artifactId>
-      <version>3.2.4</version>
+      <!-- Tracks the Quarkus line: 3.6.0 is built against Quarkus 3.33. -->
+      <version>3.6.0</version>
     </dependency>
 {%- if values.withDatabase %}
     <dependency>
@@ -70,7 +94,8 @@
          Quarkus Dev Services, which start them with Testcontainers. -->
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-junit5</artifactId>
+      <!-- quarkus-junit5 was relocated to quarkus-junit in 3.33. -->
+      <artifactId>quarkus-junit</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

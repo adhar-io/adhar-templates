@@ -2,7 +2,10 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 httpx==0.27.2
 pydantic==2.9.2
-opentelemetry-distro==0.48b0
-opentelemetry-exporter-otlp==1.27.0
-opentelemetry-instrumentation-fastapi==0.48b0
-opentelemetry-instrumentation-httpx==0.48b0
+# OpenTelemetry moves as one set: contrib 0.N pairs with SDK 1.(N-21), here
+# 0.66b2 with 1.45.2. 1.27/0.48b0 capped protobuf below 5 (CVE-2026-0994) and
+# imported pkg_resources, which current setuptools no longer ships.
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp==1.45.2
+opentelemetry-instrumentation-fastapi==0.66b2
+opentelemetry-instrumentation-httpx==0.66b2

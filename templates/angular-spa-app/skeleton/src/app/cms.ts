@@ -155,7 +155,10 @@ type Card = { key: string; title: string; description: string; image: string; pu
 })
 export class CmsSectionComponent {
   protected readonly collection = CMS_COLLECTION;
-  protected readonly secret = ${{ (values.name + '-strapi') | dump }};
+  // The Secret this environment's token comes from. Joined here, in TypeScript:
+  // the platform's scaffolders (Console and CLI) render filters, not operators,
+  // so a + inside the placeholder failed the render and left this file out.
+  protected readonly secret = ${{ values.name | dump }} + '-strapi';
   protected readonly badge = badgeVariants({ variant: 'outline' });
   protected readonly card_ = cn(cardVariants({ padding: 'default' }), 'h-full overflow-hidden');
   protected readonly hint = cn(cardVariants({ padding: 'default' }), 'mt-6 text-sm text-muted-foreground');

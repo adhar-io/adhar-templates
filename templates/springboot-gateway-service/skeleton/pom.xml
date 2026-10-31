@@ -181,6 +181,17 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- Security floor above adhar-kit-parent 0.1.0: HIGH CVE-2026-102554,
+           com.google.guava:guava 32.1.2-jre (via adhar-kit-core; the parent's
+           Vert.x BOM manages it down from the kit's own version) -> 33.7.2-jre.
+           The supply-chain image scan refuses the image without it. Delete it
+           once the parent that carries the pin is released (`mvn
+           dependency:tree` showing 33.7.2-jre without it is the signal). -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>33.7.2-jre</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

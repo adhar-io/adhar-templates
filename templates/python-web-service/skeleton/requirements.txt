@@ -1,9 +1,12 @@
-Flask==3.0.3
+Flask==3.1.3
 gunicorn==22.0.0
-opentelemetry-distro==0.48b0
-opentelemetry-exporter-otlp==1.27.0
-opentelemetry-instrumentation-flask==0.48b0
+# OpenTelemetry moves as one set: contrib 0.N pairs with SDK 1.(N-21), here
+# 0.66b2 with 1.45.2. 1.27/0.48b0 capped protobuf below 5 (CVE-2026-0994) and
+# imported pkg_resources, which current setuptools no longer ships.
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp==1.45.2
+opentelemetry-instrumentation-flask==0.66b2
 {%- if values.withDatabase %}
 psycopg2-binary==2.9.9
-opentelemetry-instrumentation-psycopg2==0.48b0
+opentelemetry-instrumentation-psycopg2==0.66b2
 {%- endif %}

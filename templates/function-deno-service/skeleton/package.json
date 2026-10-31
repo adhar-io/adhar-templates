@@ -1,0 +1,15 @@
+{
+  "name": "${{ values.name }}",
+  "version": "0.1.0",
+  "private": true,
+  "description": ${{ (values.description or 'A function on the Adhar platform.') | dump }},
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node --import ./compat/serve-on-node.mjs src/main.ts",
+    "dev": "node --watch --import ./compat/serve-on-node.mjs src/main.ts",
+    "test": "node --import ./compat/serve-on-node.mjs --test"
+  }
+}

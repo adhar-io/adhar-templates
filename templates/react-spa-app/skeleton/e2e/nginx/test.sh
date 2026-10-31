@@ -110,22 +110,63 @@ header() {
   tr -d '\r' < "$WORK/headers" | awk -v name="$1" 'index(tolower($0), tolower(name) ":") == 1 { sub(/^[^:]*:[ \t]*/, ""); value = $0 } END { print value }'
 }
 
-# cache_control <description> <expected>: the last response's Cache-Control
+# header_count <name>: how many times the last response sent that header
+header_count() {
+  tr -d '\r' < "$WORK/headers" | awk -v name="$1" 'index(tolower($0), tolower(name) ":") == 1 { n++ } END { print n + 0 }'
+}
+
+# cache_control <description> <expected>: the last response's Cache-Control,
+# sent exactly once (a second one, from an expires or a server-level add_header,
+# would leave the browser to combine the two)
 cache_control() {
-  if [ "$(header cache-control)" = "$2" ]; then ok "$1"; else fail "$1: Cache-Control '$(header cache-control)' (want '$2')"; fi
+  if [ "$(header cache-control)" = "$2" ] && [ "$(header_count cache-control)" = 1 ]; then
+    ok "$1"
+  else
+    fail "$1: Cache-Control '$(header cache-control)' sent $(header_count cache-control) time(s) (want '$2', once)"
+  fi
 }
 
 # app_shell <description> <path> [curl options]: answered with index.html, never
-# stored, and with no validator a browser could match an old copy against
+# stored, and with no validator a browser could match an old copy against. A
+# HEAD request (--head) gets the same headers and no body.
 app_shell() {
   local desc=$1 path=$2 got
   shift 2
   got=$(fetch "$path" "$@")
-  if [ "$got" = 200 ] && grep -qF '<div id="root">' "$WORK/body" && [[ "$(header content-type)" == text/html* ]] \
-    && [ "$(header cache-control)" = no-store ] && [ -z "$(header etag)$(header last-modified)" ]; then
+  if [ "$got" = 200 ] && { [[ " $* " == *" --head "* ]] || grep -qF '<div id="root">' "$WORK/body"; } \
+    && [[ "$(header content-type)" == text/html* ]] && [ "$(header cache-control)" = no-store ] \
+    && [ "$(header_count cache-control)" = 1 ] && [ -z "$(header etag)$(header last-modified)" ]; then
     ok "$desc"
   else
-    fail "$desc: status $got, Content-Type '$(header content-type)', Cache-Control '$(header cache-control)', ETag '$(header etag)', Last-Modified '$(header last-modified)'"
+    fail "$desc: status $got, Content-Type '$(header content-type)', Cache-Control '$(header cache-control)' x$(header_count cache-control), ETag '$(header etag)', Last-Modified '$(header last-modified)'"
+  fi
+}
+
+# immutable <path> <Content-Type pattern> [curl options]: a file of the build,
+# named after a hash of its content, so cached for a year and never revalidated
+immutable() {
+  local path=$1 type=$2 got
+  shift 2
+  got=$(fetch "$path" "$@")
+  if [ "$got" = 200 ] && [[ "$(header content-type)" == $type ]]; then
+    cache_control "$path${*:+ ($*)} is cached for a year, immutable" "public, max-age=31536000, immutable"
+  else
+    fail "$path${*:+ ($*)}: status $got, Content-Type '$(header content-type)'"
+  fi
+}
+
+# missing <path> [curl options]: a name this build does not have (asked for by a
+# page from before a deploy, or by a Pod of the other version mid-rollout) is a
+# 404 that is never stored — never index.html, which the browser would refuse
+# as a module and could keep under the bundle's name
+missing() {
+  local path=$1 got
+  shift
+  got=$(fetch "$path" "$@")
+  if [ "$got" = 404 ] && ! grep -qF '<div id="root">' "$WORK/body" && [ -z "$(header etag)$(header last-modified)" ]; then
+    cache_control "$path${*:+ ($*)} is a 404, never stored, not index.html" no-store
+  else
+    fail "$path${*:+ ($*)}: status $got (want 404, not index.html), ETag '$(header etag)', Last-Modified '$(header last-modified)'"
   fi
 }
 
@@ -140,29 +181,67 @@ check "/ingest/ answers 404 without a PostHog key" /ingest/e/ 404 ""
 echo "# caching"
 app_shell "/ is index.html, never stored, with no validator" /
 app_shell "so is a client-side route" /some/client/route
+app_shell "and one with a dot in it" /users/jane.doe
 app_shell "and /index.html itself" /index.html
 app_shell "and a compressed index.html" / --compressed
+app_shell "a HEAD request gets the same headers" / --head
+app_shell "... on a client-side route too" /some/client/route --head
 # What a browser holding an old copy sends on reload: the build's timestamp and
-# an ETag made of it and the size, which the next build's index.html usually
-# shares. It must get the running build's index.html, not a 304.
-size=$(wc -c < "$WEB_ROOT/index.html")
+# an ETag made of it and the size (weak once nginx has compressed it), which
+# the next build's index.html usually shares — like "12cea601-390", the ETag a
+# live app handed out (1 Jan 1980 00:00:01, 912 bytes). It must get the running
+# build's index.html, never a 304.
+etag=$(printf '"%x-%x"' 315532801 "$(wc -c < "$WEB_ROOT/index.html")")
 app_shell "a reload revalidating an old copy gets index.html, not a 304" / \
-  -H "If-None-Match: $(printf '"%x-%x"' 315532801 $((size)))" -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:01 GMT'
-asset=$(cd "$WEB_ROOT" && ls assets/*.js | head -1)
-got=$(fetch "/$asset")
-if [ "$got" = 200 ] && [[ "$(header content-type)" == *javascript* ]]; then
-  cache_control "/$asset is cached for a year, immutable" "public, max-age=31536000, immutable"
+  -H "If-None-Match: $etag" -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:01 GMT'
+app_shell "... a compressed old copy too" / --compressed -H "If-None-Match: W/$etag"
+app_shell "... by its date alone" / -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:01 GMT'
+app_shell '... and the copy a live app handed out, "12cea601-390"' / -H 'If-None-Match: "12cea601-390"'
+app_shell "... on a client-side route" /some/client/route \
+  -H 'If-None-Match: "12cea601-390"' -H 'If-Modified-Since: Tue, 01 Jan 1980 00:00:01 GMT'
+app_shell "... on /index.html" /index.html -H 'If-None-Match: "12cea601-390"'
+app_shell "... with HEAD" / --head -H 'If-None-Match: "12cea601-390"'
+js=$(cd "$WEB_ROOT" && ls assets/*.js | head -1)
+immutable "/$js" '*javascript*'
+immutable "/$js" '*javascript*' --head
+immutable "/$(cd "$WEB_ROOT" && ls assets/*.css | head -1)" 'text/css*'
+# The entry bundle index.html names, compressed on the fly as browsers ask for it.
+immutable "$(grep -oE '/assets/[^"]+\.js' "$WEB_ROOT/index.html" | head -1)" '*javascript*' --compressed
+# Its validators stay: a browser that revalidates one anyway gets a 304 that keeps it.
+fetch "/$js" > /dev/null
+got=$(fetch "/$js" -H "If-None-Match: $(header etag)")
+if [ "$got" = 304 ] && [ "$(header cache-control)" = "public, max-age=31536000, immutable" ]; then
+  ok "revalidating /$js is a 304, still immutable"
 else
-  fail "/$asset: status $got, Content-Type '$(header content-type)'"
+  fail "revalidating /$js: status $got, Cache-Control '$(header cache-control)'"
 fi
-got=$(fetch /assets/index-DOESNOTEXIST.js)
-if [ "$got" = 404 ] && ! grep -qF '<div id="root">' "$WORK/body"; then
-  cache_control "a bundle this build does not have is a 404, never stored, not index.html" no-store
+# An error answered for a bundle that exists (here a precondition that fails) is
+# not cached for a year: the immutable header is for successful responses only
+# (no "always").
+got=$(fetch "/$js" -H 'If-Match: "not-this-build"')
+if [ "$got" = 412 ] && [[ "$(header cache-control)" != *immutable* ]]; then
+  ok "an error answer for /$js (412) is not cached for a year"
 else
-  fail "/assets/index-DOESNOTEXIST.js: status $got (want 404, not index.html)"
+  fail "/$js with a failing If-Match: status $got, Cache-Control '$(header cache-control)'"
 fi
+missing /assets/index-DOESNOTEXIST.js
+missing /assets/index-DOESNOTEXIST.js --head
+missing /assets/index-DOESNOTEXIST.css
+missing /assets/
 got=$(fetch /assets/.hidden)
-[ "$got" = 404 ] && ok "a dotfile under /assets/ stays hidden" || fail "/assets/.hidden answered $got"
+# ... and its 404 is not cached for a year: the immutable header is added to
+# successful responses only (no "always").
+if [ "$got" = 404 ] && [[ "$(header cache-control)" != *immutable* ]]; then
+  ok "a dotfile under /assets/ stays hidden"
+else
+  fail "/assets/.hidden: status $got, Cache-Control '$(header cache-control)'"
+fi
+got=$(fetch /runtime-config.json -H 'If-None-Match: "12cea601-390"')
+if [ "$got" = 200 ] && [ "$(header cache-control)" = no-store ] && [ -z "$(header etag)$(header last-modified)" ]; then
+  ok "/runtime-config.json is never stored either, with no validator"
+else
+  fail "/runtime-config.json: status $got, Cache-Control '$(header cache-control)', ETag '$(header etag)', Last-Modified '$(header last-modified)'"
+fi
 
 echo "# Faro{% if values.withAnalytics %} and PostHog{% endif %} configured"
 TELEMETRY=(APP_ENVIRONMENT=dev FARO_URL=https://faro.example.test/collect{% if values.withAnalytics %} POSTHOG_KEY=phc_test POSTHOG_HOST="http://$NET-posthog:8086" NGINX_RESOLVER=$RESOLVER{% endif %})

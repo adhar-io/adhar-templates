@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { badgeVariants, buttonVariants, cardVariants, cn } from '@adhar-ui/angular';
 {%- if values.withCms %}
 import { CmsSectionComponent } from './cms';
@@ -15,15 +15,24 @@ import { LanguageSwitcherComponent, TranslatePipe } from './i18n';
   host: { class: 'flex min-h-screen flex-col' },
   template: `
     <header class="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <a href="/" class="flex items-center gap-2.5 font-semibold tracking-tight">
+      <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <!-- The same focus ring as the header's buttons; the browser's own
+             outline hugs the text and clips the name's descenders. A long
+             name stays on one line and ends in an ellipsis (min-w-0 lets the
+             link shrink, truncate cuts the text): on a phone it would
+             otherwise wrap out of the 4rem header, or push the page sideways.
+             The heading below shows it in full. -->
+        <a
+          href="/"
+          class="flex min-w-0 items-center gap-2.5 rounded-md font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
           <img src="adhar-symbol.svg" alt="" class="size-8" />
-          <span>{{ appName }}</span>
+          <span class="truncate">{{ appName }}</span>
         </a>
         <nav class="flex items-center gap-1">
           <a [href]="docsUrl" [class]="navLink">{{ 'nav.docs' | translate }}</a>
           <a [href]="repoUrl" [class]="navLink">{{ 'nav.repository' | translate }}</a>
-          <app-language-switcher [selectClass]="languageSelect" />
+          <app-language-switcher />
           <button
             type="button"
             [class]="iconButton"
@@ -146,6 +155,20 @@ export class AppComponent {
 
   constructor() {
     effect(() => document.documentElement.classList.toggle('dark', this.dark()));
+
+    // Until the user picks a theme, keep following the system's while the page
+    // is open: an OS that turns dark at sunset turns an open tab dark too, not
+    // only the next page load.
+    const system = matchMedia('(prefers-color-scheme: dark)');
+    const follow = (event: MediaQueryListEvent) => {
+      let picked: string | null = null;
+      try {
+        picked = localStorage.getItem('theme');
+      } catch {}
+      if (!picked) this.dark.set(event.matches);
+    };
+    system.addEventListener('change', follow);
+    inject(DestroyRef).onDestroy(() => system.removeEventListener('change', follow));
   }
 
   protected toggleTheme(): void {
@@ -158,7 +181,6 @@ export class AppComponent {
   }
 
   protected readonly navLink = cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'hidden sm:inline-flex');
-  protected readonly languageSelect = cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'cursor-pointer bg-transparent');
   protected readonly iconButton = buttonVariants({ variant: 'ghost', size: 'icon-sm' });
   protected readonly primaryCta = buttonVariants({ size: 'lg' });
   protected readonly secondaryCta = buttonVariants({ variant: 'outline', size: 'lg' });

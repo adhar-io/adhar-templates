@@ -24,53 +24,66 @@
       // A deploy replaces the build's bundles (main-<hash>.js, chunk-<hash>.js,
       // styles-<hash>.css: each is named after a hash of its content). A page
       // from before it, or a Pod of the other version mid-rollout, can ask for
-      // one that no longer exists, and the app never starts. Reload once to get
-      // the running build. A second failure on the same path leaves the page as
-      // it is instead of looping; the guard clears once a load has stayed
-      // healthy for ten seconds.
+      // one that no longer exists — or the browser can hold a bad copy of one
+      // (index.html, which nginx used to answer such names with) — and the app
+      // never starts. Reload ONCE to get the running build. A second failure on
+      // the same path leaves the page as it is instead of looping; the guard is
+      // per tab and path, and clears once a load has stayed healthy for ten
+      // seconds. Without sessionStorage there is no guard, so no reload.
+      // (A failed dynamic import() raises no event a page can see; Angular has
+      // nothing like Vite's vite:preloadError.)
       ;(function () {
         var failed = false
-        var key = function () {
-          return 'adhar:asset-reload:' + location.pathname
+        function ours(url) {
+          if (!url) return ''
+          try {
+            var u = new URL(url, location.href)
+            return u.origin === location.origin && /^\/[^/]+-[A-Z0-9]{8}\.(?:js|css)$/.test(u.pathname) ? u.href : ''
+          } catch (e) {
+            return ''
+          }
         }
         function recover(url) {
           if (failed) return
           failed = true
+          var key = 'adhar:asset-reload:' + location.pathname
+          var reload = false
+          // Reload only once the guard is recorded and reads back: storage that
+          // refuses the write (full, or a private mode) must mean no reload, or
+          // every load would reload again.
           try {
-            if (sessionStorage.getItem(key())) return
-            sessionStorage.setItem(key(), '1')
-          } catch (e) {
-            return // no storage, so no guard: never reload
+            var spent = sessionStorage.getItem(key)
+            sessionStorage.setItem(key, '1')
+            reload = !spent && sessionStorage.getItem(key) === '1'
+          } catch (e) {}
+          var done = false
+          var next = function () {
+            if (done) return
+            done = true
+            if (reload) location.reload()
           }
-          var reloading = false
-          var reload = function () {
-            if (reloading) return
-            reloading = true
-            location.reload()
-          }
-          // A reload revalidates the page but not the files it loads: fetch the
-          // failed one past the cache first, so a bad copy cached under its name
-          // is replaced too.
-          fetch(url, { cache: 'reload' }).then(reload, reload)
-          setTimeout(reload, 3000)
+          // A reload revalidates the page but not the files it loads, so the
+          // failed file is fetched past the cache first: a bad copy stored under
+          // its name is replaced — also when the guard is spent, so that the
+          // person's own reload works.
+          fetch(url, { cache: 'reload' }).then(next, next)
+          setTimeout(next, 3000)
         }
         addEventListener(
           'error',
           function (event) {
             var el = event.target
-            var url = el instanceof HTMLScriptElement ? el.src : el instanceof HTMLLinkElement ? el.href : ''
-            if (!url) return
-            var u = new URL(url, location.href)
-            if (u.origin === location.origin && /^\/[^/]+-[A-Z0-9]{8}\.(?:js|css)$/.test(u.pathname)) recover(url)
+            var url = ours(el instanceof HTMLScriptElement ? el.src : el instanceof HTMLLinkElement ? el.href : '')
+            if (url) recover(url)
           },
           true
         )
         addEventListener('load', function () {
-          var loaded = key()
+          var key = 'adhar:asset-reload:' + location.pathname
           setTimeout(function () {
             if (failed) return
             try {
-              sessionStorage.removeItem(loaded)
+              sessionStorage.removeItem(key)
             } catch (e) {}
           }, 10000)
         })

@@ -18,13 +18,13 @@ import {
   Component,
   type EnvironmentProviders,
   inject,
-  input,
   isDevMode,
   makeEnvironmentProviders,
   provideEnvironmentInitializer,
   type Signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { buttonVariants, cn } from '@adhar-ui/angular';
 import {
   BackendFetch,
   DevTools,
@@ -37,6 +37,7 @@ import {
   TranslateService,
   provideTolgee,
 } from '@tolgee/ngx';
+import { IconComponent } from './icon.component';
 
 export { TranslatePipe };
 
@@ -76,12 +77,12 @@ export function provideI18n(): EnvironmentProviders {
   ]);
 }
 
-// A language's own name for itself: "Deutsch", "English".
 /** The language the app shows right now, e.g. for content that is fetched per language. */
 export function injectLanguage(): Signal<string> {
   return toSignal(inject(TranslateService).languageAsync, { initialValue: BASE_LANGUAGE });
 }
 
+// A language's own name for itself: "Deutsch", "English".
 function nativeName(tag: string): string {
   try {
     return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
@@ -90,23 +91,49 @@ function nativeName(tag: string): string {
   }
 }
 
+// A native <select>, so keyboards, screen readers and phones get the browser's
+// own picker, styled as one of the ghost buttons beside it. Its built-in arrow
+// and inner spacing never line up with a button, so appearance-none removes
+// both and a chevron is drawn over the right-hand padding instead: pr-7 with
+// the chevron at right-2 puts it about as far from the text as from the edge,
+// the way an icon sits in a button. A select is as wide as its LONGEST option,
+// which strands the chevron after a shorter one ("English" beside "Deutsch");
+// field-sizing-content fits it to the language shown, where the browser
+// supports it. The open list is drawn by the browser, so
+// the options get the theme's popover colours, or a dark page can get light
+// text on a light list. The host takes no box of its own (display: contents):
+// the wrapper is the header's flex item, and an app with one language leaves no
+// empty slot (and no extra gap) in the header.
 @Component({
   selector: 'app-language-switcher',
-  imports: [TranslatePipe],
+  imports: [IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   template: `
     @if (languages.length > 1) {
-      <select [attr.aria-label]="'nav.language' | translate" [class]="selectClass() ?? ''" (change)="change($event)">
-        @for (language of languages; track language.tag) {
-          <option [value]="language.tag" [selected]="language.tag === current()">{{ language.name }}</option>
-        }
-      </select>
+      <div class="relative inline-flex items-center">
+        <select [attr.aria-label]="'nav.language' | translate" [class]="selectClass" (change)="change($event)">
+          @for (language of languages; track language.tag) {
+            <option
+              class="bg-popover text-popover-foreground"
+              [value]="language.tag"
+              [attr.lang]="language.tag"
+              [selected]="language.tag === current()"
+            >{{ language.name }}</option>
+          }
+        </select>
+        <app-icon
+          name="chevron-down"
+          size="size-3.5"
+          class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors peer-hover:text-accent-foreground"
+        />
+      </div>
     }
   `,
 })
 export class LanguageSwitcherComponent {
-  readonly selectClass = input<string>();
   private readonly translate = inject(TranslateService);
+  protected readonly selectClass = cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'peer appearance-none bg-transparent pr-7 field-sizing-content');
   protected readonly current = toSignal(this.translate.languageAsync);
   protected readonly languages = LANGUAGES.map((tag) => ({ tag, name: nativeName(tag) }));
 
@@ -124,7 +151,6 @@ import {
   type EnvironmentProviders,
   Pipe,
   type PipeTransform,
-  input,
   makeEnvironmentProviders,
   type Signal,
   signal,
@@ -149,12 +175,13 @@ export function injectLanguage(): Signal<string> {
   return signal('en').asReadonly();
 }
 
+// One language, so nothing to switch. display: contents keeps the empty element
+// out of the header's flex layout, where it would add a gap.
 @Component({
   selector: 'app-language-switcher',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   template: '',
 })
-export class LanguageSwitcherComponent {
-  readonly selectClass = input<string>();
-}
+export class LanguageSwitcherComponent {}
 {%- endif %}

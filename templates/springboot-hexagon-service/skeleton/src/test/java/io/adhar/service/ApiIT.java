@@ -61,18 +61,27 @@ import com.intuit.karate.junit5.Karate;
  * through the application's real validation path.
 {%- endif %}
  */
+// spring.main.cloud-platform=none: CI runs this test INSIDE a Kubernetes pod (the
+// pipeline's test step), where Spring Boot detects the Kubernetes cloud platform and
+// adhar-kit-kubernetes (Spring Cloud Kubernetes) starts discovery informers as the CI
+// pod's service account. They never sync, so the context fails with "Timeout waiting
+// for informers cache to be ready". The test runs the application as it runs on a
+// laptop; discovery itself runs in the deployed Rollout (deploy/base/rbac.yaml).
 {%- if values.withDatabase %}
+//
 // application.properties reads the connection from SPRING_DATASOURCE_*, which the
 // Rollout sets from the CloudNativePG secret, with no default — and adhar-kit
 // refuses to start while they are unresolved. @ServiceConnection supplies the real
 // connection to the Testcontainers PostgreSQL; these values only satisfy the
 // placeholders and are never connected to.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "spring.main.cloud-platform=none",
         "SPRING_DATASOURCE_URL=jdbc:postgresql://replaced-by-service-connection/app",
         "SPRING_DATASOURCE_USERNAME=unused",
         "SPRING_DATASOURCE_PASSWORD=unused" })
 {%- else %}
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "spring.main.cloud-platform=none")
 {%- endif %}
 @Import(TestcontainersConfiguration.class)
 class ApiIT {

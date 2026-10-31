@@ -1,7 +1,9 @@
 {
+  "nodeModulesDir": "none",
   "tasks": {
-    "dev": "deno run --allow-net src/main.ts",
-    "start": "deno run --allow-net src/main.ts"
+    "dev": "deno run --watch --allow-net --allow-env src/main.ts",
+    "start": "deno run --allow-net --allow-env src/main.ts",
+    "test": "deno test --allow-net --allow-env"
   },
   "fmt": {
     "lineWidth": 100,

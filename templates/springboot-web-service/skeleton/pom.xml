@@ -35,6 +35,20 @@
     <dependency>
       <groupId>com.adhar.kit</groupId>
       <artifactId>adhar-kit-starter</artifactId>
+      <!-- adhar-kit-graphql 0.1.0 (inside the starter) makes graphql-java a
+           hard dependency, and every graphql-java release up to 26.1 shades
+           Guava 32.1.2-jre: HIGH CVE-2026-102554, which the image scan refuses
+           and no version pin can reach. Nothing here uses it — the kit's
+           GraphQL auto-configuration also needs spring-graphql, so GraphQL is
+           off either way. Adding spring-boot-starter-graphql brings
+           graphql-java back through spring-graphql. Redundant once the kit
+           release that makes graphql-java optional is published. -->
+      <exclusions>
+        <exclusion>
+          <groupId>com.graphql-java</groupId>
+          <artifactId>graphql-java</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 {%- if values.withDatabase %}
     <dependency>
@@ -114,6 +128,11 @@
        these, so a freshly scaffolded service could not pass its own pipeline:
          CVE-2026-106451  at.yawk.lz4:lz4-java 1.10.1 (via kafka-clients) -> 1.11.4
          io.kubernetes:client-java (via adhar-kit-kubernetes)             -> 27.0.0
+         CVE-2026-102554  com.google.guava:guava 32.1.2-jre (via adhar-kit-core;
+                          the parent's Vert.x BOM manages it down)        -> 33.7.2-jre
+         CVE-2026-108106, CVE-2026-93451
+                          org.xerial.snappy:snappy-java 1.1.10.7
+                          (via kafka-clients)                             -> 1.1.10.9
        A released parent POM is immutable in Nexus, so the pins live here until
        the parent that carries them is released; then delete this block
        (`mvn dependency:tree` showing the same versions without it is the
@@ -130,6 +149,16 @@
         <groupId>io.kubernetes</groupId>
         <artifactId>client-java</artifactId>
         <version>27.0.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>33.7.2-jre</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>1.1.10.9</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
