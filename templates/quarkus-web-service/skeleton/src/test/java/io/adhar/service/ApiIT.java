@@ -16,7 +16,8 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 /**
  * API integration tests: the Karate features in {@code src/test/resources/karate}
  * run against the packaged application, which {@code @QuarkusIntegrationTest}
- * launches from {@code target/} on a free port.
+ * launches from {@code target/} on a free port. It launches it with the test's
+ * configuration, not the Rollout's environment: {@link RolloutEnvIT} covers that.
 {%- if values.withDatabase %} Quarkus Dev Services starts the
  * PostgreSQL it needs (a Testcontainers container) and hands the launched
  * application its connection settings.

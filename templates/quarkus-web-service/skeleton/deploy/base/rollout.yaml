@@ -55,8 +55,11 @@ spec:
           env:
             - name: PORT
               value: "${{ values.port }}"
-            # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
-            # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
+            # OpenTelemetry — where the telemetry goes: the Alloy collector, which
+            # forwards traces to Tempo and metrics to Mimir. application.properties
+            # hands this endpoint to Quarkus's OWN exporters: traces through
+            # quarkus-opentelemetry, metrics through micrometer's OTLP registry.
+            # Logs go to stdout, which Alloy collects into Loki.
             - name: OTEL_SERVICE_NAME
               value: "${{ values.name }}"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -73,12 +76,16 @@ spec:
               valueFrom: {fieldRef: {fieldPath: metadata.name}}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=adhar,deployment.environment=local,k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
-            - name: OTEL_TRACES_EXPORTER
-              value: "otlp"
-            - name: OTEL_METRICS_EXPORTER
-              value: "otlp"
-            - name: OTEL_LOGS_EXPORTER
-              value: "otlp"
+            # No OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER or OTEL_LOGS_EXPORTER
+            # here. Any one of them set to "otlp" makes the OpenTelemetry SDK inside
+            # Quarkus build the SDK's own OTLP exporter in place of Quarkus's, and
+            # that exporter needs an HTTP sender (okhttp or the JDK one) Quarkus does
+            # not ship: the application stops at startup with "No HttpSenderProvider
+            # found on classpath" and the pod crash-loops (qua-service, 2026-10-31).
+            # The SDK reads these straight from the environment, so no
+            # quarkus.otel.* setting in application.properties can override them.
+            # RolloutEnvIT (src/test/java) starts the packaged application with
+            # exactly this environment, so the build fails before a pod would.
 {%- if values.withDatabase %}
             - name: QUARKUS_DATASOURCE_JDBC_URL
               valueFrom:
