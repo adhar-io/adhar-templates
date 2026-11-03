@@ -14,6 +14,13 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      # The environment this overlay deploys, FIRST in the container's env so
+      # the base's OTEL_RESOURCE_ATTRIBUTES can expand it into the telemetry's
+      # deployment.environment.name (the kubelet expands $(NAME) only from
+      # variables defined above it).
+      - op: add
+        path: /spec/template/spec/containers/0/env/0
+        value: {name: ADHAR_ENVIRONMENT, value: "dev"}
   - target: {kind: HTTPRoute, name: "${{ values.name }}"}
     patch: |-
       - op: replace

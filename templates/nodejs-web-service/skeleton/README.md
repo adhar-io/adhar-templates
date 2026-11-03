@@ -29,6 +29,7 @@ collector and land in Tempo, Mimir and Loki — no wiring required.
 .
 ├── server.js            # the app
 ├── package.json
+├── project.toml         # the Node.js version the image ships (BP_NODE_VERSION)
 └── deploy/              # GitOps tree — ArgoCD syncs this
     ├── rollout.yaml        # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml

@@ -71,8 +71,13 @@ spec:
               valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
             - name: POD_NAME
               valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            # The environment comes from ADHAR_ENVIRONMENT, which each
+            # deploy/envs/<env> overlay puts FIRST in this list: the kubelet
+            # expands $(NAME) only from variables defined above it. This said
+            # "deployment.environment=local", so every trace and metric from dev,
+            # test and prod claimed to come from a laptop (py-service, 2026-11-03).
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.namespace=adhar,deployment.environment=local,k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
+              value: "service.namespace=adhar,deployment.environment.name=$(ADHAR_ENVIRONMENT),deployment.environment=$(ADHAR_ENVIRONMENT),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER

@@ -33,6 +33,11 @@ spec:
   #
   # Credentials are the platform's S3 root credential, read by reference — the
   # same Secret every other CNPG cluster uses. Nothing here holds a key.
+  #
+  # Each deploy/envs/<env> overlay replaces destinationPath with its own
+  # environment's (s3://adhar-backups/cnpg/<env>/${{ values.name }}-db): one
+  # archive holds one database's WAL, and CloudNativePG refuses to archive into
+  # a path another database already writes to.
   backup:
     retentionPolicy: 7d
     barmanObjectStore:

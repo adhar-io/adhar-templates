@@ -11,6 +11,7 @@ A **Node.js (Express)** service scaffolded from the Adhar `nodejs-web-service` g
 | Application source | `server.js` — the HTTP server and routes. |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout, CloudNativePG Cluster |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its runtime | Node.js 24 — `BP_NODE_VERSION` in `project.toml` |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 
@@ -34,7 +35,7 @@ completes, and its repository is
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node.js 24 (the version `project.toml` pins).
 
 ```bash
 npm ci

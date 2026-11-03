@@ -71,12 +71,26 @@ spec:
               valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
             - name: POD_NAME
               valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            # The environment comes from ADHAR_ENVIRONMENT, which each
+            # deploy/envs/<env> overlay puts FIRST in this list: the kubelet
+            # expands $(NAME) only from variables defined above it. This said
+            # "deployment.environment=local", so every trace and metric from dev,
+            # test and prod claimed to come from a laptop (go-service, 2026-11-03).
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.namespace=adhar,deployment.environment=local,k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
+              value: "service.namespace=adhar,deployment.environment.name=$(ADHAR_ENVIRONMENT),deployment.environment=$(ADHAR_ENVIRONMENT),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER
               value: "otlp"
+            # Export metrics every 30 s, not the SDK's default 60 s. The collector
+            # (Alloy's OTLP receiver) closes a keep-alive connection after 60 s
+            # idle and Go's transport keeps one for 90 s, so every 60 s export
+            # reused a connection just as the collector dropped it: 3-12% of
+            # exports died with EOF or "broken pipe" ("failed to upload
+            # metrics") and are not retried (go-service, 2026-11-03). Keep this
+            # below 60000.
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "30000"
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
 {%- if values.withDatabase %}
