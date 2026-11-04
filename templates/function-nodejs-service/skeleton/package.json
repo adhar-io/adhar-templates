@@ -3,13 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "description": ${{ (values.description or 'A function on the Adhar platform.') | dump }},
-  "main": "index.js",
+  "type": "commonjs",
+  "main": "dist/server.js",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
-    "test": "node --test"
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "prebuild": "npm run clean",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --enable-source-maps dist/server.js",
+    "dev": "node --import tsx --watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "pretest": "npm run lint && npm run typecheck && npm run build",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test:unit": "node --import tsx --test \"test/unit/**/*.test.ts\"",
+    "test:integration": "npm run build && node --import tsx --test \"test/integration/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "jiti": "^2.7.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
   }
 }

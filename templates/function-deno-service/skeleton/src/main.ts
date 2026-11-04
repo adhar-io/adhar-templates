@@ -1,6 +1,6 @@
 // Serves the function (src/handler.ts) on $PORT: 8080, where Knative sends its
 // requests. `deno task dev` runs this file on Deno; the image runs it on
-// Node.js 24 (`npm start`), where compat/serve-on-node.mjs provides Deno.serve
+// Node.js 24 (`npm start`), where compat/serve-on-node.ts provides Deno.serve
 // and Deno.env.
 import { handler } from "./handler.ts";
 

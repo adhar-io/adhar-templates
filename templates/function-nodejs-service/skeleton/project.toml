@@ -1,6 +1,10 @@
 # Cloud Native Buildpacks project descriptor. app-ci (buildpacks-build) hands
 # every [[build.env]] below to the buildpacks; `builder` records the builder it
 # uses, for `pack build` on a laptop.
+#
+# The image runs package.json's "start" script, `node --enable-source-maps
+# dist/server.js` (the npm-start buildpack picks it up; there is no
+# Dockerfile).
 [project]
 id = "io.adhar.${{ values.name }}"
 name = "${{ values.name }}"
@@ -15,3 +19,11 @@ builder = "paketobuildpacks/builder-jammy-base"
 [[build.env]]
 name = "BP_NODE_VERSION"
 value = "24"
+
+# The TypeScript is compiled in the build: node-run-script runs package.json's
+# "build" script (tsc, src/ → dist/) with the devDependencies installed, and
+# none of them reaches the image. Without this the image would have no dist/
+# and every revision would crash at start.
+[[build.env]]
+name = "BP_NODE_RUN_SCRIPTS"
+value = "build"

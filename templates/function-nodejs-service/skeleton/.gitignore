@@ -1,3 +1,5 @@
 node_modules/
+# `npm run build` output: the image builds its own from src/.
+dist/
 npm-debug.log*
 .env

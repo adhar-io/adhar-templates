@@ -17,7 +17,7 @@ spec:
   parameters:
     displayName: ${{ values.name }}
     # The runtime the image is built for — published to the function as
-    # FUNCTION_RUNTIME and as the platform.adhar.io/runtime label. Node.js 24 — `BP_NODE_VERSION` in `project.toml`; the source is Deno-style TypeScript served through `compat/serve-on-node.mjs`, so `runtime: node24` names what the image runs.
+    # FUNCTION_RUNTIME and as the platform.adhar.io/runtime label. Node.js 24 — `BP_NODE_VERSION` in `project.toml`; the source is Deno-style TypeScript served through `compat/serve-on-node.ts`, so `runtime: node24` names what the image runs.
     runtime: node24
     # app-ci pushes here; Kargo replaces the tag with the digest app-ci signed
     # (kustomizeconfig.yaml is what lets kustomize find this field).

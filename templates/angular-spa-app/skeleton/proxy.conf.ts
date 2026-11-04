@@ -5,6 +5,12 @@
 // and STRAPI_API_TOKEN come from the shell; neither reaches the bundle. Without
 // a token /cms/ answers an empty 200 with X-Cms: off, as an unconfigured
 // environment does.
+//
+// TypeScript, not JSON: the proxy needs logic (the token from the environment,
+// the refusals). The Angular dev server loads it with Node, which strips the
+// types itself (Node 22.18+; this app declares Node 24).
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
 const token = process.env.STRAPI_API_TOKEN ?? '';
 const target = process.env.STRAPI_URL || 'http://localhost:1337';
 const refused = /^\/cms\/(users|users-permissions|auth|connect|upload)(\/|\?|$)/;
@@ -15,7 +21,7 @@ export default {
     changeOrigin: true,
     pathRewrite: { '^/cms/': '/api/' },
     headers: token ? { authorization: `Bearer ${token}`, cookie: '' } : {},
-    bypass(req, res) {
+    bypass(req: IncomingMessage, res: ServerResponse): false | undefined {
       if (!token) {
         res.writeHead(200, { 'content-type': 'application/json', 'x-cms': 'off', 'cache-control': 'no-store' });
         res.end('{"data":null,"meta":{"cms":"off"}}');

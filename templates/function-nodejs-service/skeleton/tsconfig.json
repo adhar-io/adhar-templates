@@ -1,0 +1,35 @@
+{
+  // TypeScript for everything in this repository: src/, test/ and
+  // eslint.config.mts. The editor, `npm run typecheck` and typescript-eslint
+  // read this file; tsconfig.build.json compiles src/ alone into dist/.
+  "compilerOptions": {
+    // Node.js 24, the runtime project.toml pins (the @tsconfig/node24 base).
+    "target": "es2024",
+    "lib": ["es2024"],
+    "types": ["node"],
+    // package.json says "type": "commonjs", so NodeNext compiles to CommonJS,
+    // as in the Node.js service template: OpenTelemetry's `--require` preload
+    // instruments what `require` loads, should the function add it.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    // Each file compiles on its own, as tsx (the tests, `npm run dev`) does it.
+    "isolatedModules": true,
+    // Strict, and the checks strict leaves out.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    // Stack traces name the .ts line: `npm start` runs node with
+    // --enable-source-maps over the maps the build writes beside dist/*.js.
+    "sourceMap": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "eslint.config.mts"]
+}

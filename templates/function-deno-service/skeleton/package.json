@@ -8,8 +8,8 @@
     "node": "24.x"
   },
   "scripts": {
-    "start": "node --import ./compat/serve-on-node.mjs src/main.ts",
-    "dev": "node --watch --import ./compat/serve-on-node.mjs src/main.ts",
-    "test": "node --import ./compat/serve-on-node.mjs --test"
+    "start": "node --import ./compat/serve-on-node.ts src/main.ts",
+    "dev": "node --watch --import ./compat/serve-on-node.ts src/main.ts",
+    "test": "node --import ./compat/serve-on-node.ts --test"
   }
 }

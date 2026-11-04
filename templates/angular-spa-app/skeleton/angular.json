@@ -39,7 +39,7 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",{% if values.withCms %}
-          "options": { "proxyConfig": "proxy.conf.mjs" },{% endif %}
+          "options": { "proxyConfig": "proxy.conf.ts" },{% endif %}
           "configurations": {
             "production": { "buildTarget": "${{ values.name }}:build:production" },
             "development": { "buildTarget": "${{ values.name }}:build:development" }

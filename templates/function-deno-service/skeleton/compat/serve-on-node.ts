@@ -4,35 +4,57 @@
 // Why it exists: the platform builds every image with Cloud Native Buildpacks,
 // and paketo's builder has no Deno buildpack. The image therefore runs Node.js
 // 24 (BP_NODE_VERSION in project.toml), which strips the TypeScript types
-// itself, with this module preloaded in front of the source:
+// itself — this file's too — with this module preloaded in front of the source:
 //
-//   node --import ./compat/serve-on-node.mjs src/main.ts   # npm start: the image
-//   node --import ./compat/serve-on-node.mjs --test        # npm test: app-ci
+//   node --import ./compat/serve-on-node.ts src/main.ts   # npm start: the image
+//   node --import ./compat/serve-on-node.ts --test        # npm test: app-ci
 //
 // On Deno it does nothing; the real Deno namespace is already there. A Deno API
 // this file does not provide fails on Node with a TypeError naming it ("Deno.x
 // is not a function"): add it here, or keep the source to Web-standard APIs.
-import { createServer } from "node:http";
+// Like src/, it keeps to TypeScript Node can erase (no enum, no namespace);
+// `deno task check` type-checks it.
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import process from "node:process";
 import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { pipeline } from "node:stream/promises";
 
+/** Deno.ServeHandlerInfo: who sent the request. */
+interface ServeHandlerInfo {
+  remoteAddr: { transport: "tcp"; hostname: string; port: number };
+}
+
+type Handler = (request: Request, info: ServeHandlerInfo) => Response | Promise<Response>;
+
+/** Deno.ServeOptions, as far as this function uses them. */
+interface ServeOptions {
+  port?: number;
+  hostname?: string;
+  signal?: AbortSignal;
+  handler?: Handler;
+  onListen?: (local: { transport: "tcp"; hostname: string; port: number }) => void;
+  onError?: (error: unknown) => Response | Promise<Response>;
+}
+
 const env = Object.freeze({
-  get: (key) => process.env[key],
-  set: (key, value) => {
+  get: (key: string): string | undefined => process.env[key],
+  set: (key: string, value: string): void => {
     process.env[key] = String(value);
   },
-  delete: (key) => {
+  delete: (key: string): void => {
     delete process.env[key];
   },
-  has: (key) => Object.hasOwn(process.env, key),
-  toObject: () => ({ ...process.env }),
+  has: (key: string): boolean => Object.hasOwn(process.env, key),
+  toObject: (): Record<string, string> => ({ ...process.env }) as Record<string, string>,
 });
 
 // Deno.serve(handler) | Deno.serve(options, handler) | Deno.serve({ handler, ...options }),
 // with Deno's defaults (0.0.0.0:8000) and its HttpServer surface.
-function serve(optionsOrHandler, maybeHandler) {
-  const options = typeof optionsOrHandler === "function" ? {} : { ...optionsOrHandler };
+function serve(optionsOrHandler: ServeOptions | Handler, maybeHandler?: Handler) {
+  const options: ServeOptions = typeof optionsOrHandler === "function"
+    ? {}
+    : { ...optionsOrHandler };
   const handler = typeof optionsOrHandler === "function"
     ? optionsOrHandler
     : maybeHandler ?? options.handler;
@@ -40,7 +62,7 @@ function serve(optionsOrHandler, maybeHandler) {
     throw new TypeError("Deno.serve: a handler function is required");
   }
   const hostname = options.hostname ?? "0.0.0.0";
-  const onError = options.onError ?? ((error) => {
+  const onError = options.onError ?? ((error: unknown) => {
     console.error(error);
     return new Response("Internal Server Error", { status: 500 });
   });
@@ -52,7 +74,7 @@ function serve(optionsOrHandler, maybeHandler) {
       res.end();
     });
   });
-  const finished = new Promise((resolve) => server.once("close", resolve));
+  const finished = new Promise<void>((resolve) => server.once("close", () => resolve()));
   const shutdown = () => {
     server.close();
     server.closeIdleConnections();
@@ -60,7 +82,12 @@ function serve(optionsOrHandler, maybeHandler) {
   };
   options.signal?.addEventListener("abort", shutdown, { once: true });
   server.listen(options.port ?? 8000, hostname, () => {
-    const local = { transport: "tcp", hostname, port: server.address().port };
+    const address = server.address();
+    const local = {
+      transport: "tcp" as const,
+      hostname,
+      port: typeof address === "object" && address ? address.port : 0,
+    };
     if (options.onListen) options.onListen(local);
     else console.log(`Listening on http://${hostname}:${local.port}/`);
   });
@@ -70,7 +97,9 @@ function serve(optionsOrHandler, maybeHandler) {
     shutdown,
     get addr() {
       const address = server.address();
-      return address && { transport: "tcp", hostname: address.address, port: address.port };
+      return typeof address === "object" && address
+        ? { transport: "tcp" as const, hostname: address.address, port: address.port }
+        : null;
     },
     ref: () => server.ref(),
     unref: () => server.unref(),
@@ -80,8 +109,13 @@ function serve(optionsOrHandler, maybeHandler) {
 
 // One request: Node's IncomingMessage → a Web Request → the handler → its Web
 // Response back onto Node's ServerResponse, streamed.
-async function respond(req, res, handler, onError) {
-  let url;
+async function respond(
+  req: IncomingMessage,
+  res: ServerResponse,
+  handler: Handler,
+  onError: (error: unknown) => Response | Promise<Response>,
+): Promise<void> {
+  let url: URL;
   try {
     url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   } catch {
@@ -98,13 +132,21 @@ async function respond(req, res, handler, onError) {
     if (!res.writableFinished) aborted.abort();
   });
   const withBody = req.method !== "GET" && req.method !== "HEAD";
-  const request = new Request(url, {
+  // `duplex` is required by Node's fetch for a streamed body; not every
+  // RequestInit typing knows it.
+  const init: RequestInit & { duplex?: "half" } = {
     method: req.method,
     headers,
     signal: aborted.signal,
-    ...(withBody ? { body: Readable.toWeb(req), duplex: "half" } : {}),
-  });
-  const info = {
+    ...(withBody
+      ? {
+        body: Readable.toWeb(req) as unknown as ReadableStream<Uint8Array>,
+        duplex: "half" as const,
+      }
+      : {}),
+  };
+  const request = new Request(url, init);
+  const info: ServeHandlerInfo = {
     remoteAddr: {
       transport: "tcp",
       hostname: req.socket.remoteAddress ?? "",
@@ -112,7 +154,7 @@ async function respond(req, res, handler, onError) {
     },
   };
 
-  let response;
+  let response: unknown;
   try {
     response = await handler(request, info);
   } catch (error) {
@@ -121,22 +163,23 @@ async function respond(req, res, handler, onError) {
   if (!(response instanceof Response)) {
     response = await onError(new TypeError("the handler did not return a Response"));
   }
+  const answer = response as Response;
 
-  const head = [];
-  for (const [name, value] of response.headers) {
+  const head: string[] = [];
+  for (const [name, value] of answer.headers) {
     if (name !== "set-cookie") head.push(name, value);
   }
-  for (const cookie of response.headers.getSetCookie()) head.push("set-cookie", cookie);
-  if (response.statusText) res.writeHead(response.status, response.statusText, head);
-  else res.writeHead(response.status, head);
+  for (const cookie of answer.headers.getSetCookie()) head.push("set-cookie", cookie);
+  if (answer.statusText) res.writeHead(answer.status, answer.statusText, head);
+  else res.writeHead(answer.status, head);
 
-  if (response.body === null || req.method === "HEAD") {
-    await response.body?.cancel();
+  if (answer.body === null || req.method === "HEAD") {
+    await answer.body?.cancel();
     res.end();
     return;
   }
   try {
-    await pipeline(Readable.fromWeb(response.body), res);
+    await pipeline(Readable.fromWeb(answer.body as unknown as NodeReadableStream<Uint8Array>), res);
   } catch (error) {
     // A client that went away mid-response is not an error of the function.
     if (!aborted.signal.aborted) console.error(error);

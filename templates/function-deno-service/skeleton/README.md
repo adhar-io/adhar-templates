@@ -13,7 +13,7 @@ load, with its own HTTPS URL.
 | --- | --- |
 | `src/handler.ts` | the function: a Web-standard handler (`Request` → `Response`) — `/healthz`, and every other path and method invokes it |
 | `src/main.ts` | `Deno.serve(handler)` on `$PORT` |
-| `compat/serve-on-node.mjs` | runs `src/main.ts` on Node.js 24 — the image's runtime, since the builder has no Deno buildpack |
+| `compat/serve-on-node.ts` | runs `src/main.ts` on Node.js 24 — the image's runtime, since the builder has no Deno buildpack |
 | `test/handler.test.ts` | its tests (`node:test`; `deno test` and `node --test` both run them), which app-ci runs on every push |
 | `deno.json` / `package.json` | tasks for Deno / scripts for Node; no dependencies |
 | `deploy/base/function.yaml` | the `Function` every environment runs: runtime, image, trigger, scale, timeout |
@@ -31,12 +31,13 @@ Develop with Deno 2, or with Node.js 24 exactly as the image runs it.
 ```bash
 deno task dev                  # Deno: http://localhost:8080
 deno task test
-npm start                      # Node.js 24 + compat/serve-on-node.mjs, as the image runs it
+deno task check                # type-check src/, test/ and compat/
+npm start                      # Node.js 24 + compat/serve-on-node.ts, as the image runs it
 npm test                       # the suite app-ci runs
 curl -s localhost:8080/healthz
 ```
 
-Why Node in the image: the platform builds every image with Cloud Native Buildpacks, and paketo's builder has no Deno buildpack. `compat/serve-on-node.mjs` provides the two Deno APIs this code uses (`Deno.serve`, `Deno.env`) on Node.js 24, which also strips the TypeScript types natively. Keep the source to Web-standard APIs and type-only TypeScript (no `enum`, no `namespace`) and it runs unchanged on both.
+Why Node in the image: the platform builds every image with Cloud Native Buildpacks, and paketo's builder has no Deno buildpack. `compat/serve-on-node.ts` provides the two Deno APIs this code uses (`Deno.serve`, `Deno.env`) on Node.js 24, which also strips the TypeScript types natively. Keep the source to Web-standard APIs and type-only TypeScript (no `enum`, no `namespace`) and it runs unchanged on both.
 
 ## Deploy
 

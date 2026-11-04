@@ -1,0 +1,12 @@
+{
+  // `npm run build`: src/ compiled to dist/, the JavaScript the image runs.
+  // app-ci's buildpack build runs it too (BP_NODE_RUN_SCRIPTS in project.toml),
+  // so a type error fails the build, not only the tests.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

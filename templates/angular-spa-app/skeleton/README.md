@@ -156,7 +156,7 @@ outage costs a section, never the page. The section on the home page is in `src/
 
 **Locally:** run Strapi yourself or `kubectl -n adhar-system port-forward svc/strapi 1337`,
 and run `STRAPI_URL=http://localhost:1337 STRAPI_API_TOKEN=<token> npm start`;
-`proxy.conf.mjs` proxies `/cms/` the same way.
+`proxy.conf.ts` proxies `/cms/` the same way.
 
 **Testing:** `npm run test:e2e` (`e2e/tests/cms.spec.ts`) checks every state of the page; `npm run build && npm run test:nginx` runs the proxy in a real nginx against a stand-in Strapi.
 {%- endif %}

@@ -1,5 +1,5 @@
 // The function's tests. `npm test` runs them on Node.js 24, the runtime the
-// image ships (through compat/serve-on-node.mjs), and app-ci runs exactly that
+// image ships (through compat/serve-on-node.ts), and app-ci runs exactly that
 // on every push; `deno task test` runs the same file on Deno.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -52,7 +52,7 @@ test("a body over 1 MiB is refused", async () => {
   await res.body?.cancel();
 });
 
-// Over a real socket through Deno.serve: on Node that is compat/serve-on-node.mjs,
+// Over a real socket through Deno.serve: on Node that is compat/serve-on-node.ts,
 // the server the image runs.
 test("Deno.serve answers over HTTP", async () => {
   const listening = Promise.withResolvers<number>();

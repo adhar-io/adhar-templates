@@ -6,7 +6,7 @@
 // (ce-* headers) from a schedule or a Broker, or a Dapr topic delivery.
 //
 // Web-standard Request → Response only, so the same code runs on Deno and, in
-// the image, on Node.js 24 through compat/serve-on-node.mjs.
+// the image, on Node.js 24 through compat/serve-on-node.ts.
 
 // Requests larger than this are refused rather than buffered.
 const MAX_BODY = 1024 * 1024;
