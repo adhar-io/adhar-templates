@@ -38,16 +38,22 @@ The Adhar brand theme (light and dark colors, radius, the logo gradient) lives i
 .
 ├── index.html           # applies the saved/system theme before first paint
 ├── public/adhar-symbol.svg
-├── vite.config.js
+├── vite.config.ts
+├── tsconfig.json        # tsc -b: tsconfig.app (src/), .node (config, e2e/), .perf (perf/)
+├── eslint.config.ts     # ESLint + typescript-eslint + React hooks rules
 ├── project.toml         # buildpack: npm build → serve dist/ with nginx
 ├── .npmrc               # @adhar-ui → Gitea npm registry
 ├── src/
-│   ├── main.jsx
-│   ├── App.jsx          # landing page built from Adhar UI variants
-│   ├── icons.jsx        # inline line icons
-│   ├── useTheme.js      # light/dark toggle, remembered per browser
+│   ├── main.tsx
+│   ├── App.tsx          # landing page built from Adhar UI variants
+│   ├── icons.tsx        # inline line icons
+│   ├── useTheme.ts      # light/dark toggle, remembered per browser
+│   ├── i18n.tsx         # texts by key (t()), language switcher
+│   ├── telemetry.ts     # Faro RUM{% if values.withAnalytics %} + PostHog{% endif %}, configured at runtime
+│   ├── cms.ts           # Strapi content{% if not values.withCms %} (off for this app){% endif %}
 │   └── index.css        # Tailwind v4 + Adhar UI preset + Adhar brand theme
 ├── e2e/                 # Playwright end-to-end tests (npm run test:e2e)
+├── perf/load.ts         # k6 load test (TypeScript; k6 runs it as it is)
 └── deploy/              # GitOps tree — ArgoCD syncs this
     ├── rollout.yaml     # Argo Rollout (canary) of the SIGNED image
     ├── service.yaml
@@ -60,6 +66,26 @@ The Adhar brand theme (light and dark colors, radius, the logo gradient) lives i
 npm install
 npm run dev
 ```
+
+## TypeScript
+
+All of the app is TypeScript in strict mode: `src/` (the browser), the build and
+lint configuration, the Playwright suite and the nginx test helpers in `e2e/`,
+and the k6 test in `perf/`. Node 24 (`engines` in `package.json`) is the
+version CI, the image build and the scripts here use.
+
+```sh
+npm run typecheck   # tsc -b: tsconfig.app.json, tsconfig.node.json, tsconfig.perf.json
+npm run lint        # ESLint with typescript-eslint and the React hooks rules
+npm test            # both — what CI runs on every push
+```
+
+`npm run build` type-checks before Vite bundles, so a type error fails the build
+in CI and in the image build. The scripts under `e2e/nginx/` run on Node as they
+are (Node strips the types itself), so they keep to type annotations that can be
+erased: no `enum`, `namespace` or parameter properties (`erasableSyntaxOnly`).
+The only JavaScript left is the two small inline scripts in `index.html`, which
+must run before any bundle loads.
 
 Access the deployed app at `https://${{ values.hostname }}:8443`.
 
@@ -79,7 +105,7 @@ deployed environment instead.
 ## Localisation
 
 Every user-visible string is a key in `src/i18n/<language>.json`, looked up with
-`t()` (`src/i18n.jsx`). `en.json` holds the source text — add new keys there.
+`t()` (`src/i18n.tsx`). `en.json` holds the source text — add new keys there.
 {%- if values.withLocalisation %}
 
 Texts are managed in [Tolgee](https://tolgee.io); the platform created a Tolgee
@@ -109,7 +135,7 @@ the image. Change existing copy in Tolgee (or in place, below). The files are
 pulled as flat JSON (`"pull.delimiter": ""`), the same shape `/i18n` serves.
 
 **Adding a language:** add it to the Tolgee project; the next build pulls its
-file, and adding the tag to `LANGUAGES` in `src/i18n.jsx` puts it in the
+file, and adding the tag to `LANGUAGES` in `src/i18n.tsx` puts it in the
 language switcher.
 
 **Editing in place while developing:** create `.env.development.local`
@@ -167,13 +193,13 @@ why the app proxies instead of calling it.
    then restart the Rollout. (When the platform provisions CMS tokens, it writes
    this Secret for you.)
 
-**Use it in code** — `src/cms.js`: `fetchCollection(type, { locale, pageSize, sort, filters, populate })`
+**Use it in code** — `src/cms.ts`: `fetchCollection(type, { locale, pageSize, sort, filters, populate })`
 returns `{ status: 'ok' | 'off' | 'error', entries }` and never throws, so a CMS
-outage costs a section, never the page. The section on the home page is in `src/App.jsx`.
+outage costs a section, never the page. The section on the home page is in `src/App.tsx`.
 
 **Locally:** run Strapi yourself or `kubectl -n adhar-system port-forward svc/strapi 1337`,
 put `STRAPI_URL=http://localhost:1337` and `STRAPI_API_TOKEN=<token>` in `.env.development.local` (git-ignored)
-and `npm run dev`; `vite.config.js` proxies `/cms/` the same way.
+and `npm run dev`; `vite.config.ts` proxies `/cms/` the same way.
 
 **Testing:** `npm run test:e2e` (`e2e/tests/cms.spec.ts`) checks every state of the page; `npm run build && npm run test:nginx` runs the proxy in a real nginx against a stand-in Strapi.
 {%- endif %}

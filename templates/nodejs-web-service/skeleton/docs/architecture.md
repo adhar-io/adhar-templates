@@ -6,7 +6,7 @@
 client → Cilium Gateway (TLS) → HTTPRoute ${{ values.hostname }} → Service ${{ values.name }} → pod :${{ values.port }}
 ```
 
-`deploy/httproute.yaml` attaches to the platform's shared Gateway. The hostname
+`deploy/base/httproute.yaml` attaches to the platform's shared Gateway. The hostname
 is the one thing in that file worth reading carefully — it is what makes the
 service reachable, and it must stay under the platform's base domain for the
 wildcard certificate to cover it.
@@ -14,9 +14,40 @@ wildcard certificate to cover it.
 The process serves HTTP directly on `${{ values.port }}`. There is no sidecar
 proxy in front of it inside the pod; TLS terminates at the platform Gateway.
 
+## Code layout
+
+```
+src/server.js     the process: configuration, listen on :${{ values.port }}, clean stop
+ └─ src/app.js    the Express app; a request passes through, in order:
+     middleware/request-logger   one JSON log line per request
+     routes/                     health/ (/healthz{% if values.withDatabase %}, /db{% endif %}), then controllers/ → services/{% if values.withDatabase %} → db/{% endif %}
+     middleware/error-handler    no route: 404; an error: its problem document
+```
+
+| Folder | What it does |
+| --- | --- |
+| `src/server.js` | Starts and stops the process: loads the configuration, builds the app, listens, and on SIGTERM lets the requests in flight finish{% if values.withDatabase %}, closes the database pool{% endif %} and flushes the telemetry. |
+| `src/app.js` | Builds the Express app from what it is given — configuration, logger{% if values.withDatabase %}, database{% endif %}. It never listens, so tests serve it in-process. |
+| `src/config/` | Reads every environment variable the service uses, once, and refuses an invalid one at startup. Nothing else reads `process.env`. |
+| `src/routes/` | Mounts each controller on its path. |
+| `src/controllers/` | HTTP in, HTTP out: reads the request, calls a service, writes the status and body. No logic. |
+| `src/services/` | The logic, as plain functions over plain data. No `req`, no `res`. |
+{%- if values.withDatabase %}
+| `src/db/` | The one PostgreSQL connection pool and the queries. Services call it; controllers do not. |
+{%- endif %}
+| `src/health/` | `/healthz` for both probes{% if values.withDatabase %}, and `/db` for diagnostics{% endif %}. |
+| `src/middleware/` | The request log, and 404 and error responses as RFC 9457 problem documents that never carry an internal error message. |
+| `src/telemetry/` | Starts OpenTelemetry before the application loads, and hands the logger the current trace. |
+| `src/lib/` | The JSON logger. |
+
+Each module gets what it depends on passed in (`createApp({ config, logger{% if values.withDatabase %}, db{% endif %} })`)
+rather than reaching for it, so a unit test hands it a{% if values.withDatabase %} fake database or a{% endif %}
+recording logger and checks it without a network. `test/unit/` mirrors
+`src/`; `test/integration/` starts `src/server.js` the way the image does.
+
 ## Deployment shape
 
-`deploy/rollout.yaml` is an Argo **Rollout**, not a Deployment. The difference
+`deploy/base/rollout.yaml` is an Argo **Rollout**, not a Deployment. The difference
 matters when something is wrong: a Rollout can pause with old and new pods both
 serving, so a bad version is caught by real traffic on a small share of requests
 rather than by a full replacement.
@@ -56,7 +87,7 @@ tries to run in the cluster, including an image someone applies by hand.
 
 ### Database
 
-`deploy/database.yaml` declares a CloudNativePG `Cluster`. CloudNativePG — not
+`deploy/base/database.yaml` declares a CloudNativePG `Cluster`. CloudNativePG — not
 this repository — owns the credential: it generates the password, publishes it as
 a Secret, and rotates it. The application reads `DATABASE_URL` from the
 environment and never sees a literal password.
@@ -64,7 +95,7 @@ environment and never sees a literal password.
 Two consequences worth knowing:
 
 - **Do not commit a connection string.** If you find yourself wanting to, the
-  environment variable is missing from `deploy/rollout.yaml`, not from the
+  environment variable is missing from `deploy/base/rollout.yaml`, not from the
   Secret.
 - **Backups are the platform's, not yours.** The cluster is covered by the
   platform's backup schedule; the scorecard's backup-coverage signal reads that,
@@ -73,11 +104,23 @@ Two consequences worth knowing:
 
 ## Observability
 
-The service is scraped and its logs collected without any per-service
-configuration: the platform's Prometheus selects every ServiceMonitor, Loki
-collects container output, and Grafana's dashboards are variable-driven. Emitting
-metrics on `/metrics` and logging to stdout is all that is required of the
-application.
+Nothing to configure per service:
+
+- **Traces and metrics.** `src/telemetry/instrumentation.js` starts the
+  OpenTelemetry SDK before the application loads (`NODE_OPTIONS` in
+  `deploy/base/rollout.yaml`). It instruments HTTP and Express{% if values.withDatabase %} and
+  PostgreSQL{% endif %} and exports over OTLP to the platform's collector, which writes
+  the traces to Tempo and the metrics to Mimir; the `OTEL_*` variables in the
+  Rollout say what is exported and where. On a stop, `src/server.js` flushes
+  them after the last request has finished, so a rollout does not lose the
+  final requests.
+- **Logs.** One JSON object per line on stdout (errors on stderr), which Loki
+  collects from the container's output. A line written while a request is
+  handled carries that request's `trace_id`, and Grafana turns it into a link
+  to the trace in Tempo. `LOG_LEVEL` (default `info`) sets how much is
+  written; the probe path is never logged.
+- **Dashboards.** Grafana's are variable-driven: this service has one from its
+  first request.
 
 The Service Catalog's **Metrics** tab queries this workload by name, so keep
 `catalog-info.yaml`'s name matching the workload name — that join is what makes

@@ -56,7 +56,8 @@ spec:
             - name: PORT
               value: "${{ values.port }}"
             # OpenTelemetry — traces/metrics/logs over OTLP to the Alloy collector,
-            # which fans out to Tempo/Mimir/Loki. Auto-instrumentation reads these.
+            # which fans out to Tempo/Mimir/Loki. src/telemetry/instrumentation.ts
+            # (compiled to dist/, preloaded by NODE_OPTIONS below) reads these.
             - name: OTEL_SERVICE_NAME
               value: "${{ values.name }}"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -71,16 +72,38 @@ spec:
               valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
             - name: POD_NAME
               valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            # The environment comes from ADHAR_ENVIRONMENT, which each
+            # deploy/envs/<env> overlay puts FIRST in this list: the kubelet
+            # expands $(NAME) only from variables defined above it. This said
+            # "deployment.environment=local", so every trace and metric from dev,
+            # test and prod claimed to come from a laptop (node-svc, 2026-11-03).
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.namespace=adhar,deployment.environment=local,k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
+              value: "service.namespace=adhar,deployment.environment.name=$(ADHAR_ENVIRONMENT),deployment.environment=$(ADHAR_ENVIRONMENT),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)"
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
             - name: OTEL_METRICS_EXPORTER
               value: "otlp"
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
+            # The resource detectors the preload below runs: its defaults
+            # without the cloud ones (alibaba, aws, azure, gcp). Those query the
+            # cloud's instance-metadata endpoint from every pod as it starts,
+            # add nothing the dashboards read, and off Google Cloud the GCP one
+            # put "MetadataLookupWarning: received unexpected error = All
+            # promises were rejected" in every pod's log (node-svc, 2026-11-03).
+            # env stays last, so OTEL_RESOURCE_ATTRIBUTES wins over a detector.
+            - name: OTEL_NODE_RESOURCE_DETECTORS
+              value: "container,host,os,serviceinstance,process,env"
+            # Starts OpenTelemetry (src/telemetry/instrumentation.ts, compiled
+            # into dist/ by the image build) before the application loads, so
+            # express, http and pg are instrumented as they are required. The
+            # path is relative to the image's working directory, the app root.
+            # This value REPLACES the one the Node.js buildpack sets, so it
+            # repeats that one too: --use-openssl-ca makes node trust the
+            # image's CA store, including certificates the platform adds at
+            # runtime.
             - name: NODE_OPTIONS
-              value: "--require @opentelemetry/auto-instrumentations-node/register"
+              value: "--use-openssl-ca --require ./dist/telemetry/instrumentation.js"
 {%- if values.withDatabase %}
             - name: DATABASE_URL
               valueFrom:

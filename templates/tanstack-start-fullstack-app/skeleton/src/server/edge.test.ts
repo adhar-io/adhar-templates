@@ -1,8 +1,8 @@
-// Unit tests for /runtime-config.json{% if values.withAnalytics %} and the /ingest proxy{% endif %} (edge.mjs).
+// Unit tests for /runtime-config.json{% if values.withAnalytics %} and the /ingest proxy{% endif %} (edge.ts).
 // `npm test` runs them with Node's own test runner.
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { {% if values.withAnalytics %}createIngestProxy, {% endif %}runtimeConfig, telemetryMiddleware } from './edge.mjs'
+import { {% if values.withAnalytics %}createIngestProxy, {% endif %}runtimeConfig, telemetryMiddleware } from './edge.ts'
 
 const next = () => new Response('the app')
 
@@ -38,7 +38,7 @@ describe('telemetryMiddleware', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers.get('cache-control'), 'no-store')
     assert.match(res.headers.get('content-type') ?? '', /application\/json/)
-    assert.equal((await res.json()).environment, 'dev')
+    assert.equal(((await res.json()) as { environment: string }).environment, 'dev')
   })
 
   it('passes every other request to the app', async () => {

@@ -8,7 +8,7 @@ A **React + Vite (single-page app)** website scaffolded from the Adhar `react-sp
 
 | Thing | Where |
 | --- | --- |
-| Application source | `src/App.jsx` — the root component; `vite.config.js` — the build. |
+| Application source | `src/App.tsx` — the root component (TypeScript, strict); `vite.config.ts` — the build. |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
@@ -20,7 +20,7 @@ completes, and its repository is
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node 24 (`engines` in `package.json`, the version CI and the image build use).
 
 ```bash
 npm ci

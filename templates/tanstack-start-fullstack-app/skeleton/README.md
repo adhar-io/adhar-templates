@@ -17,7 +17,7 @@ OpenTelemetry is auto-instrumented (Node auto-instrumentations via `NODE_OPTIONS
 ## Structure
 
 ```
-server.mjs                # production server: dist/server fetch handler + dist/client assets
+server.ts                # production server: dist/server fetch handler + dist/client assets
 public/adhar-symbol.svg
 src/
 ├── router.tsx            # getRouter() — TanStack Start's router factory
@@ -130,7 +130,7 @@ change them without a release. The home page lists the latest published entries
 of the `${{ values.cmsCollection }}` collection type, in the language the app is shown in.
 
 The browser never talks to Strapi: `GET /cms/<path>` on this app's own origin is
-Strapi's REST API at `/api/<path>`, proxied by the app's own server (`src/server/cms.mjs`, mounted in `server.mjs`) with a **read-only**
+Strapi's REST API at `/api/<path>`, proxied by the app's own server (`src/server/cms.ts`, mounted in `server.ts`) with a **read-only**
 API token added on the server, and Strapi's media (`/uploads/…`) is served the same
 way. Only GET passes, and Strapi's user, auth and media-library endpoints are never
 proxied. Strapi's public address is behind the platform's single sign-on, which is
@@ -170,8 +170,8 @@ and `npm run dev`; `vite.config.ts` proxies `/cms/` the same way.
 
 The page and the server report to the platform on their own.
 
-- **Server metrics.** `server.mjs` serves Prometheus metrics on port 9464
-  (`src/server/metrics.mjs`, scraped through `deploy/base/podmonitor.yaml`):
+- **Server metrics.** `server.ts` serves Prometheus metrics on port 9464
+  (`src/server/metrics.ts`, scraped through `deploy/base/podmonitor.yaml`):
   requests by method, route template and status with a latency histogram,
   under the names the app's Grafana dashboard reads, plus Node.js runtime
   metrics. Traces and OTLP metrics also go to the platform collector
@@ -179,7 +179,7 @@ The page and the server report to the platform on their own.
 - **Real-user monitoring (Grafana Faro).** In the browser only
   (`src/telemetry.ts`, started from `src/routes/__root.tsx`). What it sends is
   decided at runtime by `GET /runtime-config.json`, which the server answers from
-  the Pod's environment (`src/server/edge.mjs`), so the one image promoted from
+  the Pod's environment (`src/server/edge.ts`), so the one image promoted from
   dev to prod reports under each environment's name. `FARO_URL` points at
   `https://faro.<platform domain>/collect`: page loads, web vitals (LCP, INP, CLS,
   FCP, TTFB), JavaScript errors, fetch timings and browser traces whose

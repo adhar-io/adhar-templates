@@ -1,4 +1,4 @@
-# Prometheus scrapes the server's own metrics (src/server/metrics.mjs, port
+# Prometheus scrapes the server's own metrics (src/server/metrics.ts, port
 # 9464): request rate, status codes and the latency histogram under the names
 # the per-application Grafana dashboard reads, plus Node.js runtime metrics.
 # kube-prometheus selects every PodMonitor on the cluster, so nothing else

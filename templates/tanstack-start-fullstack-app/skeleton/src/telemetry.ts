@@ -3,8 +3,8 @@
 //
 // Nothing here is baked into the bundle: the same image runs in dev, test and
 // prod, so what to send and where comes from GET /runtime-config.json on this
-// app's own origin, which server.mjs answers from the Pod's environment
-// (src/server/edge.mjs, deploy/base/rollout.yaml). `npm run dev` has no such
+// app's own origin, which server.ts answers from the Pod's environment
+// (src/server/edge.ts, deploy/base/rollout.yaml). `npm run dev` has no such
 // route, so it sends nothing.
 //
 //   faro.url        the platform's Faro receiver (https://faro.<platform domain>/collect):
@@ -15,7 +15,7 @@
 {%- if values.withAnalytics %}
 //   posthog.key     the PostHog project key (phc_..., public by design) for this
 //                   environment, from the optional Secret <app>-posthog. Events go
-//                   to /ingest on this origin, which server.mjs forwards to PostHog,
+//                   to /ingest on this origin, which server.ts forwards to PostHog,
 //                   so ad blockers that drop third-party analytics do not drop them.
 //
 // Analytics respects the browser's Do Not Track setting and the opt-out below,

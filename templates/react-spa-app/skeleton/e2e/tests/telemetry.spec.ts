@@ -2,20 +2,24 @@ import { gunzipSync } from 'node:zlib'
 import type { Page, Request } from '@playwright/test'
 import { expect, test } from '../fixtures'
 
-// Browser telemetry (src/telemetry.js), switched on at runtime by
+// Browser telemetry (src/telemetry.ts), switched on at runtime by
 // /runtime-config.json. Here that file and every collector are stand-ins served
 // by Playwright, so nothing leaves the machine: the tests prove what the page
 // sends when configured and that it sends nothing, and logs no error, when not.
 const APP_NAME = ${{ values.name | dump }}
 const FARO_URL = 'https://faro.platform.example.test/collect'
 
-type Sent = { faro: unknown[]; posthog: Record<string, any>[]; ingestPaths: string[]; other: Request[] }
+/** What reached the Faro receiver — the parts these tests read. */
+type FaroPayload = { meta?: { app?: { name?: string; environment?: string; version?: string } }; events?: { name?: string }[] }
+/** One event posthog-js sent — the parts these tests read. */
+type PostHogEvent = { event?: string; properties?: { app_version?: string; $current_url?: string; [key: string]: unknown } }
+type Sent = { faro: FaroPayload[]; posthog: PostHogEvent[]; ingestPaths: string[]; other: Request[] }
 
 async function stubCollectors(page: Page, runtimeConfig: unknown): Promise<Sent> {
   const sent: Sent = { faro: [], posthog: [], ingestPaths: [], other: [] }
   await page.route('**/runtime-config.json', (route) => route.fulfill({ json: runtimeConfig, headers: { 'cache-control': 'no-store' } }))
   await page.route(FARO_URL, (route) => {
-    sent.faro.push(route.request().postDataJSON())
+    sent.faro.push(route.request().postDataJSON() as FaroPayload)
     return route.fulfill({ status: 202, json: {}, headers: { 'access-control-allow-origin': '*' } })
   })
   await page.route('**/ingest/**', (route) => {
@@ -32,7 +36,7 @@ async function stubCollectors(page: Page, runtimeConfig: unknown): Promise<Sent>
 }
 
 // posthog-js sends JSON, gzip-compressed JSON or base64 form data.
-function decodeEvents(request: Request): Record<string, any>[] {
+function decodeEvents(request: Request): PostHogEvent[] {
   const body = request.postDataBuffer()
   if (!body) return []
   let text: string
@@ -41,8 +45,9 @@ function decodeEvents(request: Request): Record<string, any>[] {
     text = body.toString('utf8')
     if (text.startsWith('data=')) text = Buffer.from(decodeURIComponent(text.slice(5)), 'base64').toString('utf8')
   }
-  const parsed = JSON.parse(text)
-  return Array.isArray(parsed) ? parsed : parsed.batch ?? [parsed]
+  const parsed: unknown = JSON.parse(text)
+  if (Array.isArray(parsed)) return parsed as PostHogEvent[]
+  return (parsed as { batch?: PostHogEvent[] }).batch ?? [parsed as PostHogEvent]
 }
 
 test.describe('telemetry: not configured', () => {
@@ -71,11 +76,11 @@ test.describe('telemetry: Faro real-user monitoring', () => {
     const sent = await stubCollectors(page, { environment: 'dev', faro: { url: FARO_URL }, posthog: null })
     await page.goto('/')
     await expect.poll(() => sent.faro.length, { message: 'a payload reached the Faro receiver' }).toBeGreaterThan(0)
-    const meta = (sent.faro[0] as any).meta
-    expect(meta.app).toMatchObject({ name: APP_NAME, environment: 'dev' })
-    expect(meta.app.version).toMatch(/^\d+\.\d+\.\d+/)
+    const app = sent.faro[0].meta?.app
+    expect(app).toMatchObject({ name: APP_NAME, environment: 'dev' })
+    expect(app?.version).toMatch(/^\d+\.\d+\.\d+/)
     await expect
-      .poll(() => sent.faro.flatMap((p: any) => p.events ?? []).map((e: any) => e.name))
+      .poll(() => sent.faro.flatMap((p) => p.events ?? []).map((e) => e.name))
       .toContain('faro.performance.navigation')
   })
 
@@ -90,7 +95,7 @@ test.describe('telemetry: Faro real-user monitoring', () => {
     }
     await page.goto('/')
     // Faro loads after the page; fetches made before it is ready are not traced.
-    await expect.poll(() => page.evaluate(() => Boolean((window as any).faro?.api))).toBe(true)
+    await expect.poll(() => page.evaluate(() => Boolean((window as Window & { faro?: { api?: unknown } }).faro?.api))).toBe(true)
     await page.evaluate(async () => {
       for (const url of ['/api/ping', 'https://orders.dev.platform.example.test/api', 'https://idp.example.org/token']) await fetch(url)
     })
@@ -124,7 +129,7 @@ test.describe('telemetry: PostHog product analytics', () => {
       .toContain('$pageview')
     const pageview = sent.posthog.find((e) => e.event === '$pageview')!
     expect(pageview.properties).toMatchObject({ app: APP_NAME, environment: 'test', token: 'phc_e2e' })
-    expect(pageview.properties.app_version).toMatch(/^\d+\.\d+\.\d+/)
+    expect(pageview.properties?.app_version).toMatch(/^\d+\.\d+\.\d+/)
   })
 
   test('counts a client-side route change as a page view', async ({ page }) => {
@@ -133,7 +138,7 @@ test.describe('telemetry: PostHog product analytics', () => {
     await expect.poll(() => sent.posthog.filter((e) => e.event === '$pageview').length).toBe(1)
     await page.evaluate(() => history.pushState({}, '', '/somewhere-else'))
     await expect
-      .poll(() => sent.posthog.filter((e) => e.event === '$pageview').map((e) => new URL(e.properties.$current_url).pathname))
+      .poll(() => sent.posthog.filter((e) => e.event === '$pageview').map((e) => new URL(String(e.properties?.$current_url)).pathname))
       .toContain('/somewhere-else')
   })
 
@@ -176,7 +181,8 @@ test.describe('telemetry: PostHog product analytics', () => {
     const sent = await stubCollectors(page, config)
     await page.goto('/')
     await expect.poll(() => sent.posthog.length).toBeGreaterThan(0)
-    await page.evaluate(() => (window as any).adharAnalytics.optOut())
+    // Throws, failing the test, when the page did not install window.adharAnalytics.
+    await page.evaluate(() => (window as Window & { adharAnalytics?: { optOut: () => void } }).adharAnalytics!.optOut())
     const before = sent.posthog.length
     await page.evaluate(() => history.pushState({}, '', '/after-opt-out'))
     // Longer than posthog-js's batching interval, so a page view would be sent.

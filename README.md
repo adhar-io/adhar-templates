@@ -229,7 +229,7 @@ scorecard read.
 | Documentation, runbook, on-call | empty | Catalog annotations and links |
 | Availability SLO | `99.9` | `adhar.io/slo`, the target alerts are tuned against |
 | Latency target (p95) | `500` ms | k6 thresholds and the Performance Center gate |
-| Load-test path | readiness probe | The endpoint `perf/load.js` calls |
+| Load-test path | readiness probe | The endpoint `perf/load.ts` calls |
 | Automated chaos testing | on | Daily Litmus faults in `test` (`pod-delete`, `pod-network-latency`, `pod-cpu-hog` by default) |
 | Alerts | on | `PrometheusRule` for restarts, unavailable pods and 5xx |
 | PodDisruptionBudget | on | Keeps one replica through drains and upgrades |

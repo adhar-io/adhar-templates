@@ -1,6 +1,6 @@
 # Cloud Native Buildpacks build config. The Node.js buildpack runs `npm run
 # build` (Vite → TanStack Start fetch handler in dist/server, assets in
-# dist/client), and the Procfile starts server.mjs, which serves both with srvx
+# dist/client), and the Procfile starts server.ts, which serves both with srvx
 # on $PORT (set by the Rollout).
 [[build.env]]
 name = "BP_NODE_RUN_SCRIPTS"

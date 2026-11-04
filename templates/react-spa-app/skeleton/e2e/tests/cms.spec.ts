@@ -2,7 +2,7 @@
 import type { Page, Request, Route } from '@playwright/test'
 import { expect, test } from '../fixtures'
 
-// The home page's CMS section (src/cms.js). /cms/ is stubbed here, so these
+// The home page's CMS section (src/cms.ts). /cms/ is stubbed here, so these
 // tests prove what the page asks Strapi for and how it shows every answer —
 // entries, none, not connected, failing — without a Strapi. That nginx turns
 // /cms/ into Strapi's /api/ with the token is e2e/nginx/test.sh's job.

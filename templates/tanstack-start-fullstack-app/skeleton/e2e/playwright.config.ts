@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 // End-to-end tests. Two modes:
 //   - E2E_BASE_URL unset (CI, and the local default): Playwright runs the
 //     production build and starts the production server (`npm start`, i.e.
-//     server.mjs — the same process the image runs) on a fixed port, then
+//     server.ts — the same process the image runs) on a fixed port, then
 //     tests that: SSR, hydration and the server routes together.
 //   - E2E_BASE_URL set: no server is started; the suite tests that URL, e.g. a
 //     deployed environment (E2E_BASE_URL=https://shop.dev.example.com).

@@ -1,0 +1,15 @@
+{
+  // One TypeScript project per runtime, all checked by `npm run typecheck`
+  // (tsc -b), which `npm run build` runs before Vite:
+  //   tsconfig.app.json   src/ — the app, in the browser
+  //   tsconfig.node.json  vite.config.ts, eslint.config.ts and e2e/ — Node and
+  //                       Playwright (e2e/nginx/*.ts run on Node as they are:
+  //                       Node 24 strips the types itself)
+  //   tsconfig.perf.json  perf/ — the k6 load test (k6 runs TypeScript itself)
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.perf.json" }
+  ]
+}

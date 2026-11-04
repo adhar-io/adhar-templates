@@ -3,7 +3,7 @@ import type { Page, Request } from '@playwright/test'
 import { expect, test } from '../fixtures'
 
 // Browser telemetry (src/telemetry.ts), switched on at runtime by
-// /runtime-config.json (src/server/edge.mjs). Here that file and every collector are stand-ins served
+// /runtime-config.json (src/server/edge.ts). Here that file and every collector are stand-ins served
 // by Playwright, so nothing leaves the machine: the tests prove what the page
 // sends when configured and that it sends nothing, and logs no error, when not.
 const APP_NAME = ${{ values.name | dump }}

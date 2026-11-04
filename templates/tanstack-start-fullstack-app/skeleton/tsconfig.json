@@ -1,4 +1,9 @@
 {
+  // The app: src/ (rendered on the server and hydrated in the browser), the
+  // production server (server.ts), the build config and the e2e suite.
+  // `npm run typecheck` checks it with tsconfig.server.json and
+  // tsconfig.perf.json; it needs src/routeTree.gen.ts, which `npm run dev` and
+  // `npm run build` generate (and `npm run build` type-checks right after).
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -8,9 +13,14 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    // server.ts and src/server/ run on Node with its own type stripping, which
+    // only erases types: no enum, namespace or parameter property.
+    "erasableSyntaxOnly": true,
     "noEmit": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"]
-  }
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src", "e2e", "server.ts", "vite.config.ts"]
 }

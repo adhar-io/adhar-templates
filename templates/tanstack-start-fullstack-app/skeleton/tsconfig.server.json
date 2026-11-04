@@ -1,0 +1,25 @@
+{
+  // What Node runs as it is — the production server and its middlewares — and
+  // their unit tests. No DOM and no Vite: only what Node itself provides. It
+  // needs no build, so `npm test` checks it before running the tests.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [],
+  "files": [
+    "server.ts",
+    "src/server/middleware.ts",
+    "src/server/metrics.ts",
+    "src/server/metrics.test.ts",
+    "src/server/edge.ts",
+    "src/server/edge.test.ts",
+    "src/server/cms.ts",
+    "src/server/cms.test.ts",
+    "src/server/i18n.ts",
+    "src/server/i18n.test.ts"
+  ]
+}

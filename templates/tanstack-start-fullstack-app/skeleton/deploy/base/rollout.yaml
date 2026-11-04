@@ -52,7 +52,7 @@ spec:
                 seconds: 5
           ports:
             - containerPort: ${{ values.port }}
-            # Prometheus metrics (src/server/metrics.mjs, deploy/base/podmonitor.yaml);
+            # Prometheus metrics (src/server/metrics.ts, deploy/base/podmonitor.yaml);
             # not on the Service, so never reachable through the public route.
             - name: metrics
               containerPort: 9464
@@ -60,7 +60,7 @@ spec:
             - name: PORT
               value: "${{ values.port }}"
             # Browser telemetry, served to the page as /runtime-config.json
-            # (src/server/edge.mjs, src/telemetry.ts). APP_ENVIRONMENT is set by each
+            # (src/server/edge.ts, src/telemetry.ts). APP_ENVIRONMENT is set by each
             # overlay (deploy/envs/<env>); FARO_URL is the platform's Faro
             # receiver, its public route, because the browser posts to it. Empty
             # turns real-user monitoring off.
@@ -131,7 +131,7 @@ spec:
                   key: uri
 {%- endif %}
 {%- if values.withCms %}
-            # Strapi, the platform CMS, for /cms/ and /uploads/ (src/server/cms.mjs). Both keys
+            # Strapi, the platform CMS, for /cms/ and /uploads/ (src/server/cms.ts). Both keys
             # of the Secret <app>-strapi are optional: without api-token the app
             # starts and shows its setup hint; without api-url the platform's
             # shared Strapi (http://strapi.adhar-system.svc.cluster.local:1337)

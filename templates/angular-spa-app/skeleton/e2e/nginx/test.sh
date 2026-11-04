@@ -2,22 +2,24 @@
 # Tests nginx-app.conf in a real nginx: how index.html and the build's hashed
 # bundles are cached, /runtime-config.json rendered from the Pod's
 # environment{% if values.withAnalytics %}, /ingest/ forwarding to PostHog (a stand-in,
-# mock-posthog.mjs){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json proxied to Tolgee with the
-# built-in translations as the fallback (against mock-tolgee.mjs){% endif %}{% if values.withCms %} and /cms/ + /uploads/ proxied read-only to
-# Strapi (against mock-strapi.mjs){% endif %}. Needs Docker
+# mock-posthog.ts){% endif %}{% if values.withLocalisation %} and /i18n/<language>.json proxied to Tolgee with the
+# built-in translations as the fallback (against mock-tolgee.ts){% endif %}{% if values.withCms %} and /cms/ + /uploads/ proxied read-only to
+# Strapi (against mock-strapi.ts){% endif %}. Needs Docker
 # or Podman (CONTAINER_CLI=podman) and a production build (ng build):
 #
 #   npm run build && npm run test:nginx
 #
 # It renders the file the way the nginx buildpack does at container start
-# (render.mjs) and starts nginx with the server block the buildpack generates
-# (nginx.conf).
+# (render.ts) and starts nginx with the server block the buildpack generates
+# (nginx.conf). render.ts and the stand-ins are TypeScript that Node runs as it
+# is (Node 22.18+ strips the types itself): render.ts on this machine's Node,
+# the stand-ins in $NODE_IMAGE.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 CLI=${CONTAINER_CLI:-docker}
 WEB_ROOT=${WEB_ROOT:-dist/${{ values.name }}/browser}
 NGINX_IMAGE=${NGINX_IMAGE:-nginx:1.31-alpine}
-NODE_IMAGE=${NODE_IMAGE:-node:22-alpine}
+NODE_IMAGE=${NODE_IMAGE:-node:24-alpine}
 PORT=${NGINX_TEST_PORT:-18090}
 NET=nginx-test-$$
 WORK=$(mktemp -d)
@@ -41,10 +43,10 @@ $CLI network create "$NET" >/dev/null
 RESOLVER=127.0.0.11
 [ "$CLI" = podman ] && RESOLVER=$($CLI network inspect "$NET" -f '{{(index .Subnets 0).Gateway}}')
 {%- if values.withLocalisation %}
-$CLI run -d --name "$NET-tolgee" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-tolgee.mjs >/dev/null
+$CLI run -d --name "$NET-tolgee" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-tolgee.ts >/dev/null
 {%- endif %}
 {%- if values.withAnalytics %}
-$CLI run -d --name "$NET-posthog" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-posthog.mjs >/dev/null
+$CLI run -d --name "$NET-posthog" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-posthog.ts >/dev/null
 {%- endif %}
 
 # Start nginx with the include rendered from the given environment.
@@ -61,7 +63,7 @@ start_nginx() {
   # the image: the validators nginx would send are made from it.
   find "$ws/$WEB_ROOT" -exec env TZ=UTC touch -t 198001010000.01 {} +
   sed "s#WEB_ROOT#$WEB_ROOT#" e2e/nginx/nginx.conf > "$ws/nginx.conf"
-  env -i PATH="$PATH" "$@" node e2e/nginx/render.mjs nginx-app.conf > "$ws/nginx-app.conf"
+  env -i PATH="$PATH" "$@" node e2e/nginx/render.ts nginx-app.conf > "$ws/nginx-app.conf"
   $CLI run -d --name "$NET-nginx" --network "$NET" -p "127.0.0.1:$PORT:8080" -v "$ws:/workspace:ro" \
     "$NGINX_IMAGE" nginx -p /workspace -c /workspace/nginx.conf >/dev/null
   for _ in $(seq 1 50); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && return 0; sleep 0.2; done
@@ -336,7 +338,7 @@ cms() {
 }
 # A placeholder session cookie the proxy must not forward — a fixed test string.
 FAKE_STRAPI_COOKIE='Cookie: session=test-only'  # gitleaks:allow
-$CLI run -d --name "$NET-strapi" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-strapi.mjs >/dev/null
+$CLI run -d --name "$NET-strapi" --network "$NET" -v "$PWD/e2e/nginx:/mock:ro" "$NODE_IMAGE" node /mock/mock-strapi.ts >/dev/null
 
 echo "# no Strapi token configured"
 start_nginx

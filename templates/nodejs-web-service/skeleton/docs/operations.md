@@ -35,14 +35,17 @@ responses:
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
 | `ImagePullBackOff` | the image is not signed, or the node cannot reach the registry | check the build succeeded and the signature verified |
-| `CrashLoopBackOff` | the process exits on start | read the logs; this is almost always configuration, not the platform |
+| `CrashLoopBackOff` | the process exits on start | read the logs; this is almost always configuration, not the platform — an invalid setting is named in the last log line |
 | `Running` but not `Ready` | readiness probe failing | the pod is getting no traffic; check the probe path and timeout |
-| `OOMKilled` | memory limit below actual need | raise the limit in `deploy/rollout.yaml`; do not lower the request to compensate |
+| `OOMKilled` | memory limit below actual need | raise the limit in `deploy/base/rollout.yaml`; do not lower the request to compensate |
 
 ## Changing configuration
 
-Configuration lives in `deploy/rollout.yaml` as environment variables, and
-changing it is a commit like any other. Two rules:
+Configuration lives in `deploy/base/rollout.yaml` as environment variables
+(`deploy/envs/<env>` overrides what differs per environment), and changing it
+is a commit like any other. `src/config/` is where the service reads them —
+every variable it uses, its default and what it accepts, in one file.
+`LOG_LEVEL=debug` puts more detail in the logs. Two rules:
 
 - **No secrets in git.** A credential belongs in a Secret referenced by name.
   The platform's policy engine reports plaintext secrets, and a commit is
@@ -53,8 +56,8 @@ changing it is a commit like any other. Two rules:
 
 ## Scaling
 
-Replica count is `${{ values.replicas }}` in `deploy/rollout.yaml`. Raise it
-there. If the pods then sit `Pending`, the cluster is out of capacity rather than
+Replica count is `${{ values.replicas }}` in `deploy/base/rollout.yaml`, and
+each `deploy/envs/<env>` overlay sets its own. Raise it there. If the pods then sit `Pending`, the cluster is out of capacity rather than
 the manifest being wrong, and the platform's node autoscaler will add a node —
 watch the **Deployment** tab rather than re-applying.
 

@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 // End-to-end tests. Two modes:
 //   - E2E_BASE_URL unset (CI, and the local default): Playwright runs the
-//     production `ng build` and serves its output with e2e/serve.mjs on a fixed
+//     production `ng build` and serves its output with e2e/serve.ts on a fixed
 //     port, then tests that — the same files the image ships.
 //   - E2E_BASE_URL set: no server is started; the suite tests that URL, e.g. a
 //     deployed environment (E2E_BASE_URL=https://shop.dev.example.com).
@@ -33,7 +33,7 @@ export default defineConfig({
     : {
         // A port of its own, so a running `ng serve` (4200, a DEV build) is
         // never mistaken for the production build.
-        command: 'npm run build && node e2e/serve.mjs',
+        command: 'npm run build && node e2e/serve.ts',
         cwd: '..',
         env: { PORT: String(PORT) },
         url: `http://127.0.0.1:${PORT}`,

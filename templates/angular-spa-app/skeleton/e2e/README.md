@@ -9,7 +9,7 @@ theme toggle work, and unknown paths fall back to the app (push-state).
 e2e/
 ├── playwright.config.ts   # one Chromium project, reporters, the web server
 ├── fixtures.ts            # fails any test that logs a console error or throws
-├── serve.mjs              # serves the production build like the image (push-state)
+├── serve.ts               # serves the production build like the image (push-state)
 └── tests/*.spec.ts        # the tests
 ```
 
@@ -23,7 +23,7 @@ npm run test:e2e
 
 With no `E2E_BASE_URL`, Playwright runs `npm run build` (`ng build`, production
 configuration) and serves its output (`dist/<name>/browser`) with
-`e2e/serve.mjs` on http://127.0.0.1:4300 — static files, `index.html` for any
+`e2e/serve.ts` on http://127.0.0.1:4300 — static files, `index.html` for any
 other path, as nginx does in the image — then tests it. A server already listening on that port is reused when not in CI;
 `ng serve` (4200) is a development build and is deliberately not used.
 

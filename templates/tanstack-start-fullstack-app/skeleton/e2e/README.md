@@ -23,7 +23,7 @@ npm run test:e2e
 ```
 
 With no `E2E_BASE_URL`, Playwright runs `npm run build` and starts the
-production server (`npm start`, i.e. `server.mjs` — what the image runs) with
+production server (`npm start`, i.e. `server.ts` — what the image runs) with
 `PORT=3100`, on http://127.0.0.1:3100, then tests it. A server already
 listening on that port is reused when not in CI; `npm run dev` (3000) is a
 development server and is deliberately not used.

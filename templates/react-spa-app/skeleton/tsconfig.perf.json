@@ -1,0 +1,22 @@
+{
+  // perf/load.ts runs in k6, not in a browser or Node: only k6's own modules
+  // and globals (__ENV, __VU) exist there. @types/k6 follows the k6 the
+  // platform runs (grafana/k6:1.3.0).
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.perf.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "types": ["k6"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["perf"]
+}

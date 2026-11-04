@@ -66,7 +66,7 @@ test.describe('unknown routes', () => {
 
 // Localisation: the texts are fetched at runtime from /i18n/<language>.json
 // (Tolgee, through this app's own server), with the copy built into the app as
-// the fallback. See src/i18n.jsx.
+// the fallback. See src/i18n.tsx.
 const LANGUAGES = ${{ values.languages | dump }}.split(',').map((tag) => tag.trim())
 // The switching tests use the German example translation (src/i18n/de.json).
 const GERMAN = LANGUAGES.includes('de')

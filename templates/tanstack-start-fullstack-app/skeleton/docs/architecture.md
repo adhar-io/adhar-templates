@@ -23,7 +23,7 @@ browser → GET /cms/${{ values.cmsCollection }}?locale=… → the app's server
 ```
 
 The platform runs one Strapi for every app, inside the cluster. Its public
-address is behind single sign-on, so the app reaches it server-side: the app's server (`src/server/cms.mjs`)
+address is behind single sign-on, so the app reaches it server-side: the app's server (`src/server/cms.ts`)
 answers `/cms/` and `/uploads/` on the app's own origin and adds the token from
 the Secret `${{ values.name }}-strapi`. Consequences worth knowing:
 

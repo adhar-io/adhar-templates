@@ -1,6 +1,10 @@
 # Cloud Native Buildpacks project descriptor. app-ci (buildpacks-build) hands
 # every [[build.env]] below to the buildpacks; `builder` records the builder it
 # uses, for `pack build` on a laptop.
+#
+# The image runs package.json's "start" script, `node dist/server.js` (the
+# npm-start buildpack picks it up; there is no Dockerfile), and
+# deploy/base/rollout.yaml adds the OpenTelemetry preload through NODE_OPTIONS.
 [project]
 id = "io.adhar.${{ values.name }}"
 name = "${{ values.name }}"
@@ -21,3 +25,12 @@ builder = "paketobuildpacks/builder-jammy-base"
 [[build.env]]
 name = "BP_NODE_VERSION"
 value = "24"
+
+# The TypeScript is compiled in the build: node-run-script runs package.json's
+# "build" script (tsc, src/ → dist/) with the devDependencies installed, and
+# npm-install leaves those out of the image. Without this the image would have
+# no dist/ and every pod would die at start with "Cannot find module
+# '/workspace/dist/server.js'".
+[[build.env]]
+name = "BP_NODE_RUN_SCRIPTS"
+value = "build"

@@ -8,7 +8,7 @@ import tailwindcss from '@tailwindcss/vite'
 {%- if values.withCms %}
 
 // /cms/ and /uploads/ under `npm run dev` and `vite preview`, behaving as the
-// production server does (src/server/cms.mjs): Strapi's /api/ with the token added
+// production server does (src/server/cms.ts): Strapi's /api/ with the token added
 // here, GET only, its user and auth endpoints refused. STRAPI_URL and
 // STRAPI_API_TOKEN come from .env.development.local (git-ignored) or the shell;
 // no VITE_ prefix, so neither ever reaches the bundle. Without a token /cms/

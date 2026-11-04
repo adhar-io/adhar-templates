@@ -1,7 +1,7 @@
-// Unit tests for the server's Prometheus metrics (metrics.mjs).
+// Unit tests for the server's Prometheus metrics (metrics.ts).
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { createMetrics, routeOf } from './metrics.mjs'
+import { createMetrics, routeOf } from './metrics.ts'
 
 describe('routeOf', () => {
   it('keeps the uri label a bounded route template', () => {

@@ -1,9 +1,9 @@
 {% if values.withCms -%}
-// Unit tests for the /cms/ and /uploads/ proxy (cms.mjs). `npm test` runs them
+// Unit tests for the /cms/ and /uploads/ proxy (cms.ts). `npm test` runs them
 // with Node's own test runner.
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { cmsMiddleware, createCmsProxy, DEFAULT_STRAPI_URL } from './cms.mjs'
+import { cmsMiddleware, createCmsProxy, DEFAULT_STRAPI_URL } from './cms.ts'
 
 const TOKEN = 'test-strapi-token'
 const next = () => new Response('the app')
@@ -46,7 +46,7 @@ describe('with a token', () => {
     assert.equal(res.status, 200)
     assert.equal(res.headers.get('x-cms'), 'strapi')
     assert.equal(res.headers.get('cache-control'), 'public, max-age=60')
-    assert.equal((await res.json()).data[0].title, 'Hello')
+    assert.equal(((await res.json()) as { data: { title: string }[] }).data[0].title, 'Hello')
     assert.equal(calls[0].url, `${DEFAULT_STRAPI_URL}/api/articles?locale=de&pagination%5BpageSize%5D=3`)
     const sent = new Headers(calls[0].init.headers)
     assert.equal(sent.get('authorization'), `Bearer ${TOKEN}`)

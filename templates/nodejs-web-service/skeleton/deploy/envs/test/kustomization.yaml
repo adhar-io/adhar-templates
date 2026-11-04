@@ -16,6 +16,13 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 2
+      # The environment this overlay deploys, FIRST in the container's env so
+      # the base's OTEL_RESOURCE_ATTRIBUTES can expand it into the telemetry's
+      # deployment.environment.name (the kubelet expands $(NAME) only from
+      # variables defined above it).
+      - op: add
+        path: /spec/template/spec/containers/0/env/0
+        value: {name: ADHAR_ENVIRONMENT, value: "test"}
   # The autoscaler may add replicas, never go below this environment's floor:
   # with the base's minReplicas of 1 it scaled test/prod to one pod, Argo CD
   # put the second back, and the JVM's boot window failed every verification.
@@ -30,3 +37,16 @@ patches:
       - op: replace
         path: /spec/hostnames
         value: ${{ values.testHostnamesJson }}
+{%- if values.withDatabase %}
+  # This environment's own backup location. dev, test and prod each run a
+  # database called ${{ values.name }}-db, and with the base's one shared
+  # archive only the first of them could archive: every later one failed
+  # CloudNativePG's empty-archive check, so test ran with no WAL archive and
+  # no backups (node-svc, 2026-11-03). The path segment is this overlay's
+  # namespace.
+  - target: {group: postgresql.cnpg.io, kind: Cluster, name: "${{ values.name }}-db"}
+    patch: |-
+      - op: replace
+        path: /spec/backup/barmanObjectStore/destinationPath
+        value: s3://adhar-backups/cnpg/test/${{ values.name }}-db
+{%- endif %}
