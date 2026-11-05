@@ -31,15 +31,40 @@ async function marketplace(id: string): Promise<string | undefined> {
   return e.versions?.[0]?.version
 }
 
-async function openVsx(id: string): Promise<string | undefined> {
-  const dot = id.indexOf('.')
-  const r = await fetch(`https://open-vsx.org/api/${id.slice(0, dot)}/${id.slice(dot + 1)}`)
+// deno-lint-ignore no-explicit-any
+async function openVsxEntry(path: string): Promise<any> {
+  const r = await fetch(`https://open-vsx.org/api/${path}`)
   if (!r.ok) {
     await r.body?.cancel()
     return undefined
   }
   const d = await r.json()
-  return d?.error ? undefined : d?.version
+  return d?.error ? undefined : d
+}
+
+const vsxPath = (id: string) => `${id.slice(0, id.indexOf('.'))}/${id.slice(id.indexOf('.') + 1)}`
+
+/**
+ * The version code-server would install on a Linux workspace, or why it cannot:
+ * an extension with native parts (Ruff, debugpy) publishes one build per
+ * platform, so a universal build or both Linux ones must exist; and every
+ * extensionDependencies entry must be on Open VSX too, or the install fails.
+ * (An extensionPack member Open VSX lacks — Pylance in ms-python.python's — is
+ * skipped, which is intended: basedpyright is the language server here.)
+ */
+async function openVsx(id: string): Promise<{ version?: string; problem?: string }> {
+  const d = await openVsxEntry(vsxPath(id))
+  if (!d) return { problem: 'not on Open VSX (code-server cannot install it)' }
+  if ((d.targetPlatform ?? 'universal') !== 'universal') {
+    for (const target of ['linux-x64', 'linux-arm64']) {
+      if (!(await openVsxEntry(`${vsxPath(id)}/${target}`))) return { version: d.version, problem: `no ${target} build on Open VSX` }
+    }
+  }
+  for (const dep of d.dependencies ?? []) {
+    const depId = `${dep.namespace}.${dep.extension}`
+    if (!(await openVsxEntry(vsxPath(depId)))) return { version: d.version, problem: `depends on ${depId}, which is not on Open VSX` }
+  }
+  return { version: d.version }
 }
 
 async function jetbrains(id: string): Promise<string | undefined> {
@@ -59,9 +84,9 @@ Deno.test({
     const missing: string[] = []
     for (const id of Object.keys(IDS.vscode)) {
       const [m, o] = await Promise.all([marketplace(id), openVsx(id)])
-      console.log(`${id.padEnd(46)} marketplace=${m ?? 'MISSING'} open-vsx=${o ?? 'MISSING'}`)
+      console.log(`${id.padEnd(46)} marketplace=${m ?? 'MISSING'} open-vsx=${o.version ?? 'MISSING'}${o.problem ? ` (${o.problem})` : ''}`)
       if (!m) missing.push(`${id}: not on the VS Code Marketplace`)
-      if (!o) missing.push(`${id}: not on Open VSX (code-server cannot install it)`)
+      if (o.problem) missing.push(`${id}: ${o.problem}`)
     }
     assertEquals(missing, [])
   },
