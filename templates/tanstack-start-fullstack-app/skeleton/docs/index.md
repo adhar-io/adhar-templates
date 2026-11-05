@@ -34,7 +34,7 @@ completes, and its repository is
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node 24 (`engines` in `package.json`): the image runs `node server.ts` on it, and Node 24 runs TypeScript as it is.
 
 ```bash
 npm ci

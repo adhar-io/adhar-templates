@@ -1,0 +1,99 @@
+// Development container for ${{ values.name }}: the toolchain this repository
+// declares, the platform's tools, and the editor extensions and IDE plugins.
+// VS Code, IntelliJ IDEA, Codespaces and `devcontainer up` all build it from
+// this file. Dockerfile, post-create.sh, app-ci.sh and README.md beside it are
+// the same in every Adhar application; README.md explains them.
+{
+  "name": "${{ values.name }}",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      // Java 25, as project.toml BP_JVM_VERSION declares: the version app-ci tests on and
+      // the image ships. Change both together (post-create.sh warns when they differ).
+      "BASE_IMAGE": "mcr.microsoft.com/devcontainers/java:3-25-trixie",
+      // Clients for the backing services ${{ values.name }} was created with.
+      "CLIENT_PACKAGES": "{% if values.withRateLimit %}valkey-tools {% endif %}"
+    }
+  },
+  "features": {
+    // Maven from the 3.9 line, the one app-ci builds with when a project has no Maven wrapper.
+    "ghcr.io/devcontainers/features/java:1": { "version": "none", "installMaven": true, "mavenVersion": "3.9", "installGradle": false },
+    // kubectl and Helm.
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "version": "latest", "helm": "latest", "minikube": "none" },
+    // The host's Docker engine, for Testcontainers in `mvn verify` and compose.yaml. Never Docker-in-Docker.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false }
+  },
+  // Testcontainers publishes its containers' ports on the HOST engine: this name
+  // reaches them from inside the container on Docker Desktop and on Linux alike.
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "remoteUser": "vscode",
+  "containerEnv": {
+    // OpenTelemetry as the deployed application sends it (deploy/base), to the
+    // platform's collector, marked as a local run rather than dev, test or prod.
+    "OTEL_SERVICE_NAME": "${{ values.name }}",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy.adhar-system.svc.cluster.local:4318",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_RESOURCE_ATTRIBUTES": "service.namespace=adhar,deployment.environment.name=local,deployment.environment=local",
+    // Testcontainers: the host engine's published ports, not the bridge gateway
+    // (where Docker Desktop does not listen; see README.md).
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal",
+    // `docker compose up -d` reads compose.yaml, then .devcontainer/compose.yaml, which
+    // runs those services in this container's network (see README.md).
+    "COMPOSE_FILE": "${containerWorkspaceFolder}/compose.yaml:${containerWorkspaceFolder}/.devcontainer/compose.yaml"
+  },
+  "forwardPorts": [${{ values.port }}, 5005],
+  "portsAttributes": {
+    "${{ values.port }}": { "label": "${{ values.name }}", "onAutoForward": "notify" },
+    "5005": { "label": "Java debugger (JDWP)", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      // The same list as ../.vscode/extensions.json (its recommendations, and its
+      // unwantedRecommendations with a "-"): every id is on the VS Code Marketplace
+      // AND Open VSX, so VS Code and code-server install the same set.
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "vscjava.vscode-spring-boot-dashboard",
+        "redhat.vscode-xml",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig",
+        "42crunch.vscode-openapi",
+        "sonarsource.sonarlint-vscode",
+        "usernamehw.errorlens",
+        "humao.rest-client",
+        "-dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "java.compile.nullAnalysis.mode": "automatic",
+        "java.jdt.ls.lombokSupport.enabled": true,
+        "redhat.telemetry.enabled": false,
+        "yaml.schemas": { "kubernetes": ["deploy/**/*.yaml", "!deploy/**/kustomization.yaml", "!deploy/**/kustomizeconfig.yaml", "!deploy/base/cache.yaml"] },
+        "yaml.customTags": ["!reset sequence", "!reset mapping", "!override sequence", "!override mapping"]
+      }
+    },
+    "jetbrains": {
+      // IntelliJ IDEA Ultimate, the IDE the platform's Coder workspaces open through
+      // JetBrains Gateway, for every stack (its language plugins are below); the
+      // plugins are the same list as ../.idea/externalDependencies.xml.
+      "backend": "IntelliJ",
+      "plugins": [
+        "org.jetbrains.idea.maven",
+        "com.intellij.spring.boot",
+        "Lombook Plugin",
+        "com.intellij.kubernetes",
+        "Docker",
+        "org.jetbrains.plugins.yaml",
+        "org.editorconfig.editorconfigjetbrains",
+        "org.sonarlint.idea",
+        "com.intellij.swagger",
+        "com.jetbrains.restClient"
+      ]
+    }
+  }
+}

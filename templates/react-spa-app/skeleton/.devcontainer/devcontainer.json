@@ -1,0 +1,89 @@
+// Development container for ${{ values.name }}: the toolchain this repository
+// declares, the platform's tools, and the editor extensions and IDE plugins.
+// VS Code, IntelliJ IDEA, Codespaces and `devcontainer up` all build it from
+// this file. Dockerfile, post-create.sh, app-ci.sh and README.md beside it are
+// the same in every Adhar application; README.md explains them.
+{
+  "name": "${{ values.name }}",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      // Node.js 24, as package.json engines.node declares: the version app-ci tests on and
+      // the image ships. Change both together (post-create.sh warns when they differ).
+      "BASE_IMAGE": "mcr.microsoft.com/devcontainers/typescript-node:5-24-trixie",
+      // tsx: run any TypeScript file directly (the project's own TypeScript stays in node_modules).
+      "NPM_GLOBAL_PACKAGES": "tsx@4"
+    }
+  },
+  "features": {
+    // kubectl and Helm.
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "version": "latest", "helm": "latest", "minikube": "none" }
+  },
+  "remoteUser": "node",
+  "containerEnv": {
+    // OpenTelemetry as the deployed application sends it (deploy/base), to the
+    // platform's collector, marked as a local run rather than dev, test or prod.
+    "OTEL_SERVICE_NAME": "${{ values.name }}",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy.adhar-system.svc.cluster.local:4318",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_RESOURCE_ATTRIBUTES": "service.namespace=adhar,deployment.environment.name=local,deployment.environment=local"
+  },
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Vite dev server", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      // The same list as ../.vscode/extensions.json (its recommendations, and its
+      // unwantedRecommendations with a "-"): every id is on the VS Code Marketplace
+      // AND Open VSX, so VS Code and code-server install the same set.
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "yoavbls.pretty-ts-errors",
+        "bradlc.vscode-tailwindcss",
+        "ms-playwright.playwright",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig",
+        "42crunch.vscode-openapi",
+        "sonarsource.sonarlint-vscode",
+        "usernamehw.errorlens",
+        "humao.rest-client"
+      ],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true,
+        "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+        "prettier.requireConfig": true,
+        "npm.packageManager": "npm",
+        "debug.javascript.autoAttachFilter": "onlyWithFlag",
+        "redhat.telemetry.enabled": false,
+        "yaml.schemas": { "kubernetes": ["deploy/**/*.yaml", "!deploy/**/kustomization.yaml", "!deploy/**/kustomizeconfig.yaml"] }
+      }
+    },
+    "jetbrains": {
+      // IntelliJ IDEA Ultimate, the IDE the platform's Coder workspaces open through
+      // JetBrains Gateway, for every stack (its language plugins are below); the
+      // plugins are the same list as ../.idea/externalDependencies.xml.
+      "backend": "IntelliJ",
+      "plugins": [
+        "JavaScript",
+        "NodeJS",
+        "intellij.prettierJS",
+        "com.intellij.tailwindcss",
+        "intellij.vitejs",
+        "com.intellij.kubernetes",
+        "Docker",
+        "org.jetbrains.plugins.yaml",
+        "org.editorconfig.editorconfigjetbrains",
+        "org.sonarlint.idea",
+        "com.intellij.swagger",
+        "com.jetbrains.restClient"
+      ]
+    }
+  }
+}

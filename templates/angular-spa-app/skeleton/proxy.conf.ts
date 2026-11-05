@@ -3,8 +3,9 @@
 // (nginx-app.conf) — Strapi's /api/ with the token added here, GET only, its
 // user and auth endpoints refused. STRAPI_URL (default http://localhost:1337)
 // and STRAPI_API_TOKEN come from the shell; neither reaches the bundle. Without
-// a token /cms/ answers an empty 200 with X-Cms: off, as an unconfigured
-// environment does.
+// a token /cms/ answers an empty 200 with X-Cms: off and /uploads/ a 404, as an
+// unconfigured environment does — nothing is forwarded to a Strapi that may
+// not be running.
 //
 // TypeScript, not JSON: the proxy needs logic (the token from the environment,
 // the refusals). The Angular dev server loads it with Node, which strips the
@@ -40,7 +41,19 @@ export default {
       return undefined;
     },
   },
-  '/uploads/': { target, changeOrigin: true, headers: { cookie: '' } },
+  // Strapi's media: public files, so no token is sent. Read-only, and only
+  // while the app has a token, like nginx-app.conf.
+  '/uploads/': {
+    target,
+    changeOrigin: true,
+    headers: { cookie: '' },
+    bypass(req: IncomingMessage, res: ServerResponse): false | undefined {
+      if (token && (req.method === 'GET' || req.method === 'HEAD')) return undefined;
+      res.writeHead(token ? 403 : 404);
+      res.end();
+      return false;
+    },
+  },
 };
 {%- else -%}
 // Content from Strapi is off for this app (scaffolded with withCms: false), so

@@ -3,7 +3,7 @@
 //
 // The browser never talks to Strapi directly: GET /cms/<path> on this app's own
 // origin is Strapi's REST API at /api/<path>, proxied by this app's own server
-// with a read-only token the browser never sees (src/server/cms.mjs), and media
+// with a read-only token the browser never sees (src/server/cms.ts), and media
 // URLs Strapi returns (/uploads/<file>) are served the same way. So there is nothing to configure in
 // the app and no secret in the bundle.
 //
@@ -117,7 +117,7 @@ export function imageUrl(entry: CmsEntry, ...names: string[]): string {
 {%- else -%}
 // Content from Strapi is off for this app (scaffolded with withCms: false). To
 // turn it on later, scaffold a new app with it to see the pieces: this module,
-// src/server/cms.mjs (mounted in server.mjs), and the Secret
+// src/server/cms.ts (mounted in server.ts), and the Secret
 // <app>-strapi in deploy/base/rollout.yaml.
 export {}
 {%- endif %}

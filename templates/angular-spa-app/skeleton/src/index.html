@@ -12,6 +12,9 @@
     <meta name="description" content="${{ values.description | escape }}" />
     <meta name="theme-color" content="#2563eb" />
     <link rel="icon" type="image/svg+xml" href="adhar-symbol.svg" />
+    <!-- The two inline scripts below are the only JavaScript that is not built
+         from src/ (TypeScript): they must run before any bundle loads, and the
+         second exists for a bundle that fails to load, so neither can be one. -->
     <script>
       // Apply the saved (or system) theme before first paint — no flash.
       try {

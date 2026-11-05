@@ -29,6 +29,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Invocation"
+        "500":
+          $ref: "#/components/responses/Failed"
     post:
       operationId: handleEvent
       summary: Invoke the function with a body. Triggers deliver here too — a schedule or a Broker as a CloudEvent (ce-* headers), a topic through Dapr.
@@ -48,7 +50,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Invocation"
+        "413":
+          description: The body is larger than 1 MiB; the function was not invoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/Failed"
 components:
+  responses:
+    Failed:
+      description: The function failed. The error is logged; its message is not shown.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     Health:
       type: object
@@ -59,12 +76,14 @@ components:
         at:
           type: string
           format: date-time
+    # The InvocationResult type src/handler.ts returns: change the two together.
     Invocation:
       type: object
-      required: [ok, function, at]
+      required: [ok, function, runtime, trigger, method, path, event, received, at]
       properties:
         ok:
           type: boolean
+          const: true
         function:
           type: string
           description: FUNCTION_NAME
@@ -81,6 +100,20 @@ components:
         event:
           type: ["string", "null"]
           description: The CloudEvent type (ce-type header), when an event invoked the function.
+        received:
+          type: integer
+          minimum: 0
+          description: The size of the request body, in bytes.
         at:
           type: string
           format: date-time
+    Error:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: What went wrong — the reason for a 413, "internal error" for a 500.

@@ -64,17 +64,17 @@ tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 | [`springboot-hexagon-service`](templates/springboot-hexagon-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres (optional) | Ports and adapters layout, Keycloak JWT auth |
 | [`springboot-gateway-service`](templates/springboot-gateway-service) | Java 25 · Spring Cloud Gateway (WebFlux) · Adhar Kit | Valkey for rate limiting (optional) | API gateway: JWT auth, rate limits, circuit breakers, load shedding |
 | [`quarkus-web-service`](templates/quarkus-web-service) | Java 21 · Quarkus 3 | Postgres (optional) | Fast startup, low memory |
-| [`nodejs-web-service`](templates/nodejs-web-service) | Node.js · Express | Postgres (optional) | |
+| [`nodejs-web-service`](templates/nodejs-web-service) | Node.js 24 · TypeScript · Express | Postgres (optional) | |
 | [`go-web-service`](templates/go-web-service) | Go 1.25 · net/http | Postgres (optional) | Minimal image, OTel built in |
 | [`python-web-service`](templates/python-web-service) | Python · Flask · gunicorn | Postgres (optional) | |
 | [`function-java-service`](templates/function-java-service) | Java 21 · Function XR (`platform.adhar.io/v1alpha1`) | | Java serverless function workload with Knative scale-to-zero + on-demand autoscaling |
-| [`function-nodejs-service`](templates/function-nodejs-service) | Node.js 20 · Function XR (`platform.adhar.io/v1alpha1`) | | Node.js serverless function workload with Knative scale-to-zero + on-demand autoscaling |
-| [`function-deno-service`](templates/function-deno-service) | Deno 2 · Function XR (`platform.adhar.io/v1alpha1`) | | Deno serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-nodejs-service`](templates/function-nodejs-service) | Node.js 24 · TypeScript · Function XR (`platform.adhar.io/v1alpha1`) | | Node.js serverless function workload with Knative scale-to-zero + on-demand autoscaling |
+| [`function-deno-service`](templates/function-deno-service) | Deno 2 · TypeScript (the image runs it on Node.js 24) · Function XR (`platform.adhar.io/v1alpha1`) | | Deno serverless function workload with Knative scale-to-zero + on-demand autoscaling |
 | [`function-go-service`](templates/function-go-service) | Go 1.25 · Function XR (`platform.adhar.io/v1alpha1`) | | Go serverless function workload with Knative scale-to-zero + on-demand autoscaling |
 | [`function-python-service`](templates/function-python-service) | Python · Flask · Function XR (`platform.adhar.io/v1alpha1`) | | Python serverless function workload with Knative scale-to-zero + on-demand autoscaling |
-| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes; Tolgee, PostHog, Strapi CMS (optional) |
-| [`react-spa-app`](templates/react-spa-app) | React 19 · Vite · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
-| [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
+| [`tanstack-start-fullstack-app`](templates/tanstack-start-fullstack-app) | TanStack Start · React 19 · TypeScript · Node.js 24 · Adhar UI | Postgres (optional) | Full-stack SSR + server routes; Tolgee, PostHog, Strapi CMS (optional) |
+| [`react-spa-app`](templates/react-spa-app) | React 19 · TypeScript · Vite · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
+| [`angular-spa-app`](templates/angular-spa-app) | Angular 20 · TypeScript · Adhar UI | | Static SPA served by nginx; Tolgee, PostHog, Strapi CMS (optional) |
 | [`agent-service`](templates/agent-service) | Python · FastAPI AI agent | | ⭐ Isolated `AgentWorkload`: own namespace, default-deny network, gateway identity limited to the models and tools you list, token budget alerts |
 
 ## How it works
@@ -254,6 +254,9 @@ adhar-templates/
             ├── perf/               # k6 load test + Performance Center gate
             ├── <app source>
             ├── compose.yaml        # local dependencies (the Spring Boot templates)
+            ├── .devcontainer/      # development container: toolchain, platform tools, app-ci's gates
+            ├── .vscode/            # extensions.json: VS Code / code-server extensions
+            ├── .idea/              # externalDependencies.xml: IntelliJ IDEA plugins
             └── deploy/             # GitOps tree Argo CD syncs
                 ├── base/
                 │   ├── kustomization.yaml
@@ -296,6 +299,90 @@ adhar-templates/
      timeouts above one second. The scorecard checks for all of them.
    - **Ship `docs/`** that explain the generated service rather than the
      template.
+   - **Write TypeScript, not JavaScript** — the application, its tests, dev-server
+     proxies, end-to-end helpers and the k6 test `perf/load.ts` alike. A script
+     Node runs directly (`node e2e/serve.ts`, `node server.ts`) keeps to
+     TypeScript Node can erase — no `enum`, `namespace` or parameter properties —
+     because Node 24 strips the types itself; k6 1.x does the same for
+     `perf/load.ts` (the platform runs `grafana/k6:1.3.0`, and the Performance
+     Center mounts the script as `script.ts`: under a `.js` name k6 rejects the
+     types). **The one exception among files** is Karate's
+     `src/test/resources/karate-config.js` in the JVM templates
+     (`springboot-web-service`, `springboot-hexagon-service`,
+     `springboot-gateway-service`, `quarkus-web-service`): Karate loads exactly
+     that file name from the test classpath and evaluates it with its own
+     JavaScript engine, which has no TypeScript support, so it stays JavaScript.
+     (The SPAs' `index.html` also keeps two small inline scripts — the theme
+     applied before first paint and the reload-once guard for a bundle that
+     fails to load — because they must run before any bundle does.)
+
+## Template standards
+
+Every template — a directory under `templates/` with a `template.yaml`,
+including the ones still to come such as `springboot-batch-*` — gives the
+repository it generates a development container and an editor setup that work
+the moment the folder opens, in VS Code, IntelliJ IDEA, code-server and with
+the `devcontainer` CLI. [`tests/`](tests/README.md) refuses a template that
+does not.
+
+| In `skeleton/` | What it is |
+|---|---|
+| `.devcontainer/devcontainer.json` | What is specific to the stack: the toolchain image, Dev Container Features, the clients for the backing services the form enabled, forwarded ports, the OpenTelemetry environment, VS Code extensions and settings, IntelliJ plugins |
+| `.devcontainer/Dockerfile`, `post-create.sh`, `app-ci.sh`, `README.md` | **Byte-identical in every template.** What no Feature can install (app-ci's own trivy and gitleaks, the `adhar` CLI for the container's architecture, the kustomize Argo CD renders with); a post-create step that checks the toolchain and fetches dependencies without ever failing the container; app-ci's gates, runnable before a push; the developer's guide |
+| `.devcontainer/compose.yaml` | Only beside a `compose.yaml`: runs those services in the container's network |
+| `.vscode/extensions.json` | The same extensions, as recommendations (`unwantedRecommendations` for the `-` entries) |
+| `.idea/externalDependencies.xml` | The same IntelliJ plugins, which IntelliJ IDEA asks to install when the project opens |
+
+1. **The toolchain is the repository's.** `build.args.BASE_IMAGE` is the
+   official Dev Containers image for the version the repository declares,
+   read where app-ci's `detect-toolchain` and the buildpack build read it:
+   project.toml `BP_*_VERSION` first, then `.java-version`/`.nvmrc`/
+   `package.json` `engines.node`/`go.mod`/`.python-version`/the POM, then
+   app-ci's default. Change the version in the repository and the image tag
+   together.
+2. **One image family per stack**, chosen by the test runner app-ci picks:
+
+   | Stack | Templates | `BASE_IMAGE` | Extensions | IntelliJ plugins |
+   |---|---|---|---|---|
+   | Java | Spring Boot (3), Quarkus, Java function | `devcontainers/java:3-<jdk>-trixie` + Maven 3.9 | Extension Pack for Java (Lombok support built in), XML; Spring Boot Tools + Dashboard; Quarkus | Maven; Spring Boot + Lombok; Quarkus |
+   | TypeScript | Node.js service and function, React, Angular, TanStack Start | `devcontainers/typescript-node:5-<node>-trixie` + `tsx` | ESLint, Prettier (only with a config), Pretty TypeScript Errors; Tailwind CSS, Playwright, Angular Language Service for the frontends | JavaScript and TypeScript, Node.js, Prettier; Tailwind CSS, Vite, Angular |
+   | Deno | Deno function | the Node.js image the function runs on + the Deno feature | Deno | JavaScript and TypeScript, Node.js, Deno |
+   | Python | Python service, agent, Python function | `devcontainers/python:3-<x.y>-trixie` + uv, Ruff | Python, Python Debugger, Ruff, basedpyright (Pylance is excluded: not on Open VSX, and it fights basedpyright) | Python, Ruff |
+   | Go | Go service and function | `devcontainers/go:2-<x.y>-trixie` + gopls | Go | Go |
+   | Every stack | | `kubectl`, `helm`, `kustomize`, `adhar`, `trivy`, `gitleaks` | GitLens, Container Tools, Kubernetes, YAML (Kubernetes schema on `deploy/`), EditorConfig, OpenAPI, SonarQube for IDE, Error Lens, REST Client | Kubernetes, Docker, YAML, EditorConfig, SonarQube for IDE, OpenAPI Specifications, HTTP Client |
+
+   TypeScript projects point the editor at their own TypeScript
+   (`typescript.tsdk`), not the image's global `tsc`.
+3. **Every id is verified where it is installed from.** VS Code extensions
+   must be on the VS Code Marketplace **and** on Open VSX, which code-server
+   installs from; IntelliJ plugins on the JetBrains Marketplace. They are
+   recorded in [`tests/editor-ids.json`](tests/editor-ids.json); `deno task
+   test:net` re-checks them.
+4. **The host's Docker engine only where the tests need one** (Testcontainers,
+   `compose.yaml`), through `docker-outside-of-docker`, never Docker-in-Docker,
+   and always with `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` plus
+   `--add-host=host.docker.internal:host-gateway`: without them Testcontainers
+   dials the container network's gateway, where Docker Desktop publishes
+   nothing, and every integration test fails.
+5. **Non-root**, OpenTelemetry pointed at the platform's collector as
+   `deployment.environment=local`, the application's port and its debugger's
+   port forwarded, `postCreateCommand: bash .devcontainer/post-create.sh`.
+6. **Only template syntax the scaffolders render** in these files:
+   `${{ values.<key> }}` and `{% if %}`…`{% endif %}`, nothing else — not even a
+   brace followed by `#` in a shell script. A file they cannot render is left
+   out of the new repository without a word.
+7. **Nothing here may be git-ignored.** A skeleton's `.gitignore` applies to
+   this repository too: ignore `.idea/*` and re-include
+   `!.idea/externalDependencies.xml`, never `.idea/` as a whole.
+
+For a new template, copy `.devcontainer/`, `.vscode/` and `.idea/` from the
+closest template, set `BASE_IMAGE`, the ports and `CLIENT_PACKAGES` (each
+client inside the `{% if values.with… %}` of its option), keep the extension
+and plugin lists equal in the three files, and run:
+
+```bash
+cd tests && deno task test        # add `deno task test:net` when an id changes
+```
 
 ## Run it locally
 

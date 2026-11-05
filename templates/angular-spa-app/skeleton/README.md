@@ -48,6 +48,21 @@ npm install
 npm start
 ```
 
+## TypeScript
+
+Everything here is TypeScript: the app (strict, checked by `ng build` against
+`tsconfig.app.json`, templates included), the Playwright suite, the server the
+e2e tests use (`e2e/serve.ts`), the nginx test helpers (`e2e/nginx/`), the
+`ng serve` proxy (`proxy.conf.ts`) and the k6 test (`perf/load.ts`). Node 24
+(`engines` in `package.json`) is what CI and the image build use; it runs the
+`.ts` scripts as they are (it strips the types itself), so they keep to
+TypeScript that can be erased — no `enum`, `namespace` or parameter properties.
+
+```sh
+npm run typecheck   # tsconfig.node.json (e2e/, proxy.conf.ts) and tsconfig.perf.json (perf/)
+npm test            # the same — what CI runs on every push; `npm run build` checks the app
+```
+
 Access the deployed app at `https://${{ values.hostname }}:8443`.
 
 ## End-to-end tests

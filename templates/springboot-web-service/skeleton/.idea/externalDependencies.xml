@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalDependencies">
+    <plugin id="org.jetbrains.idea.maven" />
+    <plugin id="com.intellij.spring.boot" />
+    <plugin id="Lombook Plugin" />
+    <plugin id="com.intellij.kubernetes" />
+    <plugin id="Docker" />
+    <plugin id="org.jetbrains.plugins.yaml" />
+    <plugin id="org.editorconfig.editorconfigjetbrains" />
+    <plugin id="org.sonarlint.idea" />
+    <plugin id="com.intellij.swagger" />
+    <plugin id="com.jetbrains.restClient" />
+  </component>
+</project>

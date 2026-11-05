@@ -1,0 +1,91 @@
+// Development container for ${{ values.name }}: the toolchain this repository
+// declares, the platform's tools, and the editor extensions and IDE plugins.
+// VS Code, IntelliJ IDEA, Codespaces and `devcontainer up` all build it from
+// this file. Dockerfile, post-create.sh, app-ci.sh and README.md beside it are
+// the same in every Adhar application; README.md explains them.
+{
+  "name": "${{ values.name }}",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      // Python 3.12, app-ci's default: the repository declares no Python version: the version app-ci tests on and
+      // the image ships. Change both together (post-create.sh warns when they differ).
+      "BASE_IMAGE": "mcr.microsoft.com/devcontainers/python:3-3.12-trixie",
+      // Clients for the backing services ${{ values.name }} was created with.
+      "CLIENT_PACKAGES": "{% if values.withDatabase %}postgresql-client {% endif %}"
+    }
+  },
+  "features": {
+    // uv and Ruff, beside the image's own Python (pytest and virtualenv come with the image).
+    "ghcr.io/devcontainers/features/python:1": { "version": "none", "installTools": true, "toolsToInstall": "uv,ruff" },
+    // kubectl and Helm.
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "version": "latest", "helm": "latest", "minikube": "none" }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    // OpenTelemetry as the deployed application sends it (deploy/base), to the
+    // platform's collector, marked as a local run rather than dev, test or prod.
+    "OTEL_SERVICE_NAME": "${{ values.name }}",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy.adhar-system.svc.cluster.local:4318",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_RESOURCE_ATTRIBUTES": "service.namespace=adhar,deployment.environment.name=local,deployment.environment=local"
+  },
+  "forwardPorts": [${{ values.port }}, 5678],
+  "portsAttributes": {
+    "${{ values.port }}": { "label": "${{ values.name }}", "onAutoForward": "notify" },
+    "5678": { "label": "Python debugger (debugpy)", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      // The same list as ../.vscode/extensions.json (its recommendations, and its
+      // unwantedRecommendations with a "-"): every id is on the VS Code Marketplace
+      // AND Open VSX, so VS Code and code-server install the same set.
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "charliermarsh.ruff",
+        "detachhead.basedpyright",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig",
+        "42crunch.vscode-openapi",
+        "sonarsource.sonarlint-vscode",
+        "usernamehw.errorlens",
+        "humao.rest-client",
+        "-ms-python.vscode-pylance",
+        "-ms-python.autopep8",
+        "-dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.languageServer": "None",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "basedpyright.analysis.typeCheckingMode": "standard",
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+        "redhat.telemetry.enabled": false,
+        "yaml.schemas": { "kubernetes": ["deploy/**/*.yaml", "!deploy/**/kustomization.yaml", "!deploy/**/kustomizeconfig.yaml"] }
+      }
+    },
+    "jetbrains": {
+      // IntelliJ IDEA Ultimate, the IDE the platform's Coder workspaces open through
+      // JetBrains Gateway, for every stack (its language plugins are below); the
+      // plugins are the same list as ../.idea/externalDependencies.xml.
+      "backend": "IntelliJ",
+      "plugins": [
+        "Pythonid",
+        "com.koxudaxi.ruff",
+        "com.intellij.kubernetes",
+        "Docker",
+        "org.jetbrains.plugins.yaml",
+        "org.editorconfig.editorconfigjetbrains",
+        "org.sonarlint.idea",
+        "com.intellij.swagger",
+        "com.jetbrains.restClient"
+      ]
+    }
+  }
+}

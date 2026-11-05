@@ -9,7 +9,8 @@ metadata:
     adhar.io/dashboard-type: fullstack
   title: TanStack Start Fullstack App (Adhar UI)
   description: >-
-    A fullstack React app built with TanStack Start (SSR + server routes),
+    A fullstack React app in strict TypeScript, built with TanStack Start (SSR +
+    server routes),
     pre-wired with the Adhar UI design system (@adhar-ui/react + Tailwind v4).
     Runs as a Node server, shipped through Adhar's secure supply chain — trivy
     scan + cosign sign, kyverno verification, GitOps deploy with Argo Rollouts,
@@ -18,6 +19,7 @@ metadata:
     - recommended
     - react
     - tanstack
+    - typescript
     - fullstack
     - adhar-ui
     - supply-chain

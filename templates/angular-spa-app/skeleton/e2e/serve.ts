@@ -56,11 +56,16 @@ function fileFor(url: string): string {
 
 createServer((req, res) => {
 {%- if values.withCms %}
-  // /cms/ as an environment without a Strapi token answers it (nginx-app.conf);
-  // e2e/tests/cms.spec.ts stubs it in the browser to test the other states.
+  // /cms/ and /uploads/ as an environment without a Strapi token answers them
+  // (nginx-app.conf); e2e/tests/cms.spec.ts stubs both in the browser to test
+  // the other states.
   if ((req.url ?? '').startsWith('/cms/')) {
     res.writeHead(200, { 'content-type': 'application/json', 'x-cms': 'off', 'cache-control': 'no-store' });
     return res.end('{"data":null,"meta":{"cms":"off"}}');
+  }
+  if ((req.url ?? '').startsWith('/uploads/')) {
+    res.writeHead(404);
+    return res.end();
   }
 {%- endif %}
   const file = fileFor(req.url ?? '/');

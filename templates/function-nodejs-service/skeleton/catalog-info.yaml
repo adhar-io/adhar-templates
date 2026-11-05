@@ -45,6 +45,7 @@ metadata:
   tags:
     - function
     - nodejs
+    - typescript
     - adhar
 spec:
   type: function

@@ -44,12 +44,18 @@ function bundledTranslations(): Plugin {
 // here, GET only, its user and auth endpoints refused. STRAPI_URL and
 // STRAPI_API_TOKEN come from .env.development.local (git-ignored) or the shell;
 // no VITE_ prefix, so neither ever reaches the bundle. Without a token /cms/
-// answers an empty 200 with X-Cms: off, as an unconfigured environment does.
+// answers an empty 200 with X-Cms: off and /uploads/ a 404, as an unconfigured
+// environment does.
 const CMS_REFUSED = /^\/cms\/(users|users-permissions|auth|connect|upload)(\/|\?|$)/
 
 function strapiProxy(): Plugin {
   let token = ''
   const guard = (req: Connect.IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
+    if (req.url?.startsWith('/uploads/')) {
+      // Strapi's media: read-only, and only while the app has a token.
+      if (token && (req.method === 'GET' || req.method === 'HEAD')) return next()
+      return res.writeHead(token ? 403 : 404).end()
+    }
     if (!req.url?.startsWith('/cms/')) return next()
     if (!token) {
       res.writeHead(200, { 'content-type': 'application/json', 'x-cms': 'off', 'cache-control': 'no-store' })

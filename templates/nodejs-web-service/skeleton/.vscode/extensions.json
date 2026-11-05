@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "yoavbls.pretty-ts-errors",
+    "eamodio.gitlens",
+    "ms-azuretools.vscode-containers",
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+    "redhat.vscode-yaml",
+    "editorconfig.editorconfig",
+    "42crunch.vscode-openapi",
+    "sonarsource.sonarlint-vscode",
+    "usernamehw.errorlens",
+    "humao.rest-client"
+  ]
+}

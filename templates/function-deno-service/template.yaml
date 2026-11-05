@@ -20,6 +20,7 @@ metadata:
     - serverless
     - knative
     - deno
+    - typescript
 spec:
   owner: group:platform-engineers
   type: function

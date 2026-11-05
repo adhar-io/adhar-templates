@@ -37,9 +37,12 @@ server.on('error', (err) => {
 
 // Kubernetes stops a pod with SIGTERM once the preStop sleep in
 // deploy/base/rollout.yaml has taken it out of the Service's endpoints. Stop
-// taking connections, let the requests in flight finish,{% if values.withDatabase %} close the
-// database pool,{% endif %} flush the telemetry LAST — so the final requests are in it —
-// and let the process end on its own with exit code 0.
+// taking connections, let the requests in flight finish,
+{%- if values.withDatabase %}
+// close the database pool,
+{%- endif %}
+// flush the telemetry LAST — so the final requests are in it — and let the
+// process end on its own with exit code 0.
 //
 // Before this handler existed every rollout, scale-down and node drain waited
 // out the 30 s grace period and ended in the kubelet's SIGKILL, exit 137

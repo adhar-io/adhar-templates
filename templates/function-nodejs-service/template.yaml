@@ -14,12 +14,13 @@ metadata:
     adhar.io/workload: function
   title: Function (Node.js)
   description: >-
-    A Node.js function on Adhar's Function API (Knative): it scales to zero when idle and out under load, answers HTTPS on its own URL in every environment, and can be invoked by a schedule, CloudEvents or a topic. Standard library only. app-ci builds, tests, scans and signs it; Kargo promotes it dev → test → prod; Argo CD deploys it from deploy/envs/<env>.
+    A Node.js function in strict TypeScript on Adhar's Function API (Knative): it scales to zero when idle and out under load, answers HTTPS on its own URL in every environment, and can be invoked by a schedule, CloudEvents or a topic. Standard library only at run time; the TypeScript toolchain never reaches the image. app-ci builds, tests, scans and signs it; Kargo promotes it dev → test → prod; Argo CD deploys it from deploy/envs/<env>.
   tags:
     - function
     - serverless
     - knative
     - nodejs
+    - typescript
 spec:
   owner: group:platform-engineers
   type: function

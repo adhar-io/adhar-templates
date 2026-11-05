@@ -51,6 +51,7 @@ metadata:
       icon: docs
   tags:
     - nodejs
+    - typescript
     - adhar
 spec:
   type: service

@@ -9,13 +9,15 @@ metadata:
     adhar.io/dashboard-type: backend-generic
   title: Node.js Web Service
   description: >-
-    A production-shaped Node.js (Express) web service wired into Adhar's secure
-    supply chain — buildpacks build + cosign signing, kyverno signature
-    verification, GitOps deploy via ArgoCD, and an optional managed PostgreSQL
-    database. Source + GitOps config land in your own Gitea repo to customise.
+    A production-shaped Node.js (Express) web service in strict TypeScript,
+    wired into Adhar's secure supply chain — buildpacks build + cosign signing,
+    kyverno signature verification, GitOps deploy via ArgoCD, and an optional
+    managed PostgreSQL database. Source + GitOps config land in your own Gitea
+    repo to customise.
   tags:
     - recommended
     - nodejs
+    - typescript
     - web
     - supply-chain
     - observability

@@ -24,10 +24,16 @@ src/
 ├── routes/
 │   ├── __root.tsx        # HTML shell, theme applied before first paint, 404 page
 │   ├── index.tsx         # landing page + live status from /api/hello
+│   ├── i18n/$file.ts     # server route → /i18n/<language>.json
 │   └── api/hello.ts      # server route → /api/hello
+├── server/               # server-only: metrics, /runtime-config.json, the Strapi proxy, translations (+ *.test.ts)
 ├── components/           # icons, light/dark theme hook
+├── i18n/                 # <language>.json texts
+├── telemetry.ts          # browser telemetry (Faro, PostHog), configured at runtime
 └── styles.css            # Tailwind v4 + Adhar UI preset + Adhar brand theme
 e2e/                      # Playwright end-to-end tests (npm run test:e2e)
+perf/load.ts              # k6 load test (Performance Center)
+tsconfig*.json            # the app, the Node-only server code, the k6 test
 ```
 
 ## Local development
@@ -37,8 +43,29 @@ npm install
 npm run dev
 ```
 
-> Targets TanStack Start ~1.87 (Vite plugin). If you pin a different version,
-> align `vite.config.ts` and the route APIs accordingly.
+> Targets TanStack Start 1.169+ (`@tanstack/react-start`, a Vite plugin). If you
+> pin a different version, align `vite.config.ts` and the route APIs accordingly.
+
+## TypeScript
+
+Everything here is TypeScript in strict mode: the app in `src/`, the production
+server (`server.ts`) and its middlewares in `src/server/`, the unit tests, the
+Playwright suite and the k6 test in `perf/`. Node 24 (`engines` in
+`package.json`) is the version CI and the image build use, and it runs
+`server.ts` as it is — `npm start` is `node server.ts`, with no compile step —
+because Node strips the types itself. That is why the server code keeps to
+TypeScript that can be erased: no `enum`, `namespace` or parameter properties
+(`erasableSyntaxOnly`).
+
+```sh
+npm test            # tsconfig.server.json, then the unit tests (node --test src/server/*.test.ts)
+npm run typecheck   # tsconfig.json, tsconfig.server.json and tsconfig.perf.json (needs a build first)
+```
+
+`npm run build` type-checks everything right after `vite build` (which
+generates `src/routeTree.gen.ts`), so a type error fails the build in CI and in
+the image build. The only JavaScript left is the small inline script in the
+HTML shell that applies the theme before first paint.
 
 Access the deployed app at `https://${{ values.hostname }}:8443`.
 

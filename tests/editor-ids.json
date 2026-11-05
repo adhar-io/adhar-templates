@@ -1,0 +1,186 @@
+{
+  "$comment": [
+    "Every editor extension and IDE plugin id a template may install, with the evidence that it exists where it is installed from.",
+    "VS Code extensions: the VS Code Marketplace (VS Code, Dev Containers) AND Open VSX (code-server). IntelliJ plugins: the JetBrains Marketplace.",
+    "devcontainer_test.ts refuses an id that is not here; editor_ids_test.ts (deno task test:net) re-checks every entry against the registries.",
+    "Add an id only after `deno task test:net` passes with it, and record the versions it printed."
+  ],
+  "checked": "2026-11-05",
+  "vscode": {
+    "42crunch.vscode-openapi": {
+      "name": "OpenAPI (Swagger) Editor",
+      "marketplace": "5.10.0",
+      "openVsx": "5.10.0"
+    },
+    "angular.ng-template": {
+      "name": "Angular Language Service",
+      "marketplace": "22.2.0",
+      "openVsx": "22.2.0"
+    },
+    "bradlc.vscode-tailwindcss": {
+      "name": "Tailwind CSS IntelliSense",
+      "marketplace": "0.16.0",
+      "openVsx": "0.16.0"
+    },
+    "charliermarsh.ruff": {
+      "name": "Ruff",
+      "marketplace": "2026.92.0",
+      "openVsx": "2026.92.0"
+    },
+    "dbaeumer.vscode-eslint": {
+      "name": "ESLint",
+      "marketplace": "3.0.34",
+      "openVsx": "3.0.34"
+    },
+    "denoland.vscode-deno": {
+      "name": "Deno",
+      "marketplace": "3.53.1",
+      "openVsx": "3.53.1"
+    },
+    "detachhead.basedpyright": {
+      "name": "BasedPyright",
+      "marketplace": "1.40.2",
+      "openVsx": "1.40.2"
+    },
+    "eamodio.gitlens": {
+      "name": "GitLens — Git supercharged",
+      "marketplace": "2026.11.40409",
+      "openVsx": "2026.11.40409"
+    },
+    "editorconfig.editorconfig": {
+      "name": "EditorConfig",
+      "marketplace": "0.18.2",
+      "openVsx": "0.18.2"
+    },
+    "esbenp.prettier-vscode": {
+      "name": "Prettier - Code formatter",
+      "marketplace": "12.4.0",
+      "openVsx": "12.4.0"
+    },
+    "golang.go": {
+      "name": "Go",
+      "marketplace": "0.59.0",
+      "openVsx": "0.58.0"
+    },
+    "humao.rest-client": {
+      "name": "REST Client",
+      "marketplace": "0.25.1",
+      "openVsx": "0.25.0"
+    },
+    "ms-azuretools.vscode-containers": {
+      "name": "Container Tools",
+      "marketplace": "2.5.3",
+      "openVsx": "2.4.5"
+    },
+    "ms-kubernetes-tools.vscode-kubernetes-tools": {
+      "name": "Kubernetes",
+      "marketplace": "1.4.1",
+      "openVsx": "1.4.1"
+    },
+    "ms-playwright.playwright": {
+      "name": "Playwright Test for VSCode",
+      "marketplace": "1.1.20",
+      "openVsx": "1.1.19"
+    },
+    "ms-python.debugpy": {
+      "name": "Python Debugger",
+      "marketplace": "2026.7.13061010",
+      "openVsx": "2026.6.0"
+    },
+    "ms-python.python": {
+      "name": "Python",
+      "marketplace": "2026.11.2026102901",
+      "openVsx": "2026.4.0"
+    },
+    "redhat.vscode-quarkus": {
+      "name": "Quarkus",
+      "marketplace": "1.24.2026082508",
+      "openVsx": "1.24.2026082508"
+    },
+    "redhat.vscode-xml": {
+      "name": "XML",
+      "marketplace": "0.29.2026110408",
+      "openVsx": "0.29.2026110408"
+    },
+    "redhat.vscode-yaml": {
+      "name": "YAML",
+      "marketplace": "2.1.2026102308",
+      "openVsx": "2.1.2026102308"
+    },
+    "sonarsource.sonarlint-vscode": {
+      "name": "SonarQube for IDE",
+      "marketplace": "6.2.0",
+      "openVsx": "6.2.0"
+    },
+    "usernamehw.errorlens": {
+      "name": "Error Lens",
+      "marketplace": "3.30.0",
+      "openVsx": "3.30.0"
+    },
+    "vmware.vscode-spring-boot": {
+      "name": "Spring Boot Tools",
+      "marketplace": "2.5.2026110301",
+      "openVsx": "2.5.2026110301"
+    },
+    "vscjava.vscode-java-pack": {
+      "name": "Extension Pack for Java",
+      "marketplace": "0.31.2026101207",
+      "openVsx": "0.31.2"
+    },
+    "vscjava.vscode-spring-boot-dashboard": {
+      "name": "Spring Boot Dashboard",
+      "marketplace": "0.15.0",
+      "openVsx": "0.15.0"
+    },
+    "yoavbls.pretty-ts-errors": {
+      "name": "Pretty TypeScript Errors",
+      "marketplace": "0.8.7",
+      "openVsx": "0.8.7"
+    }
+  },
+  "vscodeUnwanted": {
+    "dbaeumer.vscode-eslint": {
+      "name": "ESLint",
+      "marketplace": "3.0.34",
+      "why": "Not for JVM, Python, Go or Deno projects: nothing there is linted with ESLint, and VS Code recommends it to anyone who opens a .js file."
+    },
+    "esbenp.prettier-vscode": {
+      "name": "Prettier - Code formatter",
+      "marketplace": "12.4.0",
+      "why": "Deno projects format with `deno fmt` (denoland.vscode-deno), which Prettier would fight."
+    },
+    "ms-python.autopep8": {
+      "name": "autopep8",
+      "marketplace": "2026.5.13021008",
+      "why": "Ruff formats Python here."
+    },
+    "ms-python.vscode-pylance": {
+      "name": "Pylance",
+      "marketplace": "2026.4.101",
+      "why": "Microsoft-only (not on Open VSX, so code-server could never have it) and it fights basedpyright, the type checker every editor here gets; ms-python.python installs it unless it is excluded."
+    }
+  },
+  "jetbrains": {
+    "AngularJS": "Angular",
+    "Docker": "Docker",
+    "JavaScript": "JavaScript and TypeScript",
+    "Lombook Plugin": "Lombok",
+    "NodeJS": "Node.js",
+    "Pythonid": "Python",
+    "com.intellij.kubernetes": "Kubernetes",
+    "com.intellij.quarkus": "Quarkus",
+    "com.intellij.spring.boot": "Spring Boot",
+    "com.intellij.swagger": "OpenAPI Specifications",
+    "com.intellij.tailwindcss": "Tailwind CSS",
+    "com.jetbrains.restClient": "HTTP Client",
+    "com.koxudaxi.ruff": "Ruff",
+    "deno": "Deno",
+    "intellij.prettierJS": "Prettier",
+    "intellij.vitejs": "Vite",
+    "org.editorconfig.editorconfigjetbrains": "EditorConfig",
+    "org.jetbrains.idea.maven": "Maven",
+    "org.jetbrains.plugins.go": "Go",
+    "org.jetbrains.plugins.yaml": "YAML",
+    "org.sonarlint.idea": "SonarQube for IDE"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  // Everything here that runs on Node rather than in the browser: the Playwright
+  // suite (e2e/), e2e/serve.ts and the nginx test helpers (e2e/nginx/), and the
+  // `ng serve` proxy (proxy.conf.ts). Node runs those scripts as they are — it
+  // strips the types itself — so they keep to erasable TypeScript. The app is
+  // checked by `ng build` (tsconfig.app.json).
+  "compilerOptions": {
+    "target": "ES2023",
+    // DOM: Playwright tests hand callbacks to the page (e.g. img: HTMLImageElement).
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["e2e/**/*.ts", "proxy.conf.ts"]
+}

@@ -20,7 +20,7 @@ completes, and its repository is
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node 24 (`engines` in `package.json`, the version CI and the image build use).
 
 ```bash
 npm ci

@@ -2,14 +2,16 @@
 
 ${{ values.description }}
 
-A **Node.js (Express)** service scaffolded from the Adhar `nodejs-web-service` golden path.
+A **Node.js (Express)** service in strict **TypeScript**, scaffolded from the
+Adhar `nodejs-web-service` golden path.
 
 ## What you got
 
 | Thing | Where |
 | --- | --- |
-| Application source | `src/` — `server.js` runs the process, `app.js` builds the Express app, and routes, controllers, services{% if values.withDatabase %}, the database{% endif %}, middleware and telemetry each have a folder ([Code layout](architecture.md#code-layout)) |
-| Tests | `test/unit/` (each module, in-process) and `test/integration/` (the process the image runs) — `npm test` |
+| Application source | `src/`, TypeScript — `server.ts` runs the process, `app.ts` builds the Express app, and routes, controllers, services{% if values.withDatabase %}, the database{% endif %}, middleware, telemetry and the shared types each have a folder ([Code layout](architecture.md#code-layout)) |
+| Tests | `test/unit/` (each module, in-process) and `test/integration/` (the compiled process the image runs), TypeScript too — `npm test` |
+| TypeScript | `tsconfig.json` — strict, read by the editor, `npm run typecheck` and ESLint; `tsconfig.build.json` — `npm run build` compiles `src/` to `dist/` ([Build](architecture.md#build)) |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout{% if values.withDatabase %}, CloudNativePG Cluster{% endif %} |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
 | Its runtime | Node.js 24 — `BP_NODE_VERSION` in `project.toml` |
@@ -32,9 +34,14 @@ completes, and its repository is
 {%- else %}
     To add one later, re-scaffold with **Provision a PostgreSQL database** ticked,
     or copy from a template scaffolded with it: `deploy/base/database.yaml`
-    (listed in `deploy/base/kustomization.yaml`), the `DATABASE_URL` variable in
-    `deploy/base/rollout.yaml`, `src/db/index.js` with its test, and the `pg`
-    dependency in `package.json`.
+    (listed in `deploy/base/kustomization.yaml`), the patch in each
+    `deploy/envs/<env>/kustomization.yaml` that gives that environment's
+    database its own backup path, the `DATABASE_URL` variable in
+    `deploy/base/rollout.yaml`, `src/db/index.ts` with its test, the `pg`
+    dependency (and `@types/pg`) in `package.json`, and the `db` wiring in
+    `src/config/`, `src/types/`, `src/server.ts`, `src/routes/` and
+    `src/health/`. Once `db` is part of `AppDependencies` in `src/types/`,
+    `npm run typecheck` names every place that still lacks it.
 {%- endif %}
 
 ## Run it locally
@@ -43,12 +50,17 @@ Requires Node.js 24 (the version `project.toml` pins).
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
 (`npm install`, not `npm ci`: the repository starts without a
 `package-lock.json`, and `npm ci` refuses to run without one. Commit the lock
 file it writes and `npm ci` works from then on — app-ci uses it when present.)
+
+`npm run dev` runs the TypeScript in `src/` as it is (through `tsx`, no build
+step) and restarts on every change. `npm run build && npm start` runs what the
+image runs instead: `src/` compiled to `dist/`, started with
+`node dist/server.js`. Stack traces name the `.ts` file and line either way.
 
 It listens on port `${{ values.port }}`, the same port the container exposes,
 so what you see locally is what the cluster runs.{% if values.withDatabase %} Set `DATABASE_URL` to a
@@ -59,15 +71,17 @@ local PostgreSQL for `/db` to answer; without it the service still starts, and
 Tests:
 
 ```bash
-npm test               # lint, then every test
+npm test               # lint, type-check, build, then every test
 npm run test:unit      # just the unit tests
-npm run lint           # just ESLint
+npm run lint           # just ESLint (with typescript-eslint)
+npm run typecheck      # just the compiler's checks, src/ and test/ alike
 ```
 
-`npm test` lints the code first, then runs the unit tests — each module under
-`src/`, served in-process — and the integration tests, which start
-`src/server.js` the way the image does, with the OpenTelemetry preload the
-Rollout sets. Those check `/`, `/healthz` (the path both probes call){% if values.withDatabase %},
+`npm test` lints the code first, type-checks it, compiles `src/` to `dist/`,
+then runs the unit tests — each module under `src/`, served in-process — and
+the integration tests, which start the compiled `dist/server.js` the way the
+image does, with the OpenTelemetry preload the Rollout sets. The tests are
+TypeScript as well, run by Node's own test runner through `tsx`. Those check `/`, `/healthz` (the path both probes call){% if values.withDatabase %},
 `/db` when the database is unreachable{% endif %}, that a request is logged as JSON with the
 trace it belongs to, and that SIGTERM stops the process cleanly. app-ci runs
 `npm test` on every push; a build whose tests fail is never signed, so it
