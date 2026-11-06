@@ -25,6 +25,10 @@ result() {
   fi
 }
 npm_install() { # what app-ci does before npm test, without writing a lockfile you did not commit
+  if [ -f pnpm-lock.yaml ]; then
+    pnpm install --frozen-lockfile
+    return
+  fi
   if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund --no-package-lock; fi
 }
 

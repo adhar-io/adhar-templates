@@ -15,7 +15,7 @@ the `devcontainer` CLI build it from the same files.
 | `compose.yaml` | Only next to a `compose.yaml` in the repository root: runs those services in this container's network |
 
 `Dockerfile`, `post-create.sh`, `app-ci.sh` and this README are the same in every
-application created from an Adhar template.
+application created from an Adhar template, and in adhar-kit and adhar-ui.
 
 ## Open it
 
@@ -28,11 +28,41 @@ application created from an Adhar template.
   `customizations.jetbrains` are installed into the IDE in the container.
   Opened without a container, IntelliJ asks to install the plugins listed in
   `../.idea/externalDependencies.xml`.
-- **code-server** (the browser IDE of a Coder workspace) offers the extensions
-  in `../.vscode/extensions.json` when the folder opens (*Install*), and
-  installs them from Open VSX: every one of them is published there as well as
-  on the VS Code Marketplace.
+- **A Coder workspace** (the platform's Cloud Development Environment): nothing
+  to do. Open the repository from the Console; see below.
 - **Command line**: `npx @devcontainers/cli up --workspace-folder .`
+
+## In a Coder workspace
+
+A workspace opened on this repository builds this container and runs in it, with
+no Docker daemon ([envbuilder](https://github.com/coder/envbuilder)). The first
+start takes as long as the build; later ones replay it from a layer cache on the
+workspace's home volume. `/home/coder` is that volume, and it is also your home
+directory whichever user the container runs as, so `~/.m2`, `node_modules`, your
+git identity and your editors survive a stop.
+
+- **Editors**: code-server installs the extensions in `customizations.vscode`
+  from Open VSX (every one is published there as well as on the VS Code
+  Marketplace) and applies `customizations.vscode.settings`. VS Code Desktop gets
+  them from the Marketplace the first time it connects. IntelliJ IDEA gets the
+  plugins in `customizations.jetbrains` the first time its backend starts, and
+  they take effect when it next restarts; until then it offers them from
+  `../.idea/externalDependencies.xml`.
+- **`post-create.sh`** runs once per version of `.devcontainer`, after the editors
+  are reachable. Its output is in the Coder dashboard, under the workspace's agent
+  logs. Your git push credentials are available to it.
+- **The platform's libraries**: `~/.m2/settings.xml` and `~/.npmrc` resolve
+  `adhar-kit` and `@adhar-ui` through the platform's Nexus, read anonymously, with
+  no credential in the workspace or in this repository.
+- **If the build fails** the workspace still opens, on a plain image without this
+  toolchain, with the reason in `DEVCONTAINER-FAILED.md` at the top of the folder,
+  in the dashboard's "Dev container" row and in each new terminal. Fix it, push or
+  edit, and restart the workspace: every start tries again.
+- **What does not apply there**: `forwardPorts` (use Coder's port forwarding or
+  code-server's), `runArgs` and `mounts`, and anything that needs a Docker engine.
+  The `docker` command is installed but nothing answers it, so run `mvn test`
+  rather than Testcontainers' `mvn verify`, and let app-ci run the integration
+  tests.
 
 ## What is installed
 
@@ -88,7 +118,7 @@ repository disagree.
   kubeconfig's `server` at `https://adhar-control-plane:6443`.
 - **Nexus**: `settings.xml` and `.npmrc` resolve the platform's own libraries
   through `nexus.adhar-system.svc.cluster.local`, which only the cluster can
-  resolve. From your machine, run
+  resolve: a Coder workspace just works. From your machine, run
   `kubectl -n adhar-system port-forward svc/nexus 8081:8081` on the host and add
   `"--add-host=nexus.adhar-system.svc.cluster.local:host-gateway"` to `runArgs`
   in `devcontainer.json` (on Linux, port-forward with `--address 0.0.0.0`).

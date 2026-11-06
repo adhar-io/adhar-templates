@@ -70,6 +70,14 @@ if [ -f pom.xml ] || [ -f build.gradle ] || [ -f build.gradle.kts ]; then
   [ -z "$v" ] && [ -f .sdkmanrc ] && v=$(sed -nE 's/^java=(.*)$/\1/p' .sdkmanrc | head -1 | major) where=.sdkmanrc
   [ -z "$v" ] && [ -f .tool-versions ] && v=$(sed -nE 's/^java[[:space:]]+(.*)$/\1/p' .tool-versions | head -1 | major) where=.tool-versions
   [ -z "$v" ] && [ -f pom.xml ] && v=$(sed -nE 's#.*<(java\.version|maven\.compiler\.release|maven\.compiler\.target)>[[:space:]]*([0-9.]+)[[:space:]]*</.*#\2#p' pom.xml | head -1 | major) where=pom.xml
+  # A multi-module repository can declare it in its parent module.
+  if [ -z "$v" ] && [ -f pom.xml ]; then
+    for m in */pom.xml; do
+      [ -f "$m" ] || continue
+      v=$(sed -nE 's#.*<(java\.version|maven\.compiler\.release|maven\.compiler\.target)>[[:space:]]*([0-9.]+)[[:space:]]*</.*#\2#p' "$m" | head -1 | major) where=$m
+      [ -z "$v" ] || break
+    done
+  fi
   check Java "$v" "$where" 25 "$(java -XshowSettings:properties -version 2>&1 | sed -nE 's/^[[:space:]]*java\.specification\.version = (.*)$/\1/p' | major)"
   if [ -f .mvn/wrapper/maven-wrapper.properties ]; then
     ok "Maven: the project's wrapper ($(sed -nE 's#.*apache-maven-([0-9.]+)-bin\.zip.*#\1#p' .mvn/wrapper/maven-wrapper.properties | head -1)), as app-ci uses it"
@@ -133,7 +141,11 @@ has_npm_dependencies() { # package.json lists something to install (node decides
   command -v node > /dev/null || return 0
   node -e 'const p = require("./package.json"); process.exit(Object.keys({ ...p.dependencies, ...p.devDependencies, ...p.optionalDependencies }).length ? 0 : 1)' 2> /dev/null
 }
-if [ -f package.json ] && command -v npm > /dev/null && has_npm_dependencies; then
+if [ -f pnpm-lock.yaml ] && command -v pnpm > /dev/null; then
+  # A pnpm workspace: the lockfile says exactly what to install, and npm would
+  # rewrite it into something else.
+  run 900 "pnpm dependencies (pnpm install --frozen-lockfile)" pnpm install --frozen-lockfile || platform_registry_hint .npmrc
+elif [ -f package.json ] && command -v npm > /dev/null && has_npm_dependencies; then
   if [ -f package-lock.json ]; then
     run 900 "npm dependencies (npm ci)" npm ci --no-audit --no-fund || platform_registry_hint .npmrc
   else
