@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app: ${{ values.name }}
+spec:
+  groups:
+    - name: ${{ values.name }}
+      rules:
+        - alert: BatchJobFailure
+          expr: increase(batch_job_execution_exit_code_total{job_name="${{ values.name }}"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Batch job failed for ${{ values.name }}

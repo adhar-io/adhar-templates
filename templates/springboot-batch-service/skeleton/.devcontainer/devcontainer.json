@@ -1,0 +1,61 @@
+// Development container for ${{ values.name }}: the toolchain this repository
+// declares, the platform's tools, and the editor extensions and IDE plugins.
+{
+  "name": "${{ values.name }}",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "BASE_IMAGE": "mcr.microsoft.com/devcontainers/java:3-25-trixie",
+      "CLIENT_PACKAGES": "{% if values.withDatabase %}postgresql-client {% endif %}{% if values.withKafka %}kcat {% endif %}"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "none", "installMaven": true, "mavenVersion": "3.9", "installGradle": false },
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "version": "latest", "helm": "latest", "minikube": "none" },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false }
+  },
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "OTEL_SERVICE_NAME": "${{ values.name }}",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy.adhar-system.svc.cluster.local:4318",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_RESOURCE_ATTRIBUTES": "service.namespace=adhar,deployment.environment.name=local,deployment.environment=local",
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal",
+    "COMPOSE_FILE": "${containerWorkspaceFolder}/compose.yaml"
+  },
+  "forwardPorts": [8080, 5005],
+  "portsAttributes": {
+    "8080": { "label": "${{ values.name }}", "onAutoForward": "notify" },
+    "5005": { "label": "Java debugger (JDWP)", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "vscjava.vscode-spring-boot-dashboard",
+        "redhat.vscode-xml",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "editorconfig.editorconfig",
+        "42crunch.vscode-openapi",
+        "sonarsource.sonarlint-vscode",
+        "usernamehw.errorlens",
+        "humao.rest-client",
+        "-dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "java.compile.nullAnalysis.mode": "automatic",
+        "java.jdt.ls.lombokSupport.enabled": true,
+        "redhat.telemetry.enabled": false,
+        "yaml.schemas": { "kubernetes": ["deploy/**/*.yaml", "!deploy/**/kustomization.yaml"] },
+        "yaml.customTags": ["!reset sequence", "!reset mapping", "!override sequence", "!override mapping"]
+      }
+    }
+  }
+}

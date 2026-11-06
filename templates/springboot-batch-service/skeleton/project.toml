@@ -1,0 +1,12 @@
+[build]
+  [[build.env]]
+    name = "BP_JVM_VERSION"
+    value = "25"
+
+  [[build.env]]
+    name = "BP_MAVEN_SETTINGS_PATH"
+    value = "settings.xml"
+
+  [[build.env]]
+    name = "BP_MAVEN_BUILD_ARGUMENTS"
+    value = "-s settings.xml clean package"

@@ -1,0 +1,25 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>platform-nexus</id>
+      <mirrorOf>*</mirrorOf>
+      <url>https://nexus.adhar-system.svc.cluster.local/repository/maven-public/</url>
+    </mirror>
+  </mirrors>
+  <profiles>
+    <profile>
+      <id>platform</id>
+      <repositories>
+        <repository>
+          <id>maven-public</id>
+          <url>https://nexus.adhar-system.svc.cluster.local/repository/maven-public/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>platform</activeProfile>
+  </activeProfiles>
+</settings>

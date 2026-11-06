@@ -1,0 +1,209 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-batch-service
+  labels:
+    adhar.io/dashboard-type: backend-jvm
+  title: Spring Batch Service (Adhar Kit)
+  description: >-
+    A Spring Batch microservice pre-configured with Adhar Kit for enterprise
+    workloads: batch job metadata, health/metrics, secure supply chain, and
+    GitOps deployment. The scaffold includes a sample chunk-based job, optional
+    Postgres metadata storage, optional Kafka events, and a cron or on-demand
+    execution model that is ready for production operations.
+  tags:
+    - recommended
+    - java
+    - springboot
+    - spring-batch
+    - batch
+    - adhar-kit
+    - supply-chain
+    - observability
+    - postgres
+    - kafka
+spec:
+  owner: group:platform-engineers
+  type: service
+
+  parameters:
+    - title: Application
+      required: [name]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the batch service (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+
+    - title: Runtime
+      properties:
+        schedule:
+          title: Cron schedule
+          type: string
+          default: "0 2 * * *"
+          description: Runs the batch job on this cron schedule in Kubernetes.
+        batchMode:
+          title: Execution model
+          type: string
+          enum: [cron, on-demand]
+          default: cron
+          description: Cron-based recurring execution or a single run triggered by a job or manual launch.
+        withAuth:
+          title: Require authentication (Keycloak JWT)
+          type: boolean
+          default: false
+          description: Protects the actuator endpoints, while the batch job itself still runs without a user login.
+        withDatabase:
+          title: PostgreSQL metadata database
+          type: boolean
+          default: true
+          description: Stores Spring Batch metadata and application state in a CloudNativePG database.
+        withKafka:
+          title: Kafka event stream
+          type: boolean
+          default: false
+          description: Publishes a batch event when the job completes.
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - adhar.localtest.me:8443
+
+    - title: Operations
+      description: Operational metadata used by the catalog, SLO tracking, and the platform scorecard.
+      properties:
+        lifecycle:
+          title: Lifecycle
+          type: string
+          description: experimental while it is being built, production once it is GA, deprecated when it is being retired.
+          enum: [experimental, production, deprecated]
+          default: experimental
+        tier:
+          title: Tier
+          type: string
+          description: How much the business depends on it; sets alert severity.
+          enum: [critical, high, standard, low]
+          default: standard
+        docsUrl:
+          title: Documentation URL
+          type: string
+          description: Leave empty to point at the repository's docs/ folder.
+          default: ""
+        runbookUrl:
+          title: Runbook URL
+          type: string
+          description: What to do when it pages. Linked from the catalog and the scorecard.
+          default: ""
+        oncall:
+          title: On-call
+          type: string
+          description: Team or channel paged for this service, e.g. "#team-payments-oncall".
+          default: ""
+        sloTarget:
+          title: Availability SLO (%)
+          type: string
+          description: The availability objective the alerts are tuned against.
+          default: "99.9"
+        latencyTargetMs:
+          title: Latency target, p95 (ms)
+          type: string
+          description: The job runtime target for platform health checks and alerts.
+          default: "500"
+        enableAlerts:
+          title: Alert on job failures and restarts
+          type: boolean
+          description: Ships a PrometheusRule with the service (adhar.io/alerts).
+          default: true
+        enablePdb:
+          title: PodDisruptionBudget
+          type: boolean
+          description: Keeps enough replicas available for a rolling upgrade.
+          default: false
+        enableHpa:
+          title: HorizontalPodAutoscaler
+          type: boolean
+          description: Scales the job worker if the platform adds receivers later.
+          default: false
+
+  steps:
+    - id: template
+      name: Generate the batch service
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          schedule: ${{ parameters.schedule }}
+          batchMode: ${{ parameters.batchMode }}
+          withAuth: ${{ parameters.withAuth }}
+          withDatabase: ${{ parameters.withDatabase }}
+          withKafka: ${{ parameters.withKafka }}
+          lifecycle: ${{ parameters.lifecycle }}
+          tier: ${{ parameters.tier }}
+          docsUrl: ${{ parameters.docsUrl }}
+          runbookUrl: ${{ parameters.runbookUrl }}
+          oncall: ${{ parameters.oncall }}
+          sloTarget: ${{ parameters.sloTarget }}
+          latencyTargetMs: ${{ parameters.latencyTargetMs }}
+          enableAlerts: ${{ parameters.enableAlerts }}
+          enablePdb: ${{ parameters.enablePdb }}
+          enableHpa: ${{ parameters.enableHpa }}
+          port: 8080
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+          giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
+
+    - id: publish
+      name: Publish to Gitea
+      action: publish:gitea
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: create-argocd-app
+      name: Create ArgoCD deployment
+      action: adhar:create-argocd-app
+      input:
+        appName: ${{ parameters.name }}
+        appNamespace: adhar-system
+        argoInstance: local
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: "deploy"
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Source repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

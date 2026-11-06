@@ -61,6 +61,7 @@ tree with `dev`, `test` and `prod` overlays) and an Argo CD Application.
 | Template | Stack | Backing services | Highlights |
 |---|---|---|---|
 | [`springboot-web-service`](templates/springboot-web-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres · Valkey · Kafka (each optional) | ⭐ Recommended Java golden path, Keycloak JWT auth, `compose.yaml` for local dev |
+| [`springboot-batch-service`](templates/springboot-batch-service) | Java 25 · Spring Batch 5 · Adhar Kit | Postgres (optional) | Enterprise batch jobs, cron execution, sample chunk-based processing, job metadata and health checks |
 | [`springboot-hexagon-service`](templates/springboot-hexagon-service) | Java 25 · Spring Boot 4 · Adhar Kit | Postgres (optional) | Ports and adapters layout, Keycloak JWT auth |
 | [`springboot-gateway-service`](templates/springboot-gateway-service) | Java 25 · Spring Cloud Gateway (WebFlux) · Adhar Kit | Valkey for rate limiting (optional) | API gateway: JWT auth, rate limits, circuit breakers, load shedding |
 | [`quarkus-web-service`](templates/quarkus-web-service) | Java 21 · Quarkus 3 | Postgres (optional) | Fast startup, low memory |
