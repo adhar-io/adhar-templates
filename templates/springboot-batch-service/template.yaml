@@ -128,6 +128,21 @@ spec:
           type: string
           description: The job runtime target for platform health checks and alerts.
           default: "500"
+        perfPath:
+          title: Load-test path
+          type: string
+          description: The endpoint the platform load-tests, e.g. "/actuator/health/readiness". Empty uses the readiness probe path.
+          default: "/actuator/health/readiness"
+        chaosTesting:
+          title: Automated chaos testing
+          type: boolean
+          description: The platform kills a pod in test daily under a steady-state probe and scores whether the service kept answering.
+          default: true
+        chaosExperiments:
+          title: Chaos scenarios
+          type: string
+          description: The faults this service's resilience suite runs, in order, under a continuous health probe — after every promotion into test and hourly for the scorecard.
+          default: "pod-delete,pod-network-latency,pod-cpu-hog"
         enableAlerts:
           title: Alert on job failures and restarts
           type: boolean
@@ -166,6 +181,9 @@ spec:
           oncall: ${{ parameters.oncall }}
           sloTarget: ${{ parameters.sloTarget }}
           latencyTargetMs: ${{ parameters.latencyTargetMs }}
+          perfPath: ${{ parameters.perfPath }}
+          chaosTesting: ${{ parameters.chaosTesting }}
+          chaosExperiments: ${{ parameters.chaosExperiments }}
           enableAlerts: ${{ parameters.enableAlerts }}
           enablePdb: ${{ parameters.enablePdb }}
           enableHpa: ${{ parameters.enableHpa }}

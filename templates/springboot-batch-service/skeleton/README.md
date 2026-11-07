@@ -20,6 +20,7 @@ boilerplate.
 - optional Kafka completion event
 - cron-based Kubernetes execution using `CronJob`
 - actuator health and Prometheus metrics
+- platform resilience suite in `deploy/base/resilience.yaml`
 - secure supply chain and GitOps deployment from the platform
 
 ## Batch job
