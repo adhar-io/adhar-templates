@@ -15,6 +15,7 @@ Adhar `nodejs-web-service` golden path.
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout{% if values.withDatabase %}, CloudNativePG Cluster{% endif %} |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
 | Its runtime | Node.js 24 — `BP_NODE_VERSION` in `project.toml` |
+| Its HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api`; its schemas are the types in `src/types/` |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 

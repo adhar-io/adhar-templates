@@ -31,14 +31,27 @@ step so it is easy to replace with a real extraction/processing/load workflow.
 
 ## Local development
 
-Requires JDK 25 and Maven 3.9+.
+Requires JDK 25 and Maven 3.9+ — or open the folder in its development
+container (`.devcontainer/`, see its README), which carries both plus the
+platform's tools, the editor extensions and the IntelliJ plugins.
 
 ```sh
+{%- if values.withDatabase or values.withKafka %}
+docker compose up -d          # Postgres / Kafka on localhost
+{%- endif %}
 mvn -s settings.xml spring-boot:run
 ```
+{%- if values.withDatabase %}
 
-When `withDatabase` is enabled, the generated `compose.yaml` starts PostgreSQL and
-Spring Batch reads/writes its metadata tables there.
+`compose.yaml` starts the PostgreSQL that Spring Batch reads and writes its
+metadata tables in, on the `localhost:5432` that `application.properties` falls
+back to; the deployed job gets the CloudNativePG database instead.
+{%- endif %}
+{%- if values.withKafka %}
+
+The completion event goes to the Kafka `compose.yaml` starts on
+`localhost:9092`; the deployed job publishes to the platform's Strimzi cluster.
+{%- endif %}
 
 ## Deployment
 
@@ -66,10 +79,11 @@ Every endpoint is public. See `application.properties` to require a Keycloak JWT
 
 ```
 .
+├── .devcontainer/       # development container: toolchain, platform tools, editor setup
 ├── pom.xml
 ├── settings.xml
 ├── project.toml
-├── compose.yaml
+├── compose.yaml         # local backing services for `mvn spring-boot:run`
 ├── src/main/java/io/adhar/service/
 │   ├── Application.java
 │   └── BatchConfiguration.java

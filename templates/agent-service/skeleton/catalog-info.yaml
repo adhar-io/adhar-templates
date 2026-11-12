@@ -2,10 +2,10 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: ${{ values.name }}
-  description: ${{ values.description }}
+  description: ${{ values.description | dump }}
   annotations:
     adhar.io/owner: ${{ values.owner }}
-    adhar.io/description: "${{ values.description }}"
+    adhar.io/description: ${{ values.description | dump }}
     adhar.io/lifecycle: ${{ values.lifecycle or 'experimental' }}
     adhar.io/tier: ${{ values.tier or 'standard' }}
     adhar.io/dashboard: https://grafana.${{ values.platformBaseDomain or 'adhar.localtest.me' }}/d/app-${{ values.name }}
@@ -57,3 +57,21 @@ spec:
   type: service
   lifecycle: ${{ values.lifecycle or 'experimental' }}
   owner: ${{ values.owner }}
+  providesApis:
+    - ${{ values.name }}-api
+---
+# The agent's HTTP interface, for the catalog's APIs. api/openapi.yaml is
+# the contract: keep it in step with the routes in agent.py.
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: ${{ values.name }}-api
+  description: HTTP interface of the ${{ values.name }} agent.
+  tags:
+    - agent
+spec:
+  type: openapi
+  lifecycle: ${{ values.lifecycle or 'experimental' }}
+  owner: ${{ values.owner }}
+  definition:
+    $text: ./api/openapi.yaml

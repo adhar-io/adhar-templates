@@ -23,11 +23,16 @@ collector and land in Tempo, Mimir and Loki — no wiring required.
 | `/db` | Checks the PostgreSQL connection |
 {%- endif %}
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec).
+Change a route and the file together.
+
 ## Layout
 
 ```
 .
 ├── app.py               # the app
+├── api/openapi.yaml     # the HTTP contract, published in the catalog
 ├── requirements.txt
 └── deploy/              # GitOps tree — ArgoCD syncs this
     ├── rollout.yaml        # Argo Rollout (canary) of the SIGNED image

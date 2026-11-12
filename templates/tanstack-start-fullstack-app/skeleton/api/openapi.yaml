@@ -1,0 +1,218 @@
+# The app's HTTP interface — its server routes, not its pages — published in
+# the catalog as ${{ values.name }}-api (catalog-info.yaml) and listed by the
+# Console under Design → API & Spec. This file is the contract: keep it in
+# step with src/routes/api/, src/routes/i18n/ and the middlewares server.ts
+# mounts in front of the app (src/server/edge.ts{% if values.withCms %}, src/server/cms.ts{% endif %}).
+# Nothing generates a document at runtime; this file is the only one.
+#
+# Not here: the server-rendered pages (src/routes/*.tsx) and the static
+# client assets, which are the app rather than an API; and GET /metrics, which
+# server.ts serves on METRICS_PORT (9464), a port the HTTPRoute never exposes.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A TanStack Start application on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /api/hello:
+    get:
+      operationId: hello
+      summary: The live status the landing page shows (src/routes/api/hello.ts){% if values.withDatabase %}, with the database's clock{% endif %}.
+      responses:
+        "200":
+          description: The app's name and status{% if values.withDatabase %}. The database outcome is in the body — a failed query still answers 200{% endif %}.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hello"
+  /i18n/{file}:
+    get:
+      operationId: translations
+      summary: The app's texts for one language, as flat JSON — Tolgee's over the built-in file when Tolgee is configured and answering, the built-in file otherwise (src/server/i18n.ts). The browser loads a language from here when the user switches to it.
+      parameters:
+        - name: file
+          in: path
+          required: true
+          description: "`<language>.json`, e.g. de.json."
+          schema:
+            type: string
+            pattern: "\\.json$"
+      responses:
+        "200":
+          description: Key to text. Cached for a minute (Cache-Control); X-Translations-Source says where the texts came from.
+          headers:
+            X-Translations-Source:
+              schema:
+                type: string
+                enum: [tolgee, tolgee-stale, bundled]
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "404":
+          description: A language neither Tolgee nor the app has, or a malformed tag. The browser falls back to English.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+  /runtime-config.json:
+    get:
+      operationId: runtimeConfig
+      summary: What the browser turns on (src/telemetry.ts), answered from the Pod's environment because the same image runs in every environment. Never cached.
+      responses:
+        "200":
+          description: The runtime configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeConfig"
+{%- if values.withAnalytics %}
+  /ingest/{path}:
+    description: PostHog, same-origin — forwarded to POSTHOG_HOST with the prefix removed, so there is no CORS and nothing third-party for an ad blocker to drop. No cookie, credential or client address goes with it (src/server/edge.ts).
+    parameters:
+      - name: path
+        in: path
+        required: true
+        description: PostHog's own path, e.g. e/ or decide/.
+        schema:
+          type: string
+    get:
+      operationId: ingestGet
+      summary: Forwarded to PostHog.
+      responses:
+        default:
+          description: PostHog's answer, without its Set-Cookie.
+        "404":
+          description: Analytics is off — no POSTHOG_KEY and POSTHOG_HOST in the <app>-posthog Secret.
+        "502":
+          description: PostHog could not be reached within 15 s.
+    post:
+      operationId: ingestPost
+      summary: Forwarded to PostHog with its body (events, session recordings).
+      responses:
+        default:
+          description: PostHog's answer, without its Set-Cookie.
+        "404":
+          description: Analytics is off — no POSTHOG_KEY and POSTHOG_HOST in the <app>-posthog Secret.
+        "502":
+          description: PostHog could not be reached within 15 s.
+{%- endif %}
+{%- if values.withCms %}
+  /cms/{path}:
+    get:
+      operationId: cms
+      summary: Strapi's REST API at /api/{path}, read-only, with Strapi's own query string (locale, sort, pagination, populate, filters) and a READ-ONLY API token added here — the browser never sees it (src/server/cms.ts, used by src/cms.ts).
+      parameters:
+        - name: path
+          in: path
+          required: true
+          description: The Strapi route, e.g. ${{ values.cmsCollection }}. Strapi's users, users-permissions, auth, connect and upload routes are never proxied.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Strapi's answer, cached for a minute, with X-Cms saying strapi — or, with no STRAPI_API_TOKEN, an empty answer with X-Cms off, so the page shows its setup hint instead of logging an error.
+          headers:
+            X-Cms:
+              schema:
+                type: string
+                enum: [strapi, "off"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrapiResponse"
+        "403":
+          description: Any method but GET or HEAD.
+        "404":
+          description: A refused route, or what Strapi answered.
+        "502":
+          description: Strapi could not be reached within 10 s.
+  /uploads/{file}:
+    get:
+      operationId: cmsMedia
+      summary: Strapi's public media, so the URLs Strapi returns work as they are. Cached for a day — Strapi hashes the names, so a file never changes.
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The file, with Strapi's Content-Type.
+        "403":
+          description: Any method but GET or HEAD.
+        "404":
+          description: No such file, or no STRAPI_API_TOKEN.
+        "502":
+          description: Strapi could not be reached within 30 s.
+{%- endif %}
+components:
+  schemas:
+    Hello:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+{%- if values.withDatabase %}
+        db:
+          type: string
+          description: The database server's clock (SELECT now()), or `error` when the query failed.
+{%- endif %}
+    RuntimeConfig:
+      type: object
+      description: RuntimeConfig in src/server/edge.ts.
+      required: [environment, faro]
+      properties:
+        environment:
+          type: string
+          description: APP_ENVIRONMENT (dev, test, prod); empty when unset.
+        faro:
+          type: object
+          required: [url]
+          properties:
+            url:
+              type: string
+              description: FARO_URL, the platform's Faro receiver; empty turns real-user monitoring off.
+{%- if values.withAnalytics %}
+        posthog:
+          type: ["object", "null"]
+          description: null until the <app>-posthog Secret provides a key and a host.
+          required: [key, apiHost, uiHost, replay]
+          properties:
+            key:
+              type: string
+            apiHost:
+              type: string
+              description: Always /ingest — the same-origin proxy above.
+            uiHost:
+              type: string
+            replay:
+              type: string
+              description: "`true` turns session replay on."
+{%- endif %}
+{%- if values.withCms %}
+    StrapiResponse:
+      type: object
+      description: Strapi's REST envelope. data is null with X-Cms off.
+      required: [data]
+      properties:
+        data:
+          description: One entry, a list of entries, or null.
+        meta:
+          type: object
+{%- endif %}

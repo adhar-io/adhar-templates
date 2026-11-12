@@ -50,5 +50,9 @@ Every endpoint is public. See `application.properties` to require a Keycloak JWT
 | POST | `/greet?name=…` | Create a greeting |
 | GET | `/greetings` | List greetings |
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec).
+Change the inbound adapter and the file together.
+
 Observability (OTLP traces + metrics), Adhar Kit config, and the platform Nexus
 (Maven) are wired exactly as in `springboot-web-service`.

@@ -32,6 +32,11 @@ into calling a tool you did not grant fails at the data plane, not in your code.
 | `/healthz` | Liveness/readiness probe |
 | `/ask` | `POST {"prompt": "...", "model": "optional"}` — one reasoning step |
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec).
+FastAPI's own `/openapi.json` must agree with it; change a route and the file
+together.
+
 ## Observability
 
 Every LLM call is a `gen_ai.*` span and every tool call an `mcp.*` span, exported

@@ -1,0 +1,114 @@
+# The service's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with the
+# routes (src/routes/, src/health/) and the response shapes they share
+# (src/types/index.ts) — the schemas below are those types, as JSON Schema.
+# Nothing generates a document at runtime; this file is the only one.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A Node.js service on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this service is.
+      responses:
+        "200":
+          description: The service's name and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+        "404":
+          description: Any other method, like every path no route answers — an RFC 9457 problem (src/middleware/error-handler.ts).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /healthz:
+    get:
+      operationId: healthz
+      summary: The probe both the liveness and the readiness check in deploy/base/rollout.yaml call. Answers while the process serves HTTP and checks nothing else, so a dependency's incident cannot take every pod out of the Service.
+      responses:
+        "200":
+          description: Up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [ok]
+{%- if values.withDatabase %}
+  /db:
+    get:
+      operationId: db
+      summary: Diagnostics, not a probe — can THIS pod reach PostgreSQL now? Why it cannot is logged, not returned.
+      responses:
+        "200":
+          description: It can. The database server's clock.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseOk"
+        "500":
+          description: It cannot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseError"
+{%- endif %}
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      description: ServiceInfo in src/types/index.ts.
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+{%- if values.withDatabase %}
+    DatabaseOk:
+      type: object
+      description: DatabaseStatus in src/types/index.ts, the ok case.
+      required: [db, now]
+      properties:
+        db:
+          type: string
+          enum: [ok]
+        now:
+          type: string
+          format: date-time
+    DatabaseError:
+      type: object
+      description: DatabaseStatus in src/types/index.ts, the error case.
+      required: [db, error]
+      properties:
+        db:
+          type: string
+          enum: [error]
+        error:
+          type: string
+          enum: [database unavailable]
+{%- endif %}
+    Problem:
+      type: object
+      description: ProblemDocument in src/types/index.ts — every error response, as application/problem+json.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+          description: Only when the error marks its message safe to show (a malformed or oversized body); never for a 500.

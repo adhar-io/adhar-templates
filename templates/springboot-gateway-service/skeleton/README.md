@@ -55,6 +55,12 @@ Every route is public. See `docs/architecture.md` to require a Keycloak JWT.
 | `/actuator/prometheus` | Metrics for the platform's Prometheus |
 | `/actuator/gateway/routes`, `/actuator/circuitbreakers` | Routes and breaker states{% if values.withAuth %} (realm role `gateway-admin`){% else %} (closed while authentication is off){% endif %} |
 
+The gateway's own contract — the landing page, the actuator, and the limits
+and fallbacks it adds in front of every route — is `api/openapi.yaml`,
+registered in the catalog as `${{ values.name }}-api` (the Console lists it
+under Design → API & Spec). What the upstream answers is the upstream's
+contract. Add a route and a path item together.
+
 ## Add a route
 
 Copy the `upstream` route in `src/main/resources/application.yaml`, give it a
@@ -84,6 +90,7 @@ so the same route works in dev, test and prod.
 ├── settings.xml         # platform Nexus (maven-public)
 ├── compose.yaml         # local echo upstream{% if values.withRateLimit %} and Valkey{% endif %}
 ├── project.toml         # buildpack: BP_MAVEN_SETTINGS_PATH, BP_JVM_VERSION
+├── api/openapi.yaml     # the gateway's own contract, published in the catalog
 ├── src/main/java/io/adhar/service/
 │   ├── config/          # GatewayProperties, ResilienceConfig (breakers, bulkheads)
 │   ├── security/        # SecurityConfig (JWT, CORS, path rules)

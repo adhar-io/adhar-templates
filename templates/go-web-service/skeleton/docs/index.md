@@ -11,6 +11,7 @@ A **Go (net/http)** service scaffolded from the Adhar `go-web-service` golden pa
 | Application source | `main.go` — the HTTP handlers; `otel.go` — OpenTelemetry wiring. |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout, CloudNativePG Cluster |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 

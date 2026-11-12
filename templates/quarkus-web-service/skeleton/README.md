@@ -24,6 +24,10 @@ platform collector → Tempo/Mimir; logs go to stdout → Loki.
 | `/db` | Checks the PostgreSQL connection |
 {%- endif %}
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec).
+Change `GreetingResource` and the file together.
+
 ## Local development
 
 ```sh

@@ -1,0 +1,443 @@
+# The gateway's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with the
+# routes in src/main/resources/application.yaml and the controllers in
+# src/main/java/io/adhar/service/web/ — the Karate features in
+# src/test/resources/karate check the running gateway against these paths.
+#
+# What the upstream answers under ${{ values.routePath }} is the UPSTREAM's
+# contract; only the gateway's own answers — the landing page, the actuator,
+# the limits and fallbacks it adds in front of every route — are described
+# here. Nothing generates a document at runtime (springdoc is not on the
+# classpath); if it is added, what it serves must agree with this file.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'An API gateway on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+{%- if values.withAuth %}
+# Every request needs a bearer JWT from the platform's Keycloak realm `adhar`
+# (adhar.security.* in application.yaml), except the landing page and the
+# platform's probes and metrics, which say `security: []` below. The caller's
+# subject and realm roles reach the upstream as X-User-ID and X-User-Roles;
+# values the caller sends in those headers are dropped.
+security:
+  - bearerAuth: []
+{%- endif %}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this gateway is. Open without a token, so the route visibly answers in a browser.
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: The gateway's name and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+        "405":
+          description: Any other method. Everything the gateway cannot route answers as an RFC 9457 problem carrying the request's ID.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  # The routed prefix. OpenAPI has no wildcard, so {path} stands for the rest
+  # of the path at any depth; the bare prefix ${{ values.routePath }} is routed
+  # too. Add a path item like this one for every route added to
+  # application.yaml.
+  ${{ values.routePath }}/{path}:
+    description: >-
+      Forwarded to ${{ values.upstreamUrl }}{% if values.stripPrefix %} with the prefix
+      removed (${{ values.routePath }}/orders/1 reaches the upstream as /orders/1){% else %} with
+      the path unchanged{% endif %}. Every request gets an X-Request-ID (a well-formed one from the
+      caller is kept) that the upstream and every answer carry.
+    parameters:
+      - name: path
+        in: path
+        required: true
+        description: The rest of the path, as the upstream sees it.
+        schema:
+          type: string
+    get:
+      operationId: forwardGet
+      summary: Forwarded to the upstream. Retried up to twice on a connection failure, a 502 or a 503 — never on a timeout.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+        "413":
+          $ref: "#/components/responses/TooLarge"
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    head:
+      operationId: forwardHead
+      summary: Forwarded to the upstream, retried like GET.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    post:
+      operationId: forwardPost
+      summary: Forwarded to the upstream with its body, once — a request that may not be safe to repeat is never retried.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+        "413":
+          $ref: "#/components/responses/TooLarge"
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    put:
+      operationId: forwardPut
+      summary: Forwarded to the upstream with its body, once.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+        "413":
+          $ref: "#/components/responses/TooLarge"
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    patch:
+      operationId: forwardPatch
+      summary: Forwarded to the upstream with its body, once.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+        "413":
+          $ref: "#/components/responses/TooLarge"
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    delete:
+      operationId: forwardDelete
+      summary: Forwarded to the upstream, once.
+      responses:
+        default:
+          $ref: "#/components/responses/Forwarded"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+{%- if values.withRateLimit %}
+        "429":
+          $ref: "#/components/responses/RateLimited"
+{%- endif %}
+        "502":
+          $ref: "#/components/responses/Unreachable"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Timeout"
+    options:
+      operationId: corsPreflight
+      summary: The CORS preflight, answered by the gateway itself for the origins in gateway.cors.allowed-origins; any other origin is refused.
+      security: []
+      responses:
+        "200":
+          description: The origin may call the gateway from a browser (Access-Control-Allow-Origin names it).
+        "403":
+          description: The origin is not on the allow-list.
+  # Actuator also exposes /actuator/info and /actuator/metrics, with Spring
+  # Boot's own schemas; they are not repeated here.
+  /actuator/health:
+    get:
+      operationId: health
+      summary: Actuator health. An open circuit breaker does NOT report DOWN — shielding callers from a failing upstream is the gateway working (adhar.resilience.health.enabled is off).
+      tags: [actuator]
+      security: []
+      responses:
+        "200":
+          description: UP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: DOWN or OUT_OF_SERVICE — an indicator is failing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/health/liveness:
+    get:
+      operationId: liveness
+      summary: The Kubernetes liveness probe (deploy/base/rollout.yaml).
+      tags: [actuator]
+      security: []
+      responses:
+        "200":
+          description: The process is live.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Broken — the kubelet restarts the container.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/health/readiness:
+    get:
+      operationId: readiness
+      summary: The Kubernetes readiness probe (deploy/base/rollout.yaml).
+      tags: [actuator]
+      security: []
+      responses:
+        "200":
+          description: Ready to take traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Not ready — the Service stops sending traffic to this pod.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/prometheus:
+    get:
+      operationId: prometheus
+      summary: "Metrics in the Prometheus text format, scraped by the platform's PodMonitor: latency per route (spring_cloud_gateway_requests_seconds), requests in flight, breaker states, connection pools, fallbacks by reason."
+      tags: [actuator]
+      security: []
+      responses:
+        "200":
+          description: The metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /actuator/gateway/routes:
+    get:
+      operationId: routes
+      summary: The routes the gateway serves, with their predicates and filters{% if values.withAuth %} — for callers with the `gateway-admin` realm role{% else %} — closed while authentication is off{% endif %}.
+      tags: [actuator]
+      responses:
+        "200":
+          description: One entry per route.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteDefinition"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The token carries no `gateway-admin` realm role.
+{%- else %}
+        "401":
+          description: Closed while authentication is off (SecurityConfig).
+{%- endif %}
+  /actuator/circuitbreakers:
+    get:
+      operationId: circuitBreakers
+      summary: Every circuit breaker and its state{% if values.withAuth %} — for callers with the `gateway-admin` realm role{% else %} — closed while authentication is off{% endif %}.
+      tags: [actuator]
+      responses:
+        "200":
+          description: The breakers, by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [circuitBreakers]
+                properties:
+                  circuitBreakers:
+                    type: object
+                    description: Keyed by the breaker's name (the route's); each value holds the Resilience4j state and metrics.
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The token carries no `gateway-admin` realm role.
+{%- else %}
+        "401":
+          description: Closed while authentication is off (SecurityConfig).
+{%- endif %}
+components:
+{%- if values.withAuth %}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: An access token from the platform's Keycloak realm `adhar`, verified against the realm's signing keys. Realm roles become ROLE_<role>.
+{%- endif %}
+  responses:
+    Forwarded:
+      description: The upstream's own answer — its status, headers and body pass through untouched, a 500 included — with X-Request-ID added. Only a 502, 503 or 504 from the upstream is replaced by the fallback below.
+      headers:
+        X-Request-ID:
+          description: The request's ID, shared with the upstream and the logs.
+          schema:
+            type: string
+{%- if values.withAuth %}
+    Unauthorized:
+      description: No bearer token, or one the gateway cannot verify (WWW-Authenticate names the scheme).
+{%- endif %}
+    TooLarge:
+      description: The body is above 10 MB; refused before it is read (default-filters, RequestSize).
+{%- if values.withRateLimit %}
+    RateLimited:
+      description: The caller is over its allowance — ${{ values.rateLimitPerSecond }} requests per second, bursting to ${{ values.rateLimitBurst }} — shared by every replica through Valkey. Every answer on the route reports the remaining allowance.
+      headers:
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        X-RateLimit-Burst-Capacity:
+          schema:
+            type: integer
+        X-RateLimit-Replenish-Rate:
+          schema:
+            type: integer
+{%- endif %}
+    Unreachable:
+      description: The upstream could not be reached (FallbackController, reason upstream-error).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unavailable:
+      description: "The upstream is failing and its circuit breaker is open, the route is at gateway.max-concurrent-per-route, this replica is above gateway.max-in-flight (${{ values.maxInFlight }}) and sheds load, or the upstream itself answered 503. Try again after Retry-After."
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds (5).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Timeout:
+      description: The upstream did not answer within gateway.upstream-timeout (${{ values.timeoutMs }} ms).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    ServiceInfo:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+    Health:
+      type: object
+      description: Only `status` unless management.endpoint.health.show-details is raised.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]
+    Problem:
+      type: object
+      description: An RFC 9457 problem detail. The fallback adds the route and the request's ID.
+      required: [status, title]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          description: The request path.
+        route:
+          type: string
+          description: The route whose fallback answered.
+        requestId:
+          type: string
+          description: The same value as the X-Request-ID header.
+    RouteDefinition:
+      type: object
+      description: Spring Cloud Gateway's own shape of a route.
+      required: [route_id, uri]
+      properties:
+        route_id:
+          type: string
+        uri:
+          type: string
+        order:
+          type: integer
+        predicate:
+          type: string
+        filters:
+          type: array
+          items:
+            type: string

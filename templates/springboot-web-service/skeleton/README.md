@@ -65,6 +65,10 @@ Every endpoint is public. See `application.properties` to require a Keycloak JWT
 | `GET /events` | Last 20 events this replica consumed |
 {%- endif %}
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec).
+Change a controller and the file together.
+
 ## Layout
 
 ```
@@ -73,6 +77,7 @@ Every endpoint is public. See `application.properties` to require a Keycloak JWT
 ├── settings.xml         # platform Nexus (maven-public)
 ├── compose.yaml         # local backing services for `mvn spring-boot:run`
 ├── project.toml         # buildpack: BP_MAVEN_SETTINGS_PATH
+├── api/openapi.yaml     # the HTTP contract, published in the catalog
 ├── src/main/java/io/adhar/service/
 │   ├── Application.java
 │   ├── HelloController.java

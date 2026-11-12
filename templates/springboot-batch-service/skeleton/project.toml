@@ -7,6 +7,7 @@
     name = "BP_MAVEN_SETTINGS_PATH"
     value = "settings.xml"
 
-  [[build.env]]
-    name = "BP_MAVEN_BUILD_ARGUMENTS"
-    value = "-s settings.xml clean package"
+  # No BP_MAVEN_BUILD_ARGUMENTS: the buildpack's default (`-Dmaven.test.skip=true
+  # package`) is what app-ci relies on. Overriding it with `clean package` ran
+  # the Testcontainers-backed suite inside the image build, where there is no
+  # Docker; tests run in the pipeline's test stage (failsafe `*IT`, on kubedock).

@@ -45,7 +45,15 @@ deno task test:net    # the editor ids against the VS Code Marketplace, Open VSX
   `.idea/externalDependencies.xml`, misses the cross-cutting ones or the
   language's own, or uses an id that `editor-ids.json` does not record;
 - is a TypeScript project whose editor does not use the project's own
-  TypeScript, or whose container has no `tsx`.
+  TypeScript, or whose container has no `tsx`;
+- serves HTTP — a `service` Component with a `deploy/base/httproute.yaml`, or
+  a `function` — without `api/openapi.yaml`, or without publishing it from
+  `catalog-info.yaml` as a `kind: API` entity (`<name>-api`, its
+  `definition.$text` naming the file, the same owner and lifecycle as the
+  Component, which `providesApis` it), or with a contract that does not render,
+  every way, to an OpenAPI 3 document titled after the application and served
+  from its host (`api_contract_test.ts`). The Console registers that entity
+  under Design → API & Spec when the application is created.
 
 It also runs the shared `app-ci.sh` with stand-ins for `gitleaks` and `trivy`
 (`lib/app-ci-gates.sh`) and fails when its scanner gates stop calling them the

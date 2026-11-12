@@ -250,7 +250,8 @@ adhar-templates/
     └── <name>/
         ├── template.yaml      # the form (parameters) + scaffolder steps
         └── skeleton/          # rendered into the new app's repository
-            ├── catalog-info.yaml   # the new component's catalog entry
+            ├── catalog-info.yaml   # the new component's catalog entry (+ its API entity)
+            ├── api/openapi.yaml    # the HTTP contract the API entity publishes (services, functions)
             ├── mkdocs.yml, docs/   # TechDocs: overview, architecture, operations
             ├── perf/               # k6 load test + Performance Center gate
             ├── <app source>
@@ -300,6 +301,12 @@ adhar-templates/
      timeouts above one second. The scorecard checks for all of them.
    - **Ship `docs/`** that explain the generated service rather than the
      template.
+   - **Declare the HTTP interface.** A service with an HTTPRoute, and every
+     function, ships `api/openapi.yaml` — the paths the skeleton actually
+     serves, probes included — and publishes it from `catalog-info.yaml` as a
+     `kind: API` entity named `<name>-api` that the Component `providesApis`.
+     The Console registers it under Design → API & Spec when the application
+     is created; `tests/` refuses a template that serves HTTP without one.
    - **Write TypeScript, not JavaScript** — the application, its tests, dev-server
      proxies, end-to-end helpers and the k6 test `perf/load.ts` alike. A script
      Node runs directly (`node e2e/serve.ts`, `node server.ts`) keeps to

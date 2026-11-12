@@ -19,9 +19,13 @@
   <description>${{ values.description }}</description>
 
   <dependencies>
+    <!-- Spring Batch 6 the platform way: adhar-kit-batch brings spring-boot-starter-batch-jdbc
+         (a JDBC JobRepository - the plain starter is an in-memory store since Spring Boot 4) and
+         spring-batch-core, and adds the step builder, fault-tolerance presets, listeners,
+         operator API and schema management the job below is written against. -->
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-batch</artifactId>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-batch</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -41,12 +45,16 @@
       <artifactId>adhar-kit-persistence</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-jdbc</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+{%- else %}
+    <!-- No metadata database was chosen: the JobRepository lives in an embedded H2 database for
+         the life of the pod (see application.properties). -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
       <scope>runtime</scope>
     </dependency>
 {%- endif %}
@@ -58,7 +66,7 @@
 {%- endif %}
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-testcontainers</artifactId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -67,6 +75,11 @@
       <scope>test</scope>
     </dependency>
 {%- if values.withDatabase %}
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-postgresql</artifactId>

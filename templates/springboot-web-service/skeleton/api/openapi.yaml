@@ -1,0 +1,315 @@
+# The service's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with the
+# controllers in src/main/java/io/adhar/service/ — the Karate features in
+# src/test/resources/karate check the running service against these paths.
+# Nothing generates a document at runtime (springdoc is not on the classpath);
+# if it is added, what it serves at /v3/api-docs must agree with this file.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A Spring Boot service on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+{%- if values.withAuth %}
+# Every operation needs a bearer JWT from the platform's Keycloak realm `adhar`
+# (adhar.security.* in application.properties), except the landing page and
+# the actuator, which say `security: []` below.
+security:
+  - bearerAuth: []
+{%- endif %}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this service is.
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: The service's name and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+        "405":
+          description: Any other method. Errors answer as RFC 9457 problems (spring.mvc.problemdetails).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  # Actuator also exposes /actuator/info and /actuator/metrics, with Spring
+  # Boot's own schemas; they are not repeated here.
+  /actuator/health:
+    get:
+      operationId: health
+      summary: Actuator health, aggregated over every indicator.
+      tags: [actuator]
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: UP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: DOWN or OUT_OF_SERVICE — an indicator is failing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/health/liveness:
+    get:
+      operationId: liveness
+      summary: The Kubernetes liveness probe (deploy/base/rollout.yaml).
+      tags: [actuator]
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: The process is live.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Broken — the kubelet restarts the container.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/health/readiness:
+    get:
+      operationId: readiness
+      summary: The Kubernetes readiness probe (deploy/base/rollout.yaml).
+      tags: [actuator]
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: Ready to take traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Not ready — the Service stops sending traffic to this pod.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /actuator/prometheus:
+    get:
+      operationId: prometheus
+      summary: Metrics in the Prometheus text format, scraped by the platform's PodMonitor; includes the http_server_requests_seconds histogram the dashboard draws p50/p95 from.
+      tags: [actuator]
+{%- if values.withAuth %}
+      security: []
+{%- endif %}
+      responses:
+        "200":
+          description: The metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+{%- if values.withDatabase %}
+  /db:
+    get:
+      operationId: db
+      summary: Runs SELECT now() on PostgreSQL. The answer is the database's clock, or the error.
+      responses:
+        "200":
+          description: Whether this replica can query its database. The outcome is in the body — a failed query still answers 200.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DatabaseOk"
+                  - $ref: "#/components/schemas/DatabaseError"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+{%- endif %}
+{%- if values.withCache %}
+  /cache/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: lookup
+      summary: A deliberately slow lookup fronted by the Valkey cache. The first call for a key pays the cost; repeat calls from any replica return the stored answer, with its original computedAt, until the TTL (${{ values.cacheTtl }}) passes or the key is evicted.
+      responses:
+        "200":
+          description: The lookup, computed now or served from the cache.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lookup"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+    delete:
+      operationId: evict
+      summary: Evicts a key, so the next lookup is computed again.
+      responses:
+        "200":
+          description: Evicted. No body.
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+{%- endif %}
+{%- if values.withKafka %}
+  /events:
+    post:
+      operationId: publish
+      summary: Publishes the request body, as it is, to the `${{ values.kafkaTopic }}` topic.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        "202":
+          description: Handed to the producer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Published"
+        "400":
+          description: No body.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+    get:
+      operationId: recent
+      summary: The last 20 events THIS replica consumed from the topic, newest first. Replicas share the consumer group, so each sees its own partitions.
+      responses:
+        "200":
+          description: The payloads, as published.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+{%- if values.withAuth %}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+{%- endif %}
+{%- endif %}
+components:
+{%- if values.withAuth %}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: An access token from the platform's Keycloak realm `adhar`, verified against the realm's signing keys.
+  responses:
+    Unauthorized:
+      description: No bearer token, or one the service cannot verify.
+{%- endif %}
+  schemas:
+    ServiceInfo:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+    Health:
+      type: object
+      description: Only `status` unless management.endpoint.health.show-details is raised.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]
+    Problem:
+      type: object
+      description: An RFC 9457 problem detail.
+      required: [status, title]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          description: The request path.
+{%- if values.withDatabase %}
+    DatabaseOk:
+      type: object
+      required: [db, now]
+      properties:
+        db:
+          type: string
+          enum: [ok]
+        now:
+          type: string
+          description: The database server's clock, as PostgreSQL prints it.
+    DatabaseError:
+      type: object
+      required: [db, error]
+      properties:
+        db:
+          type: string
+          enum: [error]
+        error:
+          type: string
+{%- endif %}
+{%- if values.withCache %}
+    Lookup:
+      type: object
+      required: [key, value, computedAt]
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+          description: The key in upper case — stands in for a database or downstream call.
+        computedAt:
+          type: string
+          format: date-time
+          description: When the value was computed; a cached answer keeps the time of the call that produced it.
+{%- endif %}
+{%- if values.withKafka %}
+    Published:
+      type: object
+      required: [topic, status]
+      properties:
+        topic:
+          type: string
+          description: ${{ values.kafkaTopic }}
+        status:
+          type: string
+          enum: [sent]
+{%- endif %}

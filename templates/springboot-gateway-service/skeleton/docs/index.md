@@ -17,6 +17,7 @@ failure handling, request ID and trace — written once here, not in every servi
 | Local dependencies | `compose.yaml` — an echo upstream{% if values.withRateLimit %} and Valkey{% endif %} |
 | Tests | `src/test/` — unit tests, and Karate API tests against the running gateway |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its own HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` — the landing page, the actuator and the answers it adds in front of every route |
 | Catalog entry | `catalog-info.yaml` |
 
 The gateway is at **https://${{ values.hostname }}** once the first rollout

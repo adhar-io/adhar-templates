@@ -1,0 +1,166 @@
+# The service's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with
+# src/main/java/io/adhar/service/GreetingResource.java — the Karate features
+# in src/test/resources/karate check the running service against these paths.
+# Nothing generates a document at runtime (quarkus-smallrye-openapi is not in
+# pom.xml); if it is added, what it serves at /q/openapi must agree with this
+# file.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A Quarkus service on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this service is.
+      responses:
+        "200":
+          description: The service's name and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+        "405":
+          description: Any other method.
+  /healthz:
+    get:
+      operationId: healthz
+      summary: The probe both the liveness and the readiness check in deploy/base/rollout.yaml call. Answers while the process serves HTTP and checks nothing else.
+      responses:
+        "200":
+          description: Up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [ok]
+  /q/health:
+    get:
+      operationId: health
+      summary: SmallRye Health, aggregated over every check (quarkus-smallrye-health).
+      tags: [health]
+      responses:
+        "200":
+          description: UP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: DOWN — a check is failing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /q/health/live:
+    get:
+      operationId: live
+      summary: The liveness checks.
+      tags: [health]
+      responses:
+        "200":
+          description: Live.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Broken.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /q/health/ready:
+    get:
+      operationId: ready
+      summary: The readiness checks{% if values.withDatabase %}, the database connection among them (Agroal's "Database connections health check"){% endif %}.
+      tags: [health]
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+{%- if values.withDatabase %}
+  /db:
+    get:
+      operationId: db
+      summary: Runs SELECT now() on PostgreSQL. The answer is the database's clock, or the error.
+      responses:
+        "200":
+          description: Whether this replica can query its database. The outcome is in the body — a failed query still answers 200.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DatabaseOk"
+                  - $ref: "#/components/schemas/DatabaseError"
+{%- endif %}
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+    Health:
+      type: object
+      description: The MicroProfile Health response.
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+        checks:
+          type: array
+          description: Empty when no backing service registers a check.
+          items:
+            type: object
+            required: [name, status]
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [UP, DOWN]
+              data:
+                type: object
+{%- if values.withDatabase %}
+    DatabaseOk:
+      type: object
+      required: [db, now]
+      properties:
+        db:
+          type: string
+          enum: [ok]
+        now:
+          type: string
+          description: The database server's clock, as PostgreSQL prints it.
+    DatabaseError:
+      type: object
+      required: [db, error]
+      properties:
+        db:
+          type: string
+          enum: [error]
+        error:
+          type: string
+{%- endif %}

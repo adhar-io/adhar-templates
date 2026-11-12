@@ -11,6 +11,7 @@ A **Spring Boot, hexagonal (ports & adapters)** service scaffolded from the Adha
 | Application source | `pom.xml` — the build. Domain logic stays free of framework imports; adapters sit at the edges. |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout, CloudNativePG Cluster |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 

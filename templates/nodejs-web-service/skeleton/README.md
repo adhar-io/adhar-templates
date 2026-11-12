@@ -27,6 +27,10 @@ collects, each carrying the trace it belongs to — no wiring required.
 
 Errors answer as RFC 9457 problem documents (`application/problem+json`).
 
+The contract is `api/openapi.yaml`, registered in the catalog as
+`${{ values.name }}-api` (the Console lists it under Design → API & Spec); its
+schemas are the types in `src/types/`. Change a route and the file together.
+
 ## Layout
 
 ```
@@ -58,6 +62,7 @@ Errors answer as RFC 9457 problem documents (`application/problem+json`).
 ├── eslint.config.mts        # ESLint with typescript-eslint's type-checked rules
 ├── project.toml             # the Node.js version the image ships (BP_NODE_VERSION), the build step
 ├── perf/                    # the k6 load test the Performance Center runs
+├── api/openapi.yaml         # the HTTP contract, published in the catalog
 ├── docs/ + mkdocs.yml       # these docs, as TechDocs
 └── deploy/                  # GitOps tree — ArgoCD syncs it
     ├── base/                # Rollout (canary) of the SIGNED image, Service, HTTPRoute{% if values.withDatabase %}, CloudNativePG database{% endif %}

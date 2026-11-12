@@ -1,0 +1,93 @@
+# The service's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with the
+# handlers in main.go. Nothing generates a document at runtime; this file is
+# the only one.
+#
+# net/http's "/" pattern is a catch-all and the handlers check no method, so a
+# path or method not listed here answers the landing page rather than 404 or
+# 405. Register a more specific pattern (or "GET /path") to change that.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'A Go service on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this service is.
+      responses:
+        "200":
+          description: The service's name and status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+  /healthz:
+    get:
+      operationId: healthz
+      summary: The probe both the liveness and the readiness check in deploy/base/rollout.yaml call. Answers while the process serves HTTP and checks nothing else.
+      responses:
+        "200":
+          description: Up.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [ok]
+{%- if values.withDatabase %}
+  /db:
+    get:
+      operationId: db
+      summary: Runs SELECT now() on PostgreSQL (DATABASE_URL). The answer is the database's clock, or the error.
+      responses:
+        "200":
+          description: This replica can query its database.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseOk"
+        "500":
+          description: It cannot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseError"
+{%- endif %}
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          description: ${{ values.name }}
+        status:
+          type: string
+          enum: [ok]
+{%- if values.withDatabase %}
+    DatabaseOk:
+      type: object
+      required: [db, now]
+      properties:
+        db:
+          type: string
+          enum: [ok]
+        now:
+          type: string
+          description: The database server's clock, as PostgreSQL prints it.
+    DatabaseError:
+      type: object
+      required: [db, error]
+      properties:
+        db:
+          type: string
+          enum: [error]
+        error:
+          type: string
+{%- endif %}

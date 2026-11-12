@@ -12,6 +12,7 @@ A **Spring Boot (Web MVC)** service scaffolded from the Adhar `springboot-web-se
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout{% if values.withDatabase %}, CloudNativePG Cluster{% endif %}{% if values.withCache %}, Valkey cache claim{% endif %}{% if values.withKafka %}, Kafka claim{% endif %} |
 | Local backing services | `compose.yaml` — `docker compose up -d` |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 

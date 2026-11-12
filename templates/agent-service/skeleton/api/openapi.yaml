@@ -1,0 +1,140 @@
+# The agent's HTTP interface, published in the catalog as
+# ${{ values.name }}-api (catalog-info.yaml) and listed by the Console under
+# Design → API & Spec. This file is the contract: keep it in step with the
+# routes in agent.py. FastAPI also generates a document at runtime, served at
+# /openapi.json (with /docs and /redoc in front of it); that document must
+# agree with this file — the one here is what the catalog publishes.
+openapi: 3.1.0
+info:
+  title: ${{ values.name }}
+  version: 0.1.0
+  description: ${{ (values.description or 'An agent on the Adhar platform.') | dump }}
+servers:
+  # dev. Each environment serves its own host: <name>.<environment>.<platform domain>.
+  - url: https://${{ values.hostname }}
+paths:
+  /:
+    get:
+      operationId: index
+      summary: What this agent is, and where it sends its calls.
+      responses:
+        "200":
+          description: The agent's name, environment, default model and gateway.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentInfo"
+  /healthz:
+    get:
+      operationId: healthz
+      summary: The probe both the liveness and the readiness check in deploy/base/rollout.yaml call. Answers while the process serves HTTP; it does not call the gateway.
+      responses:
+        "200":
+          description: Up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /ask:
+    post:
+      operationId: ask
+      summary: One agent step — a single reasoning call through the AI gateway, as a gen_ai span. Extend it into a loop that reads tool_calls from the model's answer and dispatches them through the gateway's MCP endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Ask"
+      responses:
+        "200":
+          description: The model's answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Answer"
+        "422":
+          description: The body is not an Ask (FastAPI's validation error).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "500":
+          description: The gateway refused or failed the call — a 403 is a model outside the allow-list in deploy/base/agentworkload.yaml — and the agent raised.
+components:
+  schemas:
+    AgentInfo:
+      type: object
+      required: [agent, environment, model, gateway]
+      properties:
+        agent:
+          type: string
+          description: ADHAR_AGENT, ${{ values.name }}.
+        environment:
+          type: string
+          description: ADHAR_ENVIRONMENT (dev, test, prod).
+        model:
+          type: string
+          description: AGENT_DEFAULT_MODEL, the model a request that names none is sent to.
+        gateway:
+          type: string
+          format: uri
+          description: AI_GATEWAY_URL.
+    Health:
+      type: object
+      required: [status, agent, environment]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        agent:
+          type: string
+        environment:
+          type: string
+    Ask:
+      type: object
+      description: The Ask model in agent.py.
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+        model:
+          type: ["string", "null"]
+          description: A model NAME the gateway routes; the default model when absent. One the agent is not allowed is a 403 at the gateway, so a 500 here.
+    Answer:
+      type: object
+      required: [model, answer]
+      properties:
+        model:
+          type: string
+          description: The model that answered, as the gateway reports it.
+        answer:
+          type: string
+          description: The content of the first choice; empty when the model returned none.
+        usage:
+          type: ["object", "null"]
+          description: The gateway's token usage (prompt_tokens, completion_tokens, total_tokens), when it reports one.
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+    ValidationError:
+      type: object
+      description: FastAPI's HTTPValidationError.
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            required: [loc, msg, type]
+            properties:
+              loc:
+                type: array
+                items:
+                  type: ["string", "integer"]
+              msg:
+                type: string
+              type:
+                type: string

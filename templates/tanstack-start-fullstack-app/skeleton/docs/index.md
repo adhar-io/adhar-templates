@@ -11,6 +11,7 @@ A **TanStack Start (full-stack React)** service scaffolded from the Adhar `tanst
 | Application source | `src/router.tsx` — routes and server functions; `vite.config.ts` — the build. |
 | Kubernetes manifests | `deploy/` — Service, HTTPRoute, Argo Rollout, CloudNativePG Cluster |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
+| Its server routes | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` — `/api/hello`, `/i18n/<language>.json`, `/runtime-config.json` and the proxies |
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 
