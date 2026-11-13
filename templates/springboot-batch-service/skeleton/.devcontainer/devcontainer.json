@@ -29,8 +29,9 @@
   "runArgs": ["--add-host=host.docker.internal:host-gateway"],
   "remoteUser": "vscode",
   "containerEnv": {
-    // OpenTelemetry as the deployed job sends it (deploy/base/cronjob.yaml), to the
-    // platform's collector, marked as a local run rather than dev, test or prod.
+    // OpenTelemetry as the platform sets it on every run pod composed from
+    // deploy/base/batchjob.yaml, to the platform's collector, marked as a local
+    // run rather than dev, test or prod.
     "OTEL_SERVICE_NAME": "${{ values.name }}",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy.adhar-system.svc.cluster.local:4318",
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",

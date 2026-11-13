@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.adhar.kit.batch.operator.BatchOperator;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
@@ -15,24 +16,21 @@ import org.springframework.batch.core.step.StepExecution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-{%- if values.withDatabase %}
 import org.springframework.jdbc.core.JdbcTemplate;
-{%- endif %}
 
 /**
  * Runs the sample job end to end through the kit's {@link BatchOperator}, against the
  * JobRepository the service is configured with, and checks that the partitions between them
- * read every item exactly once.
+ * read every item exactly once. Each test is its own JobInstance (a unique {@code run.id} is
+ * part of these identities, which a platform run never has); PlatformRunLauncherIT covers the
+ * identity a run gets on the platform.
  */
 @SpringBootTest(properties = {
-        // CI runs this test INSIDE a Kubernetes pod (the pipeline's test step), where
-        // Spring Boot detects the Kubernetes cloud platform and adhar-kit-kubernetes
-        // (Spring Cloud Kubernetes) starts discovery as the CI pod's service account,
-        // which fails the context. The test runs the job as it runs on a laptop.
-        "spring.main.cloud-platform=none",
         "batch.partition-count=2",
         "batch.backoff-ms=1",
         "batch.items=alpha,beta,gamma,delta,epsilon",
+        // No collector on the test host: nothing to push to.
+        "management.otlp.metrics.export.enabled=false",
 })
 @Import(TestcontainersConfiguration.class)
 class EnterpriseJobIT {
@@ -45,11 +43,9 @@ class EnterpriseJobIT {
 
     @Autowired
     private MeterRegistry meterRegistry;
-{%- if values.withDatabase %}
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-{%- endif %}
 
     @Test
     void readsTheSampleFileAcrossPartitions() throws Exception {
@@ -72,7 +68,6 @@ class EnterpriseJobIT {
         assertThat(workers.stream().mapToLong(StepExecution::getReadCount).sum()).isEqualTo(5);
         assertThat(workers.stream().mapToLong(StepExecution::getReadCount)).containsExactlyInAnyOrder(3L, 2L);
     }
-{%- if values.withDatabase %}
 
     @Test
     void readsTheDatabaseTableAcrossPartitions() throws Exception {
@@ -89,11 +84,11 @@ class EnterpriseJobIT {
         assertThat(workers.stream().mapToLong(StepExecution::getReadCount).sum()).isEqualTo(7);
         assertThat(workers.stream().mapToLong(StepExecution::getWriteCount).sum()).isEqualTo(7);
     }
-{%- endif %}
 
     private static JobParameters parameters(String source) {
         return new JobParametersBuilder()
                 .addLong("run.id", System.nanoTime())
+                .addLocalDate(BatchConfiguration.BUSINESS_DATE_PARAMETER, LocalDate.of(2026, 11, 3))
                 .addString(BatchConfiguration.SOURCE_PARAMETER, source)
                 .toJobParameters();
     }

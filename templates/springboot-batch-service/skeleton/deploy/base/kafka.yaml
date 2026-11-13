@@ -1,0 +1,31 @@
+{%- if values.withKafka %}
+# Kafka event stream, provisioned by the Adhar control plane (Crossplane) — the
+# same claim the `kafka-cluster` self-service template makes. Locally it
+# composes a single-node Strimzi Kafka (KRaft) plus the topic below; the
+# bootstrap Service is `${{ values.name }}-events-kafka-bootstrap:9092`, which
+# batchjob.yaml passes to the run as SPRING_KAFKA_BOOTSTRAP_SERVERS.
+#
+# Topics are owned here, not by the application: add one to `topics:` and
+# commit, rather than letting the client auto-create it.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Messaging
+metadata:
+  name: ${{ values.name }}-events
+  labels:
+    app: ${{ values.name }}
+    app.kubernetes.io/name: ${{ values.name }}-events
+    adhar.io/application: ${{ values.name }}
+    platform.adhar.io/self-service: "true"
+spec:
+  crossplane:
+    compositionRef:
+      name: messaging-local-strimzi
+  name: ${{ values.name }}-events
+  engine: kafka
+  kafkaVersion: "4.3.1"
+  storageSize: 2Gi
+  topics:
+    - name: ${{ values.kafkaTopic or 'events' }}
+      partitions: ${{ values.kafkaPartitions or 3 }}
+      replicas: 1
+{%- endif %}

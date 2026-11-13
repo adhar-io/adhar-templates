@@ -31,15 +31,19 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!-- A run pod lives minutes and serves nothing, so its metrics are PUSHED to the platform's
+         collector over OTLP (management.otlp.metrics.export.* in application.properties) rather
+         than scraped from an endpoint a short pod never gets to expose. -->
     <dependency>
       <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-prometheus</artifactId>
+      <artifactId>micrometer-registry-otlp</artifactId>
     </dependency>
     <dependency>
       <groupId>com.adhar.kit</groupId>
       <artifactId>adhar-kit-starter</artifactId>
     </dependency>
-{%- if values.withDatabase %}
+    <!-- The job's own PostgreSQL (deploy/base/database.yaml): the Spring Batch JobRepository the
+         platform requires - adhar-kit-batch refuses an in-memory one - and the business tables. -->
     <dependency>
       <groupId>com.adhar.kit</groupId>
       <artifactId>adhar-kit-persistence</artifactId>
@@ -49,15 +53,6 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
-{%- else %}
-    <!-- No metadata database was chosen: the JobRepository lives in an embedded H2 database for
-         the life of the pod (see application.properties). -->
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-{%- endif %}
 {%- if values.withKafka %}
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -74,7 +69,6 @@
       <artifactId>spring-batch-test</artifactId>
       <scope>test</scope>
     </dependency>
-{%- if values.withDatabase %}
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-testcontainers</artifactId>
@@ -85,7 +79,6 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
-{%- endif %}
   </dependencies>
 
   <dependencyManagement>

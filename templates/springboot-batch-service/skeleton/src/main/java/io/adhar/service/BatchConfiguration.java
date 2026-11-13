@@ -2,21 +2,25 @@ package io.adhar.service;
 
 import com.adhar.kit.batch.fault.FaultTolerance;
 import com.adhar.kit.batch.operator.BatchOperator;
+import com.adhar.kit.batch.operator.JobResolver;
 import com.adhar.kit.batch.step.AdharSteps;
 import io.adhar.service.batch.EnterpriseBatchProperties;
 import io.adhar.service.batch.PartitionSliceReader;
+import io.adhar.service.batch.PlatformRun;
+import io.adhar.service.batch.PlatformRunLauncher;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
-import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.partition.Partitioner;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
@@ -32,9 +36,10 @@ import org.springframework.batch.infrastructure.item.file.mapping.PassThroughLin
 import org.springframework.batch.infrastructure.item.support.ListItemReader;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 
@@ -45,6 +50,11 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
  * {@link AdharSteps} builds the steps on the JobRepository's transaction manager with the
  * platform's listeners attached, and {@link FaultTolerance} declares what is retried.
  *
+ * <p>The job's parameters are DECLARED in {@code deploy/base/batchjob.yaml} (the Console's run
+ * form and the CLI's checks read them there) and completed by {@link PlatformRunLauncher}
+ * here: {@value #BUSINESS_DATE_PARAMETER} and {@value #SOURCE_PARAMETER} are the identity of a
+ * run. Keep the two in step.</p>
+ *
  * <p>There is no {@code @EnableBatchProcessing}: on Spring Boot it switches the batch
  * auto-configuration (and with it the kit's) OFF.</p>
  */
@@ -53,11 +63,21 @@ public class BatchConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
 
+    /**
+     * The job's BEAN name: what {@code deploy/base/batchjob.yaml} names as {@code job} and the
+     * platform passes to every run as {@code ADHAR_BATCH_JOB}. The kit resolves by bean name
+     * first, then by {@link #JOB_NAME}.
+     */
+    public static final String JOB_BEAN = "enterpriseJob";
     public static final String JOB_NAME = "enterprise-job";
     public static final String WORKER_STEP = "workerStep";
     public static final String MANAGER_STEP = "managerStep";
-    /** Job parameter choosing the input of one run; defaults to {@code batch.input-type}. */
+    /** Identifying parameter: the day a run processes (type date, derived from the schedule). */
+    public static final String BUSINESS_DATE_PARAMETER = "businessDate";
+    /** Identifying parameter choosing the input of one run; defaults to {@code batch.input-type}. */
     public static final String SOURCE_PARAMETER = "source";
+    /** The inputs {@link #SOURCE_PARAMETER} may name — batchjob.yaml's `allowed` list. */
+    public static final Set<String> SOURCES = Set.of("file", "database", "list");
     static final String PARTITION_INDEX = "partitionIndex";
     static final String PARTITION_COUNT = "partitionCount";
 
@@ -196,10 +216,11 @@ public class BatchConfiguration {
     /**
      * No {@code RunIdIncrementer}: on Spring Batch 6 a job with an incrementer makes
      * {@code JobOperator.start(job, parameters)} IGNORE the parameters it is given (it starts
-     * the next instance instead), which would silently drop the {@code source} parameter. Both
-     * launch paths supply a unique {@code run.id} themselves.
+     * the next instance instead), which would silently drop every parameter — and a unique
+     * run id per launch is exactly what made scheduled runs unrestartable. The identity is
+     * the identifying parameters ({@value #BUSINESS_DATE_PARAMETER}, {@value #SOURCE_PARAMETER}).
      */
-    @Bean
+    @Bean(JOB_BEAN)
     public Job enterpriseJob(JobRepository jobRepository, Step managerStep) {
         return new JobBuilder(JOB_NAME, jobRepository)
                 .start(managerStep)
@@ -207,22 +228,16 @@ public class BatchConfiguration {
     }
 
     /**
-     * {@code --run-batch [--source=file|database|list]} runs the job once at startup - what
-     * the CronJob does. Without the flag the service only serves its endpoints.
+     * The one run this process exists for, launched the way the platform launches it: from
+     * the run contract every run pod carries ({@code ADHAR_BATCH_JOB} and friends, set by the
+     * BatchJob composition or by the Console / {@code adhar batch run}). Absent that contract
+     * — a test context — nothing is launched.
      */
     @Bean
-    public ApplicationRunner batchRunner(BatchOperator batchOperator, Job enterpriseJob) {
-        return args -> {
-            if (!args.containsOption("run-batch")) {
-                return;
-            }
-            JobParametersBuilder parameters = new JobParametersBuilder()
-                    .addLong("run.id", System.currentTimeMillis());
-            List<String> sources = args.getOptionValues(SOURCE_PARAMETER);
-            if (sources != null && !sources.isEmpty()) {
-                parameters.addString(SOURCE_PARAMETER, sources.get(0));
-            }
-            batchOperator.start(enterpriseJob, parameters.toJobParameters());
-        };
+    @ConditionalOnProperty(PlatformRun.JOB)
+    public PlatformRunLauncher platformRunLauncher(Environment environment, BatchOperator batchOperator,
+                                                  JobResolver jobResolver, EnterpriseBatchProperties properties) {
+        return new PlatformRunLauncher(PlatformRun.fromEnvironment(environment), batchOperator, jobResolver,
+                properties, Clock.systemUTC());
     }
 }

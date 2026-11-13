@@ -54,6 +54,20 @@ deno task test:net    # the editor ids against the VS Code Marketplace, Open VSX
   every way, to an OpenAPI 3 document titled after the application and served
   from its host (`api_contract_test.ts`). The Console registers that entity
   under Design → API & Spec when the application is created.
+- is of the batch family (the label `adhar.io/workload: batch`, a
+  `springboot-batch-*` name or the `batch` tag, as the Console reads it) and
+  does not deploy a `BatchJob`: `deploy/base/batchjob.yaml` naming a job bean
+  the sources declare, the application's `:latest` Harbor image and the
+  `<Database>-app` Secret of its `deploy/base/database.yaml`;
+  `deploy/base/kustomizeconfig.yaml` telling kustomize (and so Kargo's
+  kustomize-set-image) that a BatchJob keeps its image at
+  `spec/parameters/image`; and `deploy/envs/{dev,test,prod}` with the
+  namespace, the Kargo-owned `images:` block, the schedule suspended in dev
+  and `priority: critical` in prod — or ships a CronJob, Service, HPA, PDB,
+  RBAC, PodMonitor or PrometheusRule of its own, which the platform composes
+  from the BatchJob (`batch_deploy_test.ts`). An Application syncs the
+  kustomize build of `deploy/envs/<env>`, so a batch skeleton with a raw
+  CronJob and no overlays deployed nothing while reporting Healthy.
 
 It also runs the shared `app-ci.sh` with stand-ins for `gitleaks` and `trivy`
 (`lib/app-ci-gates.sh`) and fails when its scanner gates stop calling them the

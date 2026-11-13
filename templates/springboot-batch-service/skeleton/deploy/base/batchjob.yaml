@@ -1,0 +1,93 @@
+# The job, as the platform's BatchJob API describes it (platform.adhar.io/v1alpha1;
+# compositions/batchjob/kubernetes.yaml, design 0025). One definition for every
+# environment: deploy/envs/<env> puts it in that environment's namespace, and
+# Kargo pins the image there by digest.
+#
+# From this one object the platform composes, in the environment's namespace:
+#   CronJob <name>            when `schedule` is set (dev suspends it)
+#   ConfigMap <name>-run      the run template the Console and `adhar batch run`
+#                             start runs from — the SAME pod as the CronJob's
+#   ServiceAccount/Role/RoleBinding <name>-batch   the runner's identity
+#   PrometheusRule <name>-batch                    BatchRunFailed, BatchScheduleMissed,
+#                             BatchNoRecentSuccess, BatchRunTooLong, BatchRunStuckPending,
+#                             BatchRunOOMKilled
+#
+# Every run pod gets the runner contract as environment: ADHAR_BATCH_JOB (the
+# Spring bean below), ADHAR_BATCH_NAME, _TRIGGER (schedule | manual), _PARAMS
+# (a JSON object of the parameters declared here), _TIME_ZONE, _K8S_JOB, the
+# datasource from `database.secretRef` and OpenTelemetry to the platform's
+# collector. src/main/java/io/adhar/service/batch/PlatformRunLauncher.java is
+# what reads it.
+apiVersion: platform.adhar.io/v1alpha1
+kind: BatchJob
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    adhar.io/application: ${{ values.name }}
+    adhar.io/workload: batch
+spec:
+  parameters:
+    displayName: ${{ values.name }}
+    application: ${{ values.name }}
+    # The Spring Batch job's BEAN name (BatchConfiguration#enterpriseJob), passed
+    # to the run as ADHAR_BATCH_JOB. Rename the bean and this together.
+    job: enterpriseJob
+    # app-ci pushes here; Kargo replaces the tag with the digest app-ci signed
+    # (kustomizeconfig.yaml is what lets kustomize find this field).
+    image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+{%- if values.batchMode == 'cron' %}
+    # When the job runs by itself: a 5-field cron in `timeZone`, which is also the
+    # zone the business date is derived in. deploy/envs/dev suspends it (a dev run
+    # is started by a person); test and prod run it as written. Operators pause a
+    # job without a commit through the adhar.io/batch-hold annotation.
+    schedule:
+      cron: "${{ values.schedule or '0 2 * * *' }}"
+      timeZone: ${{ values.timeZone or 'UTC' }}
+{%- else %}
+    # No schedule: an on-demand job, run only when somebody starts it from the
+    # Console or `adhar batch run`. Add a `schedule:` block to put it on the clock.
+{%- endif %}
+    # The run's parameters: the Console's run form, the CLI's checks and the
+    # JobInstance's identity (identifying parameters, design 0025 §5.6). The
+    # launcher applies these defaults too, so a scheduled run and a manual run
+    # of the same day are the SAME instance — a failed night is restarted from
+    # its last commit, not run twice.
+    parameters:
+      - name: businessDate
+        type: date
+        # Derived from the scheduled time in `timeZone`; a manual run states it.
+        source: schedule
+        description: The day this run processes.
+      - name: source
+        type: string
+        default: file # must equal batch.input-type in application.properties
+        allowed: [file, database, list]
+        description: Where this run reads from — the classpath file, the batch_input table or batch.items.
+    # A run pod's compute. Memory is the request AND the limit; a Spring Batch
+    # JVM does not start reliably below 1Gi (the Paketo calculator's fixed
+    # regions are tuned by the composition: 50 threads, a 64M code cache).
+    resources:
+      cpu: "1"
+      memory: 1536Mi
+    sla:
+      # A run longer than this raises BatchRunTooLong; the composed Job's
+      # activeDeadlineSeconds (6h) stays the hard stop.
+      maxDuration: ${{ values.maxDurationMinutes or 180 }}m
+{%- if values.enableAlerts == false %}
+    alerts:
+      enabled: false
+{%- endif %}
+    # Where Spring Batch keeps its JobRepository: the connection Secret CNPG
+    # publishes for database.yaml (`<name>-db-app`: jdbc-uri, username, password).
+    # adhar-kit-batch refuses an in-memory repository on the platform, because a
+    # run that cannot be restarted from its last commit is run twice instead.
+    database:
+      secretRef: ${{ values.name }}-db-app
+      schema: batch
+{%- if values.withKafka %}
+    # Extra environment for the run. Names the runner owns (ADHAR_BATCH_*,
+    # POD_NAME, the datasource) are refused by the composition.
+    env:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${{ values.name }}-events-kafka-bootstrap:9092
+{%- endif %}

@@ -6,13 +6,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * The knobs of the sample job ({@code batch.*}). The kit's own settings
- * ({@code adhar.batch.*}: repository schema, retry back-off defaults, the embedded
- * scheduler) are separate and documented in adhar-kit-batch.
+ * ({@code adhar.batch.*}: repository schema, retry back-off defaults, the shutdown timeout)
+ * are separate and documented in adhar-kit-batch; the platform's run contract
+ * ({@code ADHAR_BATCH_*}) is read by {@link PlatformRun}. A run's duration budget is not here
+ * either: it is {@code sla.maxDuration} on the BatchJob, which the platform alerts on.
  */
 @ConfigurationProperties(prefix = "batch")
 public class EnterpriseBatchProperties {
 
-    /** Where the job reads from: {@code file}, {@code database} or {@code list}. */
+    /**
+     * Where the job reads from when a run names no {@code source}: {@code file},
+     * {@code database} or {@code list}. Must equal the parameter's {@code default} in
+     * {@code deploy/base/batchjob.yaml}, or a scheduled run and a manual run of the same day
+     * would be two JobInstances instead of one.
+     */
     private String inputType = "file";
 
     /** Classpath location of the input file, one item per line. */
@@ -34,7 +41,6 @@ public class EnterpriseBatchProperties {
     private int partitionCount = 4;
     private int retryLimit = 3;
     private long backoffMs = 2000L;
-    private long slaSeconds = 900L;
 
     public String getInputType() {
         return inputType;
@@ -114,13 +120,5 @@ public class EnterpriseBatchProperties {
 
     public void setBackoffMs(long backoffMs) {
         this.backoffMs = backoffMs;
-    }
-
-    public long getSlaSeconds() {
-        return slaSeconds;
-    }
-
-    public void setSlaSeconds(long slaSeconds) {
-        this.slaSeconds = slaSeconds;
     }
 }

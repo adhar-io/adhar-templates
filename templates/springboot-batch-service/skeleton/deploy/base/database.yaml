@@ -1,0 +1,39 @@
+# The job's own PostgreSQL, provisioned by the Adhar control plane (Crossplane)
+# as a CloudNativePG cluster with WAL archiving to the platform object store and
+# a daily base backup (ADR-0021) — the same request a Database self-service
+# makes. It is not optional: Spring Batch's JobRepository lives here (schema
+# `batch`, migrated by adhar-kit-batch at startup), beside the business tables
+# in `public`, and the platform refuses a run with an in-memory repository.
+#
+# CNPG publishes the connection Secret `${{ values.name }}-db-app` (jdbc-uri,
+# username, password). batchjob.yaml names it as `database.secretRef`, and the
+# composed run reads it as SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD. The
+# first run waits in CreateContainerConfigError until the Secret exists, which
+# is the intended order: the job never starts against a database that is not
+# there yet.
+apiVersion: platform.adhar.io/v1alpha1
+kind: Database
+metadata:
+  name: ${{ values.name }}-db
+  labels:
+    app: ${{ values.name }}
+    app.kubernetes.io/name: ${{ values.name }}-db
+    adhar.io/application: ${{ values.name }}
+    platform.adhar.io/self-service: "true"
+spec:
+  crossplane:
+    compositionRef:
+      name: database-local-cnpg
+  parameters:
+    engine: postgresql
+    # The local composition lets the CNPG operator pick its own image; this
+    # version is what a cloud composition would provision.
+    engineVersion: "16"
+    storageSize: 1Gi
+    # Small on purpose: a JobRepository and a sample table. Raise them with the
+    # data, and remember a memory limit below what Postgres uses is an OOM kill.
+    resources:
+      cpu: 50m
+      memory: 128Mi
+      memoryLimit: 256Mi
+    backupRetentionDays: 7
