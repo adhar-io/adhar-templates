@@ -1,0 +1,28 @@
+# Local backing services for `mvn spring-boot:run` — the same engine the
+# platform provisions from deploy/base/database.yaml, on the localhost port
+# application.properties falls back to when the cluster's environment variables
+# are absent.
+#
+#   docker compose up -d
+{%- if not values.withDatabase %}
+services: {}
+{%- else %}
+services:
+{%- endif %}
+{%- if values.withDatabase %}
+  # The business tables (public), Spring Batch's JobRepository and the partition
+  # channel the manager and the workers share (schema batch).
+  postgres:
+    image: postgres:18.4
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+{%- endif %}

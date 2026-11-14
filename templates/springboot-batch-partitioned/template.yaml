@@ -1,0 +1,227 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: springboot-batch-partitioned
+  labels:
+    # The per-application Grafana dashboard template this kind of app gets. A
+    # scaffolder stamps it on the Application XR as the label adhar.io/dashboard-type.
+    adhar.io/dashboard-type: batch-jvm
+    # What each environment runs: a BatchJob (platform.adhar.io/v1alpha1), which
+    # the platform composes into a CronJob (a Volcano CronJob where Volcano runs),
+    # a run template and alert rules — not a Rollout. On the Application XR it is
+    # what makes the delivery chain verify a run-to-completion workload by its
+    # runs rather than by ready pods, and what puts the application in the
+    # Console's Batch area (design 0025).
+    adhar.io/workload: batch
+  title: Spring Batch Partitioned Job (Adhar Kit)
+  description: >-
+    A Spring Batch job that spreads one run over a manager and several worker
+    pods (remote partitioning, design 0025 §5.10, §9.2): the manager splits the
+    input table into key ranges, the workers claim and process them in
+    parallel, and a restart re-runs only the partitions that did not finish —
+    each from its last commit. Declared once in Git as a BatchJob with
+    `mode: partitioned`; the platform runs it as a Volcano gang where Volcano
+    is installed and as one Indexed Job without it. The partitions travel
+    through the job's own PostgreSQL, so there is no broker to run.
+  tags:
+    - recommended
+    - java
+    - springboot
+    - spring-batch
+    - batch
+    - adhar-kit
+    - supply-chain
+    - observability
+    - postgres
+spec:
+  owner: group:platform-engineers
+  type: service
+
+  parameters:
+    - title: Application
+      required: [name]
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the batch job (lowercase, DNS-friendly)
+          pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
+          maxLength: 40
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+
+    - title: Job
+      properties:
+        batchMode:
+          title: Execution model
+          type: string
+          enum: [cron, on-demand]
+          default: cron
+          description: Cron-based recurring execution (suspended in dev, live in test and prod), or on demand only — started from the Console or `adhar batch run`.
+        schedule:
+          title: Cron schedule
+          type: string
+          default: "0 2 * * *"
+          description: A 5-field cron expression, evaluated in the time zone below. Ignored for an on-demand job.
+        timeZone:
+          title: Time zone
+          type: string
+          default: UTC
+          description: The IANA time zone of the schedule and of the business date each run processes.
+        maxDurationMinutes:
+          title: Maximum run duration (minutes)
+          type: integer
+          default: 180
+          minimum: 5
+          description: A run longer than this raises the BatchRunTooLong alert; the platform's hard stop is six hours.
+
+    - title: Partitioning
+      description: One manager pod splits each run into partitions; the worker pods process them in parallel.
+      properties:
+        workers:
+          title: Worker pods
+          type: integer
+          default: 2
+          minimum: 1
+          maximum: 64
+          description: >-
+            Worker pods beside the manager. Two fit an environment's default quota
+            (a 1-CPU manager and two 1-CPU workers); every worker is another 1 CPU / 1536Mi.
+        gridSize:
+          title: Partitions per run
+          type: integer
+          default: 8
+          minimum: 1
+          maximum: 1024
+          description: >-
+            How many key ranges the manager splits the input table into. Independent of the
+            worker count — a worker takes the next partition when it finishes one; 4 × workers
+            keeps every worker busy while one partition is slower than the rest.
+        chunkSize:
+          title: Chunk size
+          type: integer
+          default: 500
+          minimum: 1
+          description: Rows per transaction. A restarted partition resumes after its last committed chunk.
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - adhar.localtest.me:8443
+
+    - title: Operations
+      description: Operational metadata used by the catalog, the alerts and the platform scorecard.
+      properties:
+        lifecycle:
+          title: Lifecycle
+          type: string
+          description: experimental while it is being built, production once it is GA, deprecated when it is being retired.
+          enum: [experimental, production, deprecated]
+          default: experimental
+        tier:
+          title: Tier
+          type: string
+          description: How much the business depends on it.
+          enum: [critical, high, standard, low]
+          default: standard
+        docsUrl:
+          title: Documentation URL
+          type: string
+          description: Leave empty to point at the repository's docs/ folder.
+          default: ""
+        runbookUrl:
+          title: Runbook URL
+          type: string
+          description: What to do when it pages. Linked from the catalog and the scorecard.
+          default: ""
+        oncall:
+          title: On-call
+          type: string
+          description: Team or channel paged for this job, e.g. "#team-payments-oncall".
+          default: ""
+        enableAlerts:
+          title: Alert on failed, late, stuck and OOM-killed runs
+          type: boolean
+          description: The platform composes a PrometheusRule per environment from the BatchJob (adhar.io/alerts).
+          default: true
+
+  steps:
+    - id: template
+      name: Generate the batch job
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          schedule: ${{ parameters.schedule }}
+          batchMode: ${{ parameters.batchMode }}
+          timeZone: ${{ parameters.timeZone or 'UTC' }}
+          maxDurationMinutes: ${{ parameters.maxDurationMinutes or 180 }}
+          workers: ${{ parameters.workers or 2 }}
+          gridSize: ${{ parameters.gridSize or 8 }}
+          chunkSize: ${{ parameters.chunkSize or 500 }}
+          # Not a choice: the Spring Batch JobRepository AND the partition channel
+          # are the job's own PostgreSQL (deploy/base/database.yaml). The skeleton's
+          # development container reads the key for its database client.
+          withDatabase: true
+          lifecycle: ${{ parameters.lifecycle }}
+          tier: ${{ parameters.tier }}
+          docsUrl: ${{ parameters.docsUrl }}
+          runbookUrl: ${{ parameters.runbookUrl }}
+          oncall: ${{ parameters.oncall }}
+          enableAlerts: ${{ parameters.enableAlerts }}
+          port: 8080
+          gitOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
+          giteaHost: ${{ (parameters.repoUrl | parseRepoUrl).host }}
+
+    - id: publish
+      name: Publish to Gitea
+      action: publish:gitea
+      input:
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: create-argocd-app
+      name: Create ArgoCD deployment
+      action: adhar:create-argocd-app
+      input:
+        appName: ${{ parameters.name }}
+        appNamespace: adhar-system
+        argoInstance: local
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: "deploy"
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Source repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.adhar.kit</groupId>
+    <artifactId>adhar-kit-parent</artifactId>
+    <version>0.1.0</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>io.adhar.service</groupId>
+  <artifactId>${{ values.name }}</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>${{ values.name }}</name>
+  <description>${{ values.description }}</description>
+
+  <dependencies>
+    <!-- Spring Batch 6 the platform way: adhar-kit-batch brings spring-boot-starter-batch-jdbc
+         (a JDBC JobRepository - the plain starter is an in-memory store since Spring Boot 4) and
+         the Kubernetes runner (AdharBatchApplication), the step builders, fault-tolerance presets,
+         listeners, readers and writers, and the remote partitioning this job is written against. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-batch</artifactId>
+    </dependency>
+    <!-- Remote partitioning (design 0025 §5.10): Spring Batch Integration's manager and worker
+         step builders, and Spring Integration's JDBC message store - the partition channel is a
+         table in the job's own PostgreSQL, so there is no broker. Both are optional in the kit:
+         without them a worker pod exits 2 (`unsupported`) instead of serving partitions. -->
+    <dependency>
+      <groupId>org.springframework.batch</groupId>
+      <artifactId>spring-batch-integration</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.integration</groupId>
+      <artifactId>spring-integration-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- A run pod lives minutes and serves nothing, so its metrics are PUSHED to the platform's
+         collector over OTLP (management.otlp.metrics.export.* in application.properties) rather
+         than scraped from an endpoint a short pod never gets to expose. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-otlp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-starter</artifactId>
+    </dependency>
+    <!-- The job's own PostgreSQL (deploy/base/database.yaml): the business tables (Flyway,
+         db/migration), Spring Batch's JobRepository and the partition channel (both in schema
+         `batch`, migrated by adhar-kit-batch itself). -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-persistence</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.batch</groupId>
+      <artifactId>spring-batch-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- @AdharBatchTest, BatchContractAssertions and the platform's PostgreSQL 18.4 container. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-test-commons</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>33.7.2-jre</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>1.1.10.9</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

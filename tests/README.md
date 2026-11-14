@@ -68,6 +68,17 @@ deno task test:net    # the editor ids against the VS Code Marketplace, Open VSX
   from the BatchJob (`batch_deploy_test.ts`). An Application syncs the
   kustomize build of `deploy/envs/<env>`, so a batch skeleton with a raw
   CronJob and no overlays deployed nothing while reporting Healthy.
+- is a partitioned batch template (`mode: partitioned`; there must be one,
+  `springboot-batch-partitioned`) whose `workers` and `gridSize` do not come
+  from the form or fall outside the XRD's bounds, whose POM lacks
+  `spring-batch-integration` or `spring-integration-jdbc` (every worker pod
+  would exit 2), whose job's `RemotePartitioning.manager(…)` names a worker
+  step that is not a `@ConditionalOnBatchRole(BatchRole.WORKER)` bean (or
+  whose job bean, or a `@StepScope` bean outside that role, is conditional
+  the wrong way), that sets `ADHAR_BATCH_*` under the BatchJob's `env`, or
+  that has no `PartitionedJobIT` starting its pods through
+  `AdharBatchApplication.run`; and a single-pod batch template that sets
+  `workers` or `gridSize` (`batch_deploy_test.ts`).
 
 It also runs the shared `app-ci.sh` with stand-ins for `gitleaks` and `trivy`
 (`lib/app-ci-gates.sh`) and fails when its scanner gates stop calling them the

@@ -18,11 +18,26 @@
  * Whether a template is batch is read the way the Console reads it
  * (apps/console/app/server/templates.ts isBatchTemplate): the label
  * `adhar.io/workload: batch`, a `springboot-batch-*` name, or the `batch` tag.
+ *
+ * A PARTITIONED template (`mode: partitioned`, design 0025 §5.10, §9.2) is one
+ * image for a manager and `workers` worker pods, and its BatchJob alone does not
+ * make it work: the kit's runner builds each pod's half of ONE @Configuration
+ * from ADHAR_BATCH_ROLE, so the skeleton must also carry
+ *
+ *   workers, gridSize                 the gang and the partition count, inside the XRD's bounds
+ *   spring-batch-integration,         the manager/worker step builders and the JDBC partition
+ *   spring-integration-jdbc           channel; without them every worker pod exits 2 (unsupported)
+ *   RemotePartitioning.manager(m, w)  the job's step, whose worker step `w` is a bean conditional
+ *                                     on @ConditionalOnBatchRole(BatchRole.WORKER), so the manager
+ *                                     never builds it and a worker finds it by that name
+ *   no ADHAR_BATCH_* under env        the runner's contract is the composition's to set
+ *   PartitionedJobIT                  a manager and two workers on one database, a worker killed
+ *                                     mid-partition, only unfinished partitions re-run (§9.2)
  */
 import { assert, assertEquals, assertMatch } from '@std/assert'
 import { parse as parseYaml, parseAll as parseYamlAll } from '@std/yaml'
 import { renderContent } from './lib/render.ts'
-import { exists, filesUnder, read, type Template, templates, valuesFor, type Variant } from './lib/templates.ts'
+import { exists, filesUnder, read, type Template, templates, valueKeys, valuesFor, type Variant } from './lib/templates.ts'
 
 const ALL = templates()
 const VARIANTS: Variant[] = ['defaults', 'all-on', 'all-off']
@@ -163,4 +178,134 @@ for (const t of BATCH) {
       }
     })
   }
+}
+
+/* ───────────── the partitioned family (design 0025 §5.10, §9.2) ───────────── */
+
+/** The XRD's bounds (xrd/batchjob.xrd.yaml): workers 1..64, gridSize 1..1024. */
+const WORKERS = { min: 1, max: 64 }
+const GRID_SIZE = { min: 1, max: 1024 }
+
+function isPartitioned(t: Template): boolean {
+  return VARIANTS.some((v) => one(t, 'deploy/base/batchjob.yaml', v, 'BatchJob').spec?.parameters?.mode === 'partitioned')
+}
+
+const PARTITIONED = BATCH.filter(isPartitioned)
+
+/** The Java sources under src/main, by path. */
+function javaSources(t: Template): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const f of filesUnder(`${t.skeleton}/src/main`).filter((f) => f.endsWith('.java'))) out.set(f, read(`${t.skeleton}/src/main/${f}`))
+  return out
+}
+
+/** A string literal, or a constant naming one (`static final String X = "..."`) in any of the sources. */
+function resolveString(arg: string, sources: Map<string, string>): string | undefined {
+  const literal = arg.trim().match(/^"([^"]*)"$/)
+  if (literal) return literal[1]
+  const name = arg.trim().split('.').pop() ?? ''
+  for (const src of sources.values()) {
+    const m = src.match(new RegExp(`static\\s+final\\s+String\\s+${name}\\s*=\\s*"([^"]*)"`))
+    if (m) return m[1]
+  }
+  return undefined
+}
+
+/** The annotations directly above a @Bean method or class member, up to the method's signature. */
+function beanDeclarations(src: string): Array<{ annotations: string; beanName: string; method: string; type: string }> {
+  const out: Array<{ annotations: string; beanName: string; method: string; type: string }> = []
+  const re = /((?:\s*@[A-Za-z.]+(?:\([^)]*(?:\([^)]*\)[^)]*)*\))?)+)\s*(?:public\s+|protected\s+|private\s+)?(?:static\s+)?([A-Za-z0-9_.<>, ?]+?)\s+([A-Za-z0-9_]+)\s*\(/g
+  for (const m of src.matchAll(re)) {
+    if (!/@Bean\b/.test(m[1])) continue
+    const named = m[1].match(/@Bean\(\s*(?:name\s*=\s*|value\s*=\s*)?([^)]+?)\s*\)/)
+    out.push({ annotations: m[1], beanName: named ? named[1] : m[3], method: m[3], type: m[2] })
+  }
+  return out
+}
+
+Deno.test('the partitioned template exists (design 0025 §9.2; the Volcano canary scaffolds springboot-batch-partitioned)', () => {
+  assert(
+    PARTITIONED.some((t) => t.id === 'springboot-batch-partitioned'),
+    `no batch template named springboot-batch-partitioned deploys a BatchJob with mode: partitioned (partitioned: ${PARTITIONED.map((t) => t.id).join(', ') || 'none'})`,
+  )
+})
+
+for (const t of BATCH) {
+  if (PARTITIONED.includes(t)) continue
+  Deno.test(`${t.id}: a single-pod job sets neither workers nor gridSize`, () => {
+    for (const v of VARIANTS) {
+      const p = one(t, 'deploy/base/batchjob.yaml', v, 'BatchJob').spec?.parameters ?? {}
+      // The composition ignores them in single mode, so they would only mislead whoever reads the manifest.
+      assert(!('workers' in p) && !('gridSize' in p), `${t.id} (${v}): workers/gridSize mean something only with mode: partitioned`)
+    }
+  })
+}
+
+for (const t of PARTITIONED) {
+  for (const v of VARIANTS) {
+    Deno.test(`${t.id} (${v}): the BatchJob is partitioned within the XRD's bounds and leaves the runner's contract to the composition`, () => {
+      const p = one(t, 'deploy/base/batchjob.yaml', v, 'BatchJob').spec?.parameters ?? {}
+      assertEquals(p.mode, 'partitioned', `${t.id} (${v}): every variant runs partitioned`)
+      for (const [field, bounds] of [['workers', WORKERS], ['gridSize', GRID_SIZE]] as const) {
+        const n = p[field]
+        assert(Number.isInteger(n) && n >= bounds.min && n <= bounds.max, `${t.id} (${v}): ${field} must be an integer from ${bounds.min} to ${bounds.max}, was ${JSON.stringify(n)}`)
+      }
+      // A worker never starts the job: the form's defaults must give it partitions to share.
+      assert(p.gridSize >= p.workers, `${t.id} (${v}): gridSize ${p.gridSize} below workers ${p.workers} leaves a worker with nothing to do`)
+      for (const name of Object.keys((p.env ?? {}) as Doc)) {
+        assert(!name.startsWith('ADHAR_BATCH_'), `${t.id} (${v}): env.${name} is the runner's contract; the composition sets it (and refuses it here)`)
+      }
+      assert(!/ADHAR_BATCH_MODE/.test(rendered(t, 'deploy/base/batchjob.yaml', v)), `${t.id} (${v}): ADHAR_BATCH_MODE would bind to adhar.batch.mode; the role already says partitioned`)
+    })
+  }
+
+  Deno.test(`${t.id}: the form's workers and gridSize reach the BatchJob`, () => {
+    for (const key of ['workers', 'gridSize']) assert(valueKeys(t).has(key), `${t.id}: fetch:template's values must pass ${key} (the BatchJob reads values.${key})`)
+    const src = read(`${t.skeleton}/deploy/base/batchjob.yaml`)
+    assertMatch(src, /^\s+workers:\s*\$\{\{\s*values\.workers\b/m, `${t.id}: batchjob.yaml's workers must come from values.workers`)
+    assertMatch(src, /^\s+gridSize:\s*\$\{\{\s*values\.gridSize\b/m, `${t.id}: batchjob.yaml's gridSize must come from values.gridSize`)
+  })
+
+  Deno.test(`${t.id}: the POM carries what a worker pod needs to serve partitions`, () => {
+    const pom = read(`${t.skeleton}/pom.xml`)
+    for (const [group, artifact] of [['org.springframework.batch', 'spring-batch-integration'], ['org.springframework.integration', 'spring-integration-jdbc']]) {
+      const dep = new RegExp(`<dependency>\\s*<groupId>${group.replace(/\./g, '\\.')}</groupId>\\s*<artifactId>${artifact}</artifactId>(?:(?!</dependency>)[\\s\\S])*</dependency>`)
+      const found = pom.match(dep)
+      assert(found, `${t.id}: pom.xml must depend on ${group}:${artifact} — without it every worker pod exits 2 (unsupported)`)
+      assert(!/<scope>\s*(test|provided)\s*<\/scope>/.test(found[0]), `${t.id}: ${artifact} must be on the runtime classpath, not test/provided`)
+    }
+  })
+
+  Deno.test(`${t.id}: one configuration — the job's manager step names a worker step only workers build`, () => {
+    const sources = javaSources(t)
+    const calls = [...sources.values()].flatMap((src) => [...src.matchAll(/\.manager\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,/g)])
+    assertEquals(calls.length, 1, `${t.id}: exactly one RemotePartitioning.manager(managerStep, workerStep, partitioner) builds the job's step`)
+    const workerStep = resolveString(calls[0][2], sources)
+    assert(workerStep, `${t.id}: cannot resolve the worker step name ${calls[0][2]} to a string`)
+    const job = String(one(t, 'deploy/base/batchjob.yaml', 'defaults', 'BatchJob').spec?.parameters?.job ?? '')
+    const beans = [...sources.values()].flatMap(beanDeclarations)
+    const named = (b: { beanName: string }) => resolveString(b.beanName, sources) ?? b.beanName
+    const step = beans.filter((b) => named(b) === workerStep && /\bStep\b/.test(b.type))
+    assertEquals(step.length, 1, `${t.id}: exactly one @Bean Step named ${workerStep} (the worker finds the partition's step by that name)`)
+    assertMatch(step[0].annotations, /@ConditionalOnBatchRole\(\s*BatchRole\.WORKER\s*\)/, `${t.id}: the worker step ${workerStep} must be @ConditionalOnBatchRole(BatchRole.WORKER), or the manager builds it too`)
+    const jobBeans = beans.filter((b) => named(b) === job && /\bJob\b/.test(b.type))
+    assertEquals(jobBeans.length, 1, `${t.id}: exactly one @Bean Job named ${job} (batchjob.yaml's spec.parameters.job)`)
+    assert(!/@ConditionalOnBatchRole/.test(jobBeans[0].annotations), `${t.id}: the job ${job} must exist in every role — a worker computes the run's identity from its declared parameters`)
+    assertMatch(jobBeans[0].annotations, /@AdharBatchJob\b/, `${t.id}: the job ${job} declares its parameters with @AdharBatchJob`)
+    // Everything only a worker runs is kept out of the manager too, @StepScope readers and writers above all:
+    // they read #{stepExecutionContext[...]}, which only a partition has.
+    for (const b of beans.filter((b) => /@StepScope\b/.test(b.annotations))) {
+      assertMatch(b.annotations, /@ConditionalOnBatchRole\(\s*BatchRole\.WORKER\s*\)/, `${t.id}: @StepScope bean ${b.method} must be @ConditionalOnBatchRole(BatchRole.WORKER)`)
+    }
+  })
+
+  Deno.test(`${t.id}: PartitionedJobIT runs a manager and two workers through a killed worker (§9.2)`, () => {
+    const it = filesUnder(`${t.skeleton}/src/test`).find((f) => f.endsWith('/PartitionedJobIT.java'))
+    assert(it, `${t.id}: src/test must hold PartitionedJobIT (a manager and two worker contexts on one Testcontainers PostgreSQL)`)
+    const src = read(`${t.skeleton}/src/test/${it}`)
+    // The pods go through the kit's runner with the composition's roles, not through a JobOperator of the test's own.
+    assertMatch(src, /AdharBatchApplication\.run\(/, `${t.id}: PartitionedJobIT must start each pod through AdharBatchApplication.run, as the image does`)
+    for (const role of ['manager', 'worker']) assert(src.includes(`"${role}"`), `${t.id}: PartitionedJobIT starts a ${role} pod`)
+    assertMatch(src, /PostgresTestContainer|PostgreSQLContainer/, `${t.id}: PartitionedJobIT runs on a Testcontainers PostgreSQL`)
+  })
 }

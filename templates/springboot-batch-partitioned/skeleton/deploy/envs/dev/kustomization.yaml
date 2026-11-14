@@ -1,0 +1,34 @@
+# dev: the first environment every build lands in. Kargo pins the build's digest
+# below, renders this overlay to stage/dev and verifies the BatchJob there — its
+# Argo CD health, no failed run and no OOM-killed run in the window — before
+# test may take it. The schedule is SUSPENDED here (design 0025 §6.6): a dev run
+# is started by a person from the Console or `adhar batch run`, never by the
+# clock, so a build is exercised on purpose rather than at 02:00.
+# The namespace is the project's dev environment (Project.status.environments).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev
+resources:
+  - ../../base
+images:
+  - name: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}
+    newTag: latest
+patches:
+  - target: {group: platform.adhar.io, kind: BatchJob, name: "${{ values.name }}"}
+    patch: |-
+{%- if values.batchMode == 'cron' %}
+      - op: add
+        path: /spec/parameters/schedule/suspend
+        value: true
+{%- endif %}
+      # Where it runs, stated on the BatchJob too. The namespace's labels decide
+      # (the composition reports a disagreement on its Placement condition), so
+      # this only keeps the object honest when read on its own.
+      - op: add
+        path: /spec/parameters/environment
+        value: dev
+  - target: {group: platform.adhar.io, kind: Database, name: "${{ values.name }}-db"}
+    patch: |-
+      - op: add
+        path: /spec/parameters/environment
+        value: dev

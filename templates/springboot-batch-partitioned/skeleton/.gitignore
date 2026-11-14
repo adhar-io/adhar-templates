@@ -1,0 +1,8 @@
+target/
+*.class
+*.jar
+.DS_Store
+.springBeans
+# IntelliJ IDEA: the workspace is personal, the plugins the project needs are not.
+.idea/*
+!.idea/externalDependencies.xml

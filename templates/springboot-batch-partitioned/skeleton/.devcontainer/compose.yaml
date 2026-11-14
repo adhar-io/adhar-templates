@@ -1,0 +1,17 @@
+# Inside the development container, `docker compose up -d` reads this file after
+# ../compose.yaml (COMPOSE_FILE in devcontainer.json). The engine is the host's
+# (docker-outside-of-docker), so on their own the services would publish their
+# ports on the HOST, out of reach of the application's localhost defaults in
+# this container. This joins each service to the container's own network
+# instead: they answer on localhost here, exactly as compose.yaml promises on a
+# laptop. Outside the container, compose.yaml alone applies.
+{%- if not values.withDatabase %}
+services: {}
+{%- else %}
+services:
+{%- endif %}
+{%- if values.withDatabase %}
+  postgres:
+    network_mode: "container:${HOSTNAME:?run docker compose inside the development container}"
+    ports: !reset []
+{%- endif %}

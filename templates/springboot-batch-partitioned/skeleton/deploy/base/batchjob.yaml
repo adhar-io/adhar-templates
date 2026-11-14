@@ -1,0 +1,101 @@
+# The job, as the platform's BatchJob API describes it (platform.adhar.io/v1alpha1;
+# compositions/batchjob/kubernetes.yaml, design 0025 §6.4, §9.2). One definition
+# for every environment: deploy/envs/<env> puts it in that environment's
+# namespace, and Kargo pins the image there by digest.
+#
+# `mode: partitioned` makes every run ONE manager pod and `workers` worker pods
+# of the same image (design 0025 §4.5, §5.10):
+#   with Volcano    a Volcano Job, gang-scheduled (all ${{ values.workers }}+1 pods or none) in
+#                   the namespace's queue; a worker killed mid-partition restarts
+#                   the gang, and the manager completing ends the workers
+#   without it      one Indexed Job: index 0 is the manager, the others workers
+# The composition tells each pod its part — ADHAR_BATCH_ROLE (manager, worker,
+# or indexed with JOB_COMPLETION_INDEX), ADHAR_BATCH_PARTITION_GRIDSIZE (gridSize
+# below), _TRANSPORT (jdbc) and _TIMEOUT (the run's deadline less five minutes)
+# — and src/main/java/io/adhar/service/job/ImportJobConfiguration.java builds
+# the manager or the worker from it. Nothing here sets those variables: they are
+# the runner's, and the composition refuses them under `env`.
+#
+# From this one object the platform composes, in the environment's namespace:
+#   CronJob <name>            when `schedule` is set (a Volcano CronJob where Volcano
+#                             runs; dev suspends it)
+#   ConfigMap <name>-run      the run template the Console and `adhar batch run`
+#                             start runs from — the SAME pods as the schedule's
+#   ServiceAccount/Role/RoleBinding <name>-batch   the runner's identity
+#   PrometheusRule <name>-batch                    BatchRunFailed, BatchScheduleMissed,
+#                             BatchNoRecentSuccess, BatchRunTooLong, BatchRunStuckPending,
+#                             BatchRunOOMKilled
+apiVersion: platform.adhar.io/v1alpha1
+kind: BatchJob
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    adhar.io/application: ${{ values.name }}
+    adhar.io/workload: batch
+spec:
+  parameters:
+    displayName: ${{ values.name }}
+    application: ${{ values.name }}
+    # The Spring Batch job's BEAN name (ImportJobConfiguration#importJob), passed
+    # to every pod of a run as ADHAR_BATCH_JOB. Rename the bean and this together.
+    job: importJob
+    # app-ci pushes here; Kargo replaces the tag with the digest app-ci signed
+    # (kustomizeconfig.yaml is what lets kustomize find this field).
+    image: harbor-core.adhar-system.svc.cluster.local/library/${{ values.name }}:latest
+    # One manager and `workers` workers per run. The partition count is
+    # independent of the worker count: a worker takes the next partition when
+    # it finishes one, so more partitions than workers keeps every worker busy
+    # while one range is slower than the rest.
+    mode: partitioned
+    workers: ${{ values.workers or 2 }}
+    gridSize: ${{ values.gridSize or 8 }}
+{%- if values.batchMode == 'cron' %}
+    # When the job runs by itself: a 5-field cron in `timeZone`, which is also the
+    # zone the business date is derived in. deploy/envs/dev suspends it (a dev run
+    # is started by a person); test and prod run it as written. Operators pause a
+    # job without a commit through the adhar.io/batch-hold annotation.
+    schedule:
+      cron: "${{ values.schedule or '0 2 * * *' }}"
+      timeZone: ${{ values.timeZone or 'UTC' }}
+{%- else %}
+    # No schedule: an on-demand job, run only when somebody starts it from the
+    # Console or `adhar batch run`. Add a `schedule:` block to put it on the clock.
+{%- endif %}
+    # The run's parameters: the Console's run form, the CLI's checks and the
+    # JobInstance's identity (identifying parameters, design 0025 §5.6). They
+    # are the ones @AdharBatchJob declares on ImportJobConfiguration#importJob,
+    # which every pod of a run — manager and workers alike — computes the run's
+    # identity from; BatchJobContractTest fails the build when the two differ.
+    parameters:
+      - name: businessDate
+        type: date
+        # Derived from the scheduled time in `timeZone`; a manual run states it.
+        source: schedule
+        description: The day this run processes.
+      - name: source
+        type: string
+        default: database
+        allowed: [database]
+        description: Where this run reads from — the batch_input table, split into key ranges.
+    # Each pod's compute (the manager's and every worker's). Memory is the
+    # request AND the limit; a Spring Batch JVM does not start reliably below
+    # 1Gi (the Paketo calculator's fixed regions are tuned by the composition).
+    resources:
+      cpu: "1"
+      memory: 1536Mi
+    sla:
+      # A run longer than this raises BatchRunTooLong; the composed Job's
+      # activeDeadlineSeconds (6h) stays the hard stop.
+      maxDuration: ${{ values.maxDurationMinutes or 180 }}m
+{%- if values.enableAlerts == false %}
+    alerts:
+      enabled: false
+{%- endif %}
+    # Where Spring Batch keeps its JobRepository — and, for a partitioned run, the
+    # partition channel the manager writes its requests to and the workers claim
+    # them from: the connection Secret CNPG publishes for database.yaml
+    # (`<name>-db-app`: jdbc-uri, username, password).
+    database:
+      secretRef: ${{ values.name }}-db-app
+      schema: batch
