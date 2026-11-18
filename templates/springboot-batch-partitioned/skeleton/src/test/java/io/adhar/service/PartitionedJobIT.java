@@ -202,7 +202,7 @@ class PartitionedJobIT {
      * the platform's variables by these exact names, and the {@code adhar.batch.*} settings by the
      * names {@code ADHAR_BATCH_ROLE} and {@code ADHAR_BATCH_PARTITION_*} bind to.
      */
-    private Pod start(String name, String role, String... extra) {
+    private Pod start(String name, String role, String... extra) throws InterruptedException {
         Pod pod = new Pod(name);
         SpringApplication application = new SpringApplication(Application.class);
         application.setBannerMode(Banner.Mode.OFF);
@@ -249,7 +249,22 @@ class PartitionedJobIT {
         pod.thread = thread;
         pods.add(pod);
         thread.start();
+        awaitStarted(pod);
         return pod;
+    }
+
+    /**
+     * One pod at a time through Spring Boot's start-up. Every pod shares this JVM's one Logback context,
+     * and each start-up re-initialises it (LoggingApplicationListener); two at once raced, and in app-ci's
+     * slower test pod a restarted worker died in that start-up with NoSuchElementException and exited 1
+     * (bat-part, 2026-11-18). Real pods each have their own JVM. Once the context exists the pods run
+     * side by side, which is what this test is about.
+     */
+    private static void awaitStarted(Pod pod) throws InterruptedException {
+        long deadline = System.nanoTime() + Duration.ofMinutes(2).toNanos();
+        while (pod.context.get() == null && !pod.exit.isDone() && System.nanoTime() < deadline) {
+            Thread.sleep(50);
+        }
     }
 
     private static final class Pod {
