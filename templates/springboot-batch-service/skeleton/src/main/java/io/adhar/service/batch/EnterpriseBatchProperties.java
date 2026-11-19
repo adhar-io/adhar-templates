@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * The knobs of the sample job ({@code batch.*}). The kit's own settings
  * ({@code adhar.batch.*}: repository schema, retry back-off defaults, the shutdown timeout)
  * are separate and documented in adhar-kit-batch; the platform's run contract
- * ({@code ADHAR_BATCH_*}) is read by {@link PlatformRun}. A run's duration budget is not here
+ * ({@code ADHAR_BATCH_*}) is read by the kit's runner. A run's duration budget is not here
  * either: it is {@code sla.maxDuration} on the BatchJob, which the platform alerts on.
  */
 @ConfigurationProperties(prefix = "batch")

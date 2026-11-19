@@ -1,13 +1,13 @@
 package io.adhar.service;
 
+import com.adhar.kit.batch.annotation.AdharBatchJob;
+import com.adhar.kit.batch.annotation.JobParam;
+import com.adhar.kit.batch.annotation.ParamSource;
+import com.adhar.kit.batch.annotation.ParamType;
 import com.adhar.kit.batch.fault.FaultTolerance;
-import com.adhar.kit.batch.operator.BatchOperator;
-import com.adhar.kit.batch.operator.JobResolver;
 import com.adhar.kit.batch.step.AdharSteps;
 import io.adhar.service.batch.EnterpriseBatchProperties;
 import io.adhar.service.batch.PartitionSliceReader;
-import io.adhar.service.batch.PlatformRun;
-import io.adhar.service.batch.PlatformRunLauncher;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -36,10 +36,8 @@ import org.springframework.batch.infrastructure.item.file.mapping.PassThroughLin
 import org.springframework.batch.infrastructure.item.support.ListItemReader;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 
@@ -51,9 +49,10 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
  * platform's listeners attached, and {@link FaultTolerance} declares what is retried.
  *
  * <p>The job's parameters are DECLARED in {@code deploy/base/batchjob.yaml} (the Console's run
- * form and the CLI's checks read them there) and completed by {@link PlatformRunLauncher}
- * here: {@value #BUSINESS_DATE_PARAMETER} and {@value #SOURCE_PARAMETER} are the identity of a
- * run. Keep the two in step.</p>
+ * form and the CLI's checks read them there) and on the job's {@link AdharBatchJob}, which is
+ * what the kit's runner completes and validates a run against: {@value #BUSINESS_DATE_PARAMETER}
+ * and {@value #SOURCE_PARAMETER} are the identity of a run. {@code BatchJobContractTest} fails
+ * the build when the two differ.</p>
  *
  * <p>There is no {@code @EnableBatchProcessing}: on Spring Boot it switches the batch
  * auto-configuration (and with it the kit's) OFF.</p>
@@ -221,23 +220,15 @@ public class BatchConfiguration {
      * the identifying parameters ({@value #BUSINESS_DATE_PARAMETER}, {@value #SOURCE_PARAMETER}).
      */
     @Bean(JOB_BEAN)
+    @AdharBatchJob(description = "Reads the sample input across partitions, transforms every item and writes it out",
+            parameters = {
+                    @JobParam(name = BUSINESS_DATE_PARAMETER, type = ParamType.DATE, source = ParamSource.SCHEDULE,
+                            description = "The day this run processes."),
+                    @JobParam(name = SOURCE_PARAMETER, defaultValue = "file", allowed = {"file", "database", "list"},
+                            description = "Where this run reads from — the classpath file, the batch_input table or batch.items.")})
     public Job enterpriseJob(JobRepository jobRepository, Step managerStep) {
         return new JobBuilder(JOB_NAME, jobRepository)
                 .start(managerStep)
                 .build();
-    }
-
-    /**
-     * The one run this process exists for, launched the way the platform launches it: from
-     * the run contract every run pod carries ({@code ADHAR_BATCH_JOB} and friends, set by the
-     * BatchJob composition or by the Console / {@code adhar batch run}). Absent that contract
-     * — a test context — nothing is launched.
-     */
-    @Bean
-    @ConditionalOnProperty(PlatformRun.JOB)
-    public PlatformRunLauncher platformRunLauncher(Environment environment, BatchOperator batchOperator,
-                                                  JobResolver jobResolver, EnterpriseBatchProperties properties) {
-        return new PlatformRunLauncher(PlatformRun.fromEnvironment(environment), batchOperator, jobResolver,
-                properties, Clock.systemUTC());
     }
 }

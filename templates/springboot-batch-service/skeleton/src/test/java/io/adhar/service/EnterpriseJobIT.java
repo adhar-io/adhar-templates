@@ -22,8 +22,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * Runs the sample job end to end through the kit's {@link BatchOperator}, against the
  * JobRepository the service is configured with, and checks that the partitions between them
  * read every item exactly once. Each test is its own JobInstance (a unique {@code run.id} is
- * part of these identities, which a platform run never has); PlatformRunLauncherIT covers the
- * identity a run gets on the platform.
+ * part of these identities, which a platform run never has). The identity a run gets on the
+ * platform is the kit runner's, tested in adhar-kit-batch; BatchJobContractTest pins the
+ * parameters it is computed from to deploy/base/batchjob.yaml.
  */
 @SpringBootTest(properties = {
         "batch.partition-count=2",

@@ -79,6 +79,13 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- @AdharBatchTest and BatchContractAssertions: the build fails when deploy/base/batchjob.yaml
+         and the job's @AdharBatchJob disagree. -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-test-commons</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <dependencyManagement>

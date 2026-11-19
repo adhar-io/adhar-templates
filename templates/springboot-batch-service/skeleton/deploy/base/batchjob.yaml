@@ -16,8 +16,8 @@
 # Spring bean below), ADHAR_BATCH_NAME, _TRIGGER (schedule | manual), _PARAMS
 # (a JSON object of the parameters declared here), _TIME_ZONE, _K8S_JOB, the
 # datasource from `database.secretRef` and OpenTelemetry to the platform's
-# collector. src/main/java/io/adhar/service/batch/PlatformRunLauncher.java is
-# what reads it.
+# collector. adhar-kit-batch's runner (Application.main, AdharBatchApplication)
+# is what reads it.
 apiVersion: platform.adhar.io/v1alpha1
 kind: BatchJob
 metadata:

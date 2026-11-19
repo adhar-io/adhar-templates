@@ -9,7 +9,7 @@ The generated batch job follows the platform's batch model (design 0025):
   the Console and `adhar batch run` start runs from, the runner's
   ServiceAccount and the alert rules; nothing in this repository writes a
   CronJob
-- every run is one Kubernetes Job with one pod: `PlatformRunLauncher` reads the
+- every run is one Kubernetes Job with one pod: the kit's runner reads the
   run contract (`ADHAR_BATCH_*`), runs the one Spring Batch job and exits with
   the kit's exit code, which the Job's failure policy reads — retryable
   failures replace the pod and resume from the last commit, invalid requests do

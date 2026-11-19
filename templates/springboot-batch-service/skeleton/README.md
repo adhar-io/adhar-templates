@@ -18,9 +18,10 @@ without any app boilerplate.
 
 - a sample partitioned chunk job (`BatchConfiguration`): a manager step slices
   the input into partitions that run concurrently, each a chunk-oriented worker
-- the platform's run launcher (`PlatformRunLauncher`): the job, its parameters
-  and its business date from the run contract every run pod carries, the kit's
-  exit codes, a termination summary
+- the kit's runner (`AdharBatchApplication`, from adhar-kit-batch): the job, its
+  parameters and its business date from the run contract every run pod carries,
+  validated against the job's `@AdharBatchJob`, the kit's exit codes, a
+  termination summary
 - Spring Batch metadata in the job's own PostgreSQL (`deploy/base/database.yaml`)
 - optional Kafka cluster and topic (`deploy/base/kafka.yaml`)
 - `deploy/base/batchjob.yaml`: the `BatchJob` the platform composes a CronJob,
@@ -38,7 +39,8 @@ each one and writes it out. The business logic sits in one chunk-based step so
 it is easy to replace with a real extraction/processing/load workflow.
 
 A run's identity is its **identifying parameters**, declared in
-`deploy/base/batchjob.yaml` and completed by `PlatformRunLauncher`:
+`deploy/base/batchjob.yaml` and on the job's `@AdharBatchJob` (`BatchJobContractTest` fails the
+build when the two differ), and completed by the kit's runner:
 
 | Parameter | Type | Where it comes from |
 |---|---|---|
@@ -57,7 +59,7 @@ schedule, or from the composed run template when somebody starts one in the
 Console or with `adhar batch run ${{ values.name }}`. The pod carries the run
 contract as environment (`ADHAR_BATCH_JOB`, `_NAME`, `_TRIGGER`, `_PARAMS`,
 `_TIME_ZONE`, `_K8S_JOB`, the datasource from the database's Secret, and
-OpenTelemetry to the platform's collector); `PlatformRunLauncher` reads it,
+OpenTelemetry to the platform's collector); the kit's runner reads it,
 runs the one job and exits:
 
 | Exit | Meaning | Kubernetes |
@@ -132,8 +134,6 @@ annotation. The platform composes the alerts `BatchRunFailed`,
 │   ├── Application.java              # a run-to-completion process
 │   ├── BatchConfiguration.java       # the sample job and its parameters
 │   └── batch/
-│       ├── PlatformRun.java          # the run contract (ADHAR_BATCH_*)
-│       ├── PlatformRunLauncher.java  # launches the run, exits with the kit's code
 │       ├── EnterpriseBatchProperties.java
 │       ├── PartitionSliceReader.java
 │       └── BatchMetricsListener.java
