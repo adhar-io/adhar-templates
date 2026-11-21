@@ -87,9 +87,9 @@ export type Variant = 'defaults' | 'all-on' | 'all-off'
 /**
  * The values a scaffolder renders the skeleton with: the form's defaults (or
  * every checkbox on / off), evaluated through fetch:template's values map,
- * then the identity the scaffolder pins.
+ * then the identity the scaffolder pins. `set` answers chosen parameters on top of the variant.
  */
-export function valuesFor(t: Template, variant: Variant, name = 'demo-app'): Values {
+export function valuesFor(t: Template, variant: Variant, name = 'demo-app', set: Values = {}): Values {
   const params: Values = {}
   // deno-lint-ignore no-explicit-any
   const spec = (t.doc as any).spec ?? {}
@@ -107,7 +107,7 @@ export function valuesFor(t: Template, variant: Variant, name = 'demo-app'): Val
       }
     }
   }
-  Object.assign(params, {
+  Object.assign(params, set, {
     name,
     description: 'Rendered by the templates test suite.',
     owner: 'group:developers',

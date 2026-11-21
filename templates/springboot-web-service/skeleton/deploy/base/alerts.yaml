@@ -11,6 +11,7 @@ metadata:
     adhar.io/application: ${{ values.name }}
 spec:
   groups:
+{%- if values.enableAlerts or not values.inServiceBatch %}
     - name: ${{ values.name }}.availability
       rules:
         - alert: ApplicationPodRestarting
@@ -48,4 +49,49 @@ spec:
             description: More than 5% of ${{ values.name }} requests answered 5xx for ten minutes (SLO ${{ values.sloTarget or '99.9' }}%).
 {%- if values.runbookUrl %}
             runbook_url: "${{ values.runbookUrl }}"
+{%- endif %}
+{%- endif %}
+{%- if values.inServiceBatch %}
+    # The in-service batch jobs (design 0025 §5.20.8). There is no BatchJob, so
+    # the platform composes no batch alerts for them: these two are the
+    # service's own, on the series adhar-kit-batch publishes at
+    # /actuator/prometheus (the PodMonitor scrapes it). The scrape target sets
+    # `job` itself, so the series' own `job` label (the schedule's name) reaches
+    # Prometheus as `exported_job`. QuartzRestartIT fails the build when a series
+    # or label selected here is not one the service publishes. They ship with the
+    # in-service jobs even when the availability alerts above were not asked for
+    # (deploy/base/kustomization.yaml): nothing else watches those runs.
+    - name: ${{ values.name }}.batch
+      rules:
+        # A fire that could not start its run, or a run that ended FAILED. A
+        # failed run is restarted from its last commit at its trigger's next fire.
+        - alert: BatchInServiceRunFailed
+          expr: >-
+            sum by (namespace, exported_job) (increase(adhar_batch_scheduler_fires_total{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+",outcome="failed-to-start"}[15m])) > 0
+            or
+            sum by (namespace, spring_batch_job_name) (increase(spring_batch_job_seconds_count{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+",spring_batch_job_status="FAILED"}[15m])) > 0
+          labels:
+            severity: ${{ values.tier or 'standard' }}
+            application: ${{ values.name }}
+          annotations:
+            summary: A ${{ values.name }} in-service batch run failed
+            description: An in-service batch job of ${{ values.name }} failed to start or ended FAILED in the last fifteen minutes. Its logs carry the run name as batch.run.
+{%- if values.runbookUrl %}
+            runbook_url: "${{ values.runbookUrl }}"
+{%- endif %}
+        # The next fire of a trigger is more than ten minutes overdue: no replica
+        # is acquiring triggers (the database is unreachable, or every replica is
+        # down), or a run has held its job far past its next slot.
+        - alert: BatchInServiceScheduleStalled
+          expr: time() - max by (namespace, exported_job, trigger) (adhar_batch_scheduler_next_fire_seconds{pod=~"${{ values.name }}-[a-z0-9]+-[a-z0-9]+"}) > 600
+          for: 5m
+          labels:
+            severity: ${{ values.tier or 'standard' }}
+            application: ${{ values.name }}
+          annotations:
+            summary: A ${{ values.name }} batch schedule has stalled
+            description: A trigger of an in-service batch job of ${{ values.name }} is more than ten minutes past its next fire time.
+{%- if values.runbookUrl %}
+            runbook_url: "${{ values.runbookUrl }}"
+{%- endif %}
 {%- endif %}

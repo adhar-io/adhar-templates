@@ -42,3 +42,43 @@ subjects:
   - kind: ServiceAccount
     name: ${{ values.name }}
     namespace: dev # patched per environment by deploy/envs/<env>
+{%- if values.inServiceBatch %}
+---
+# The in-service batch scheduler's report (design 0025 §5.20.8): every replica
+# writes ConfigMap ${{ values.name }}-batch-schedules — this service's Quartz
+# triggers, their next fires and each job's last run — which the Console's
+# Batch view and `adhar batch schedules` read. The first write creates it, and
+# RBAC cannot narrow `create` by name; every later write updates that one name.
+# Without this Role the schedule still runs: each write fails, is counted
+# (adhar_batch_scheduler_report_failures_total) and nothing shows the schedule.
+# The report is not in git, so Argo CD neither tracks nor prunes it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ${{ values.name }}-batch-schedules
+  labels:
+    app: ${{ values.name }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [${{ values.name }}-batch-schedules]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${{ values.name }}-batch-schedules
+  labels:
+    app: ${{ values.name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ${{ values.name }}-batch-schedules
+subjects:
+  - kind: ServiceAccount
+    name: ${{ values.name }}
+    namespace: dev # patched per environment by deploy/envs/<env>
+{%- endif %}

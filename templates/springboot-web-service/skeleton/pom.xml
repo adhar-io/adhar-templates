@@ -61,6 +61,22 @@
       <scope>runtime</scope>
     </dependency>
 {%- endif %}
+{%- if values.inServiceBatch %}
+    <!-- In-service batch jobs (design 0025 §5.20): Spring Batch 6 the platform way, with
+         adhar-kit-batch's JDBC JobRepository in schema `batch` of this service's own
+         PostgreSQL, and its scheduler on the engine `quartz` - a clustered Quartz job store
+         in the same schema, so every replica shares one schedule and a slot runs once across
+         them. The Quartz starter is what that engine needs on the classpath; the kit owns
+         its settings (application.properties). -->
+    <dependency>
+      <groupId>com.adhar.kit</groupId>
+      <artifactId>adhar-kit-batch</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-quartz</artifactId>
+    </dependency>
+{%- endif %}
 {%- if values.withCache %}
     <!-- Valkey cache through Adhar Kit: adhar-kit-cache registers its Redis cache
          manager as Spring's CacheManager on top of Spring Boot's Redis connection
@@ -169,12 +185,36 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+{%- if values.inServiceBatch %}
+        <!-- The batch scheduler's zone, UTC, is also the JVM's: a Quartz `daily`
+             trigger computes its window in the JVM's default zone, and the kit
+             refuses to start one whose zone differs (on a laptop in another zone,
+             `mvn spring-boot:run` would fail). The image runs in UTC (TZ in
+             deploy/base/rollout.yaml), and the tests below do too. -->
+        <configuration>
+          <jvmArguments>-Duser.timezone=UTC</jvmArguments>
+        </configuration>
+{%- endif %}
       </plugin>
+{%- if values.inServiceBatch %}
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} -Xmx1024m -Duser.timezone=UTC</argLine>
+        </configuration>
+      </plugin>
+{%- endif %}
       <!-- Runs the *IT integration tests in `integration-test` and fails the
            build in `verify`. Version and executions come from the parent. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
+{%- if values.inServiceBatch %}
+        <configuration>
+          <argLine>@{argLine} -Duser.timezone=UTC</argLine>
+        </configuration>
+{%- endif %}
       </plugin>
       <!-- adhar-kit-parent gates `mvn verify` on 80% instruction coverage, and
            the integration tests are what produce coverage data. The bootstrap

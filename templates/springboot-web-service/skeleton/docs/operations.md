@@ -60,6 +60,34 @@ there. If the pods then sit `Pending`, the cluster is out of capacity rather tha
 the manifest being wrong, and the platform's node autoscaler will add a node —
 watch the **Deployment** tab rather than re-applying.
 
+{%- if values.inServiceBatch %}
+## In-service batch jobs
+
+The jobs in `src/main/java/io/adhar/service/batch/` run inside this service, on
+Adhar Kit's clustered Quartz scheduler, not as platform `BatchJob`s.
+
+| Question | Where to look |
+| --- | --- |
+| What is scheduled, when does it fire next? | Console → Develop → Batch, or `adhar batch schedules -n <namespace>`: both read the `${{ values.name }}-batch-schedules` ConfigMap |
+| What did a run do? | the service's logs, filtered by `batch.run` (the run's name) |
+| Is the scheduler healthy? | `adhar_batch_scheduler_fires_total` and `adhar_batch_scheduler_next_fire_seconds` on the **Metrics** tab |
+
+- **`BatchInServiceRunFailed`.** A fire could not start its run, or a run ended
+  FAILED. Read the run's log lines first. A failed run is restarted from its
+  last commit at its trigger's next fire, so a transient cause heals itself; a
+  bad payment is skipped and kept in `batch.adhar_batch_dead_letter`.
+- **`BatchInServiceScheduleStalled`.** A trigger is more than ten minutes past
+  its next fire: no replica is acquiring triggers (the database is unreachable,
+  or no replica is up), or one run is holding its job long past its next slot.
+- **Run, stop and restart buttons** do not apply: the Console's batch actions
+  act on Kubernetes objects, and an in-service run is not one. To run a day
+  again, call `BatchTriggers.fireNow` from the service's own code; a day that
+  COMPLETED stays completed (its identity is the business date and cycle).
+- **The schedule view is empty** while every write of the report fails, which
+  the scheduler counts (`adhar_batch_scheduler_report_failures_total`): the
+  service's ServiceAccount lacks the Role in `deploy/base/rbac.yaml`.
+
+{%- endif %}
 ## Improving the scorecard
 
 The platform grades this service on signals it can see for itself. The ones most

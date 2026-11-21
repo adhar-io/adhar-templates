@@ -36,7 +36,14 @@ spec:
           labelSelector:
             matchLabels:
               app: ${{ values.name }}
+{%- if values.inServiceBatch %}
+      # The preStop sleep, then adhar.batch.shutdown.timeout (20 s) for an
+      # in-service batch run to stop at a chunk boundary and be handed to another
+      # replica, then the web server's own graceful shutdown.
+      terminationGracePeriodSeconds: 45
+{%- else %}
       terminationGracePeriodSeconds: 30
+{%- endif %}
       imagePullSecrets:
         - name: harbor-dockercfg
       # deploy/rbac.yaml — the reads adhar-kit-kubernetes needs; the namespace
@@ -89,6 +96,13 @@ spec:
               value: "otlp"
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
+{%- if values.inServiceBatch %}
+            # The JVM's zone is the batch scheduler's (adhar.batch.scheduler.time-zone
+            # in application.properties): a Quartz daily trigger runs in the JVM's
+            # zone, and adhar-kit refuses to start one in another.
+            - name: TZ
+              value: "UTC"
+{%- endif %}
 {%- if values.withDatabase %}
             - name: SPRING_DATASOURCE_URL
               valueFrom:

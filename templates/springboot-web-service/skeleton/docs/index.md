@@ -13,6 +13,9 @@ A **Spring Boot (Web MVC)** service scaffolded from the Adhar `springboot-web-se
 | Local backing services | `compose.yaml` — `docker compose up -d` |
 | Build | the platform `app-ci` pipeline, on every push — nothing to define here |
 | Its HTTP interface | `api/openapi.yaml`, in the catalog as `${{ values.name }}-api` |
+{%- if values.inServiceBatch %}
+| In-service batch jobs | `src/main/java/io/adhar/service/batch/` — a sample Spring Batch job on Adhar Kit's clustered Quartz scheduler, its triggers in `application.properties`; see [Operations](operations.md#in-service-batch-jobs) |
+{%- endif %}
 | Catalog entry | `catalog-info.yaml` — what the Service Catalog reads |
 | These docs | `docs/` + `mkdocs.yml` |
 

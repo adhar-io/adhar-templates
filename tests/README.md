@@ -79,6 +79,19 @@ deno task test:net    # the editor ids against the VS Code Marketplace, Open VSX
   that has no `PartitionedJobIT` starting its pods through
   `AdharBatchApplication.run`; and a single-pod batch template that sets
   `workers` or `gridSize` (`batch_deploy_test.ts`).
+- is `springboot-web-service` and its **In-service batch jobs (Quartz)**
+  option (`inServiceBatch`, design 0025 §5.20.9) does not switch the database
+  on, bring `adhar-kit-batch` and `spring-boot-starter-quartz`, run the test
+  JVMs, `spring-boot:run` and the image (`TZ`) in the scheduler's zone (a
+  Quartz `daily` trigger runs in the JVM's zone, and the kit refuses one in
+  another), configure the `quartz` engine with a cron and a daily trigger on a
+  calendar it defines for the job and parameters the sources declare, grant the
+  Rollout's ServiceAccount `create` on ConfigMaps and `get`/`update`/`patch` on
+  its `<scheduler-name>-batch-schedules` report, ship the two in-service batch
+  alerts for its own pods, and carry a `QuartzRestartIT` that kills a replica
+  mid-run; or renders any of it without the option; or when
+  `springboot-batch-service`'s docs stop saying when to use the platform path
+  and when that option (`in_service_batch_test.ts`).
 
 It also runs the shared `app-ci.sh` with stand-ins for `gitleaks` and `trivy`
 (`lib/app-ci-gates.sh`) and fails when its scanner gates stop calling them the

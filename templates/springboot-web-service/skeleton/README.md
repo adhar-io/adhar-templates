@@ -38,6 +38,44 @@ environment variables — nothing in the code holds a hostname or a password.
 | Kafka, topic `${{ values.kafkaTopic }}` | `deploy/kafka.yaml` | `SPRING_KAFKA_BOOTSTRAP_SERVERS` |
 {%- endif %}
 {%- endif %}
+{%- if values.inServiceBatch %}
+
+## In-service batch jobs
+
+Small, frequent or business-hours jobs run inside this service on Adhar Kit's
+clustered Quartz scheduler (design 0025 §5.20). The sample,
+`batch/SettlementJobConfiguration`, settles a business day's
+`public.payments` into `public.settlements`:
+
+| Trigger | When | Identity |
+|---|---|---|
+| `close` | a Quartz cron, 18:00 UTC, on the `weekdays` calendar | `businessDate` = the slot's date, `cycle=close` |
+| `intraday` | every 15 minutes, 09:00–17:00 UTC, on the `weekdays` calendar | `businessDate` = the slot's date, `cycle=intraday` |
+
+- **Once across the replicas.** The schedule is one clustered Quartz store in
+  schema `batch` of this service's database, beside Spring Batch's
+  JobRepository, both migrated by the kit. A slot runs on one replica.
+- **Once per identity.** A run's identity is its business date and cycle: a
+  fire of a COMPLETED identity is skipped, a FAILED one restarts from its last
+  commit — so `intraday` keeps trying every 15 minutes until the day settles.
+- **A replica dying mid-run** is re-fired on another replica, which resumes
+  after the last commit (`QuartzRestartIT` proves it on every build).
+- **Started by the service itself:** `BatchTriggers.fireNow("settlementJob",
+  Map.of("businessDate", "2026-11-03"))` stores a durable one-shot trigger
+  keyed by the run's name, so asking twice is one run.
+- **Seen in the Console** (Develop → Batch) **and** `adhar batch schedules`,
+  from the `${{ values.name }}-batch-schedules` ConfigMap every replica writes
+  (its Role is in `deploy/base/rbac.yaml`). They are read-only there: an
+  in-service run is not a Kubernetes object.
+- **Alerted** by `BatchInServiceRunFailed` and `BatchInServiceScheduleStalled`
+  in `deploy/base/alerts.yaml`.
+
+The scheduler, the calendar and the JVM all run in UTC (see
+`application.properties`). A job that is long, heavy, partitioned, or that
+operators must run, stop and restart belongs in a platform `BatchJob` (the
+`springboot-batch-service` template) instead: an in-service run shares this
+pod with its request traffic, and a rollout stops it.
+{%- endif %}
 
 ## Endpoints
 
@@ -86,6 +124,9 @@ Change a controller and the file together.
 {%- endif %}
 {%- if values.withKafka %}
 │   ├── events/          # EventController (KafkaTemplate + @KafkaListener)
+{%- endif %}
+{%- if values.inServiceBatch %}
+│   ├── batch/           # SettlementJobConfiguration: the in-service batch job
 {%- endif %}
 ├── src/main/resources/application.properties
 └── deploy/              # GitOps tree — ArgoCD syncs this

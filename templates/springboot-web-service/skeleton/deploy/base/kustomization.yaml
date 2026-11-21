@@ -20,6 +20,6 @@ resources:
 {%- if values.enableHpa %}
   - hpa.yaml
 {%- endif %}
-{%- if values.enableAlerts %}
+{%- if values.enableAlerts or values.inServiceBatch %}
   - alerts.yaml
 {%- endif %}

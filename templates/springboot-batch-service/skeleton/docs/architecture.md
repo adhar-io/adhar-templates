@@ -28,3 +28,7 @@ The generated batch job follows the platform's batch model (design 0025):
 
 This makes the app suitable for enterprise batch workloads without adding extra
 frameworking beyond the platform defaults.
+
+Sub-minute, business-hours or event-driven jobs are the exception: each run here
+pays a pod and a JVM start, so those run inside a service on Adhar Kit's Quartz
+scheduler instead — see [The platform path, or in-service?](index.md#the-platform-path-or-in-service).

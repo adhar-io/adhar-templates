@@ -14,7 +14,8 @@ metadata:
     registry. Buildpacks build, trivy scan + cosign sign, kyverno verification,
     GitOps deploy with Argo Rollouts and OpenTelemetry out of the box — plus
     optional backing services wired in at creation: a CloudNativePG database,
-    a Valkey (Redis-compatible) cache, and a Kafka event stream.
+    a Valkey (Redis-compatible) cache, and a Kafka event stream — and
+    in-service batch jobs on Adhar Kit's clustered Quartz scheduler.
   tags:
     - recommended
     - java
@@ -105,6 +106,22 @@ spec:
           description: >-
             A Strimzi Kafka (KRaft) cluster from the Adhar control plane with an
             initial topic, plus a sample producer and @KafkaListener consumer.
+        # Design 0025 §5.20.9 (TPL-Q.1). The values map below turns the database
+        # on with it: the Quartz job store and the Spring Batch JobRepository
+        # live in the service's own PostgreSQL, so this option without one would
+        # scaffold a service that cannot start.
+        inServiceBatch:
+          title: In-service batch jobs (Quartz)
+          type: boolean
+          default: false
+          description: >-
+            Small, frequent or business-hours batch jobs run inside this service
+            on Adhar Kit's clustered Quartz scheduler: once per slot across the
+            replicas, recovered on another replica when one dies, honouring a
+            business calendar. Includes a sample job with a cron and a daily
+            trigger. Switches the PostgreSQL database on. Long, heavy or
+            operator-run jobs belong in a batch template (a platform BatchJob)
+            instead.
       dependencies:
         withCache:
           oneOf:
@@ -254,7 +271,12 @@ spec:
           chaosTesting: ${{ parameters.chaosTesting }}
           chaosExperiments: ${{ parameters.chaosExperiments }}
           withAuth: ${{ parameters.withAuth }}
-          withDatabase: ${{ parameters.withDatabase }}
+          # In-service batch jobs need the database (their job store and
+          # JobRepository), so asking for them asks for it: `or` takes the
+          # right-hand side when the box is unticked, in Backstage and in both
+          # of the platform's scaffolders.
+          withDatabase: ${{ parameters.withDatabase or parameters.inServiceBatch }}
+          inServiceBatch: ${{ parameters.inServiceBatch }}
           withCache: ${{ parameters.withCache }}
           cacheTtl: ${{ parameters.cacheTtl or '10m' }}
           withKafka: ${{ parameters.withKafka }}
